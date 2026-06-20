@@ -20,6 +20,9 @@
     --line:#D3E2F4;
     --line-ink:#284b74;
     --scan:#22C55E;
+    --bad:#E5484D;    /* low score  */
+    --warn:#F5A524;   /* medium score */
+    --good:#22C55E;   /* strong score */
     --shadow:0 2px 4px rgba(22,37,61,.05), 0 20px 48px -20px rgba(22,37,61,.22);
   }
 
@@ -308,8 +311,8 @@
   .rc-track{height:10px;background:var(--line);border-radius:99px;margin-top:12px;overflow:hidden;}
   .rc-fill{
     height:100%;width:41%;border-radius:99px;
-    background:linear-gradient(90deg,var(--rise),var(--rise-bright));
-    transition:width 1.6s cubic-bezier(.2,.7,.2,1);
+    background:var(--warn);
+    transition:width 1.6s cubic-bezier(.2,.7,.2,1), background-color .6s ease;
   }
   .rc-delta{
     font-size:12px;color:var(--rise);font-weight:700;margin-top:8px;
@@ -605,13 +608,20 @@
   });
 
   // count-up helper
-  function countUp(el, from, to, ms){
-    if(reduce){ el.textContent=to; return; }
+  // score → zone color (low = red, medium = amber, strong = green)
+  function scoreColor(v){
+    if(v < 40) return '#E5484D';   // --bad
+    if(v < 70) return '#F5A524';   // --warn
+    return '#22C55E';              // --good
+  }
+  function countUp(el, from, to, ms, onTick){
+    const apply = v => { el.textContent = v; if(onTick) onTick(v); };
+    if(reduce){ apply(to); return; }
     const start=performance.now();
     function tick(now){
       const t=Math.min(1,(now-start)/ms);
       const e=1-Math.pow(1-t,3);
-      el.textContent=Math.round(from+(to-from)*e);
+      apply(Math.round(from+(to-from)*e));
       if(t<1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -621,10 +631,14 @@
   let cardRan = false;
   function runCard(){
     if(cardRan) return; cardRan=true;
+    const fill = document.getElementById('rcFill');
+    const num  = document.getElementById('scoreNum');
+    const paint = v => { const c = scoreColor(v); fill.style.backgroundColor = c; num.style.color = c; };
+    paint(41);
     setTimeout(()=>{
       document.getElementById('resumeCard').classList.add('rc-upgraded');
-      document.getElementById('rcFill').style.width='76%';
-      countUp(document.getElementById('scoreNum'), 41, 76, 1500);
+      fill.style.width='76%';
+      countUp(num, 41, 76, 1500, paint);
     }, reduce ? 0 : 700);
   }
 
