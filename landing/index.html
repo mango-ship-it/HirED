@@ -4,615 +4,743 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>HirED — Learn the rules nobody wrote down</title>
-<meta name="description" content="HirED is an AI career tutor for first-gen, low-income, and career-transitioning job seekers. Get a readiness score, the 1–3 gaps that matter, free ways to close them, and a tailored resume." />
+<meta name="description" content="HirED is an AI career tutor for first-gen, low-income, and career-transitioning job seekers. Get a readiness score, the 1–3 gaps that matter, free ways to close them, and a tailored resume — then watch your score climb." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --ink:#0E2A47;
-    --ink-soft:#48607f;
-    --paper:#EEF4FC;
-    --paper-2:#FFFFFF;
-    --highlight:#FFC44D;
-    --rise:#2A7DE1;
+    --ink:#0E2A47;          /* deep navy — primary text + dark sections */
+    --ink-soft:#48607f;     /* muted ink for secondary text */
+    --paper:#E8F1FB;        /* light blue base */
+    --paper-2:#FFFFFF;      /* lifted card surface */
+    --white:#FFFFFF;
+    --highlight:#FFC44D;    /* warm amber — complementary signature swipe */
+    --highlight-soft:#FFE6AC;
+    --rise:#2A7DE1;         /* azure — the climbing score + primary action */
     --rise-bright:#5BA3F0;
-    --line:#D3E2F4;
-    --line-ink:#284b74;
-    --shadow:0 2px 4px rgba(22,37,61,.05), 0 20px 48px -20px rgba(22,37,61,.22);
+    --line:#D3E2F4;         /* hairlines on light blue */
+    --line-ink:#284b74;     /* hairlines on navy */
+    --scan:#22C55E;         /* success green — scan beam + checkmark */
+    --scan-soft:#86EFAC;
+
+    --maxw:1140px;
+    --r:18px;
+    --shadow:0 1px 2px rgba(22,37,61,.04), 0 18px 40px -22px rgba(22,37,61,.28);
+    --shadow-lift:0 1px 2px rgba(22,37,61,.05), 0 30px 60px -28px rgba(22,37,61,.40);
   }
 
-  *{box-sizing:border-box;margin:0;padding:0;}
+  *{box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   body{
+    margin:0;
     background:var(--paper);
     color:var(--ink);
     font-family:"Hanken Grotesk",system-ui,sans-serif;
-    font-size:17px;line-height:1.6;
+    font-size:17px;
+    line-height:1.6;
     -webkit-font-smoothing:antialiased;
     overflow-x:hidden;
-    min-height:100vh;
   }
-  h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:600;line-height:1.05;letter-spacing:-.018em;}
+  h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:600;line-height:1.04;letter-spacing:-.015em;margin:0;}
+  p{margin:0;}
   a{color:inherit;text-decoration:none;}
-  .wrap-wide{max-width:1060px;margin:0 auto;padding:0 28px;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .eyebrow{
+    font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-soft);
+  }
 
-  /* ---- nav ---- */
-  header{
-    position:sticky;top:0;z-index:50;
-    background:rgba(238,244,252,.9);backdrop-filter:blur(12px);
-    border-bottom:1px solid var(--line);
+  /* handwritten margin note — the signature device, used sparingly */
+  .note{
+    font-family:"Caveat",cursive;font-size:23px;line-height:1.15;color:var(--rise);
+    font-weight:600;
   }
-  .nav-in{
-    max-width:1060px;margin:0 auto;padding:0 28px;
-    display:flex;align-items:center;justify-content:space-between;height:62px;
+  .note .arrow{display:block;font-size:20px;}
+
+  /* highlighter swipe behind inline text */
+  .hl{position:relative;white-space:nowrap;}
+  .hl::after{
+    content:"";position:absolute;left:-2px;right:-2px;bottom:.07em;height:.52em;
+    background:var(--highlight);z-index:-1;border-radius:2px;
+    transform:scaleX(var(--swipe,1));transform-origin:left center;
+    transition:transform .7s cubic-bezier(.2,.7,.2,1);
   }
-  .brand{font-family:"Fraunces",serif;font-weight:600;font-size:23px;letter-spacing:-.02em;}
+
+  /* ---------- nav ---------- */
+  header.nav{position:sticky;top:0;z-index:50;background:rgba(244,242,236,.82);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:68px;}
+  .brand{font-family:"Fraunces",serif;font-weight:600;font-size:25px;letter-spacing:-.02em;}
   .brand .ed{position:relative;}
-  .brand .ed::after{
-    content:"";position:absolute;left:-1px;right:-1px;bottom:.08em;
-    height:.4em;background:var(--highlight);z-index:-1;border-radius:2px;
-  }
-  .nav-right{display:flex;align-items:center;gap:22px;}
-  .nav-link{font-size:14px;font-weight:500;color:var(--ink-soft);}
-  .nav-link:hover{color:var(--ink);}
+  .brand .ed::after{content:"";position:absolute;left:-1px;right:-1px;bottom:.08em;height:.42em;
+    background:var(--highlight);z-index:-1;border-radius:2px;}
+  .nav-links{display:flex;gap:30px;align-items:center;font-size:15px;font-weight:500;color:var(--ink-soft);}
+  .nav-links a:hover{color:var(--ink);}
   .btn{
-    display:inline-flex;align-items:center;gap:7px;
-    font-weight:600;font-size:14px;padding:10px 18px;
-    border-radius:999px;border:1px solid transparent;cursor:pointer;
-    transition:transform .14s ease,box-shadow .18s ease,background .18s ease;
+    display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;
+    padding:12px 20px;border-radius:999px;border:1px solid transparent;cursor:pointer;
+    transition:transform .15s ease, box-shadow .2s ease, background .2s ease;
     font-family:inherit;
   }
-  .btn-dark{background:var(--ink);color:#fff;}
-  .btn-dark:hover{transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(14,42,71,.5);}
-  .btn-amber{background:var(--highlight);color:var(--ink);}
-  .btn-amber:hover{transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(255,196,77,.5);}
+  .btn-primary{background:var(--ink);color:var(--paper);}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 26px -12px rgba(22,37,61,.6);}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line);}
+  .btn-ghost:hover{border-color:var(--ink);background:rgba(22,37,61,.03);}
   .btn-rise{background:var(--rise);color:#fff;}
-  .btn-rise:hover{transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(42,125,225,.5);}
-  .btn-ghost{background:transparent;border-color:var(--line);color:var(--ink);}
-  .btn-ghost:hover{border-color:var(--ink);}
+  .btn-rise:hover{transform:translateY(-2px);box-shadow:0 14px 26px -12px rgba(47,111,94,.7);}
+  .nav-links .nav-cta{padding:10px 18px;}
 
-  /* ---- hero ---- */
-  .hero{padding:72px 24px 0;text-align:center;}
-  .pill-badge{
-    display:inline-flex;align-items:center;gap:7px;
-    font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
-    color:var(--rise);background:rgba(42,125,225,.1);
-    border:1px solid rgba(42,125,225,.22);border-radius:99px;
-    padding:5px 14px;margin-bottom:22px;
-  }
-  .hero h1{
-    font-size:clamp(34px,5.5vw,60px);
-    max-width:14em;margin:0 auto;
-  }
-  .hero h1 em{font-style:italic;color:var(--rise);}
-  .hero .sub{
-    margin:18px auto 0;font-size:18px;
-    color:var(--ink-soft);max-width:30em;line-height:1.6;
-  }
+  /* ---------- hero ---------- */
+  .hero{padding:70px 0 40px;position:relative;}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;}
+  .hero h1{font-size:clamp(38px,5.6vw,62px);font-weight:600;}
+  .hero h1 em{font-style:italic;font-weight:500;}
+  .hero .sub{margin-top:24px;font-size:19px;color:var(--ink-soft);max-width:30em;}
+  .hero-cta{margin-top:32px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+  .free-note{font-size:14px;color:var(--ink-soft);margin-top:16px;display:flex;align-items:center;gap:8px;}
+  .free-note .dot{width:7px;height:7px;border-radius:50%;background:var(--rise-bright);box-shadow:0 0 0 4px rgba(67,160,132,.18);}
 
-  /* ---- main input card ---- */
-  .input-section{
-    max-width:660px;margin:36px auto 0;padding:0 24px;
-  }
-  .input-card{
-    background:var(--paper-2);
-    border:1px solid var(--line);
-    border-radius:22px;
-    box-shadow:var(--shadow);
-    overflow:hidden;
-    position:relative;
-    transition:border-color .2s ease, box-shadow .2s ease;
-  }
-  .input-card:focus-within{
-    border-color:rgba(42,125,225,.45);
-    box-shadow:0 0 0 4px rgba(42,125,225,.12), var(--shadow);
-  }
-  .input-card.dragging{border-color:var(--rise);}
-  .input-text{padding:18px 20px 8px;}
-  .input-text textarea{
-    width:100%;border:0;background:transparent;resize:none;
-    font-family:inherit;font-size:16px;color:var(--ink);
-    line-height:1.5;max-height:150px;outline:none;display:block;
-  }
-  .input-text textarea::placeholder{color:var(--ink-soft);}
-
-  /* attached file pill */
-  .input-attached{display:none;padding:0 20px 8px;flex-wrap:wrap;gap:8px;}
-  .att-pill{
-    display:inline-flex;align-items:center;gap:7px;
-    background:var(--paper);border:1px solid var(--line);
-    border-radius:10px;padding:5px 8px;
-  }
-  .att-ic{
-    font-size:10px;font-weight:800;color:#fff;
-    background:var(--rise);border-radius:5px;padding:3px 5px;line-height:1;letter-spacing:.03em;
-  }
-  .att-name{font-size:13px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .att-size{font-size:12px;color:var(--ink-soft);}
-  .att-x{border:0;background:transparent;color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;padding:0 2px;}
-  .att-x:hover{color:var(--ink);}
-
-  /* toolbar */
-  .input-bar{
-    display:flex;align-items:center;gap:8px;
-    padding:10px 12px 13px;
-    border-top:1px solid var(--line);
-    background:rgba(238,244,252,.6);
-  }
-  .input-bar-left{display:flex;align-items:center;gap:7px;flex:1;min-width:0;}
-  .target-chip{
-    display:inline-flex;align-items:center;gap:6px;
-    font-size:13px;font-weight:600;color:var(--ink-soft);
-    background:var(--paper-2);border:1px solid var(--line);
-    border-radius:99px;padding:6px 12px;cursor:pointer;
-    transition:border-color .15s,color .15s;font-family:inherit;
-    white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;
-  }
-  .target-chip:hover{border-color:var(--rise);color:var(--rise);}
-  .icon-btn{
-    width:34px;height:34px;border-radius:10px;border:0;
-    background:transparent;color:var(--ink-soft);font-size:17px;
-    cursor:pointer;display:grid;place-items:center;
-    transition:background .14s,color .14s;flex-shrink:0;
-  }
-  .icon-btn:hover{background:rgba(42,125,225,.1);color:var(--rise);}
-  .send-btn{
-    width:40px;height:40px;border-radius:13px;border:0;
-    background:var(--ink);color:#fff;font-size:18px;
-    cursor:pointer;display:grid;place-items:center;
-    transition:transform .14s,background .18s;flex-shrink:0;
-  }
-  .send-btn:hover{transform:translateY(-1px);background:var(--rise);}
-
-  /* drop zone */
-  .drop-zone{
-    margin-top:10px;
-    border:1.5px dashed var(--line);border-radius:16px;
-    padding:28px 20px;text-align:center;cursor:pointer;
-    background:rgba(255,255,255,.55);
-    transition:border-color .18s,background .18s;
-  }
-  .drop-zone:hover,.drop-zone.over{
-    border-color:var(--rise);background:rgba(42,125,225,.04);
-  }
-  .drop-zone .dz-ic{font-size:28px;display:block;margin-bottom:8px;}
-  .drop-zone p{font-size:14px;color:var(--ink-soft);}
-  .drop-zone p b{color:var(--rise);}
-  .drop-zone .dz-sub{font-size:12px;color:var(--ink-soft);margin-top:4px;}
-
-  .input-foot{
-    margin-top:13px;text-align:center;
-    font-size:13px;color:var(--ink-soft);
-    display:flex;align-items:center;justify-content:center;gap:7px;
-  }
-  .input-foot .dot{
-    width:6px;height:6px;border-radius:50%;flex-shrink:0;
-    background:var(--rise-bright);box-shadow:0 0 0 3px rgba(91,163,240,.22);
-  }
-
-  /* ---- facts ---- */
-  .facts{
-    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
-    max-width:860px;margin:52px auto 0;padding:0 24px;
-  }
-  .fact{
-    background:var(--paper-2);border:1px solid var(--line);
-    border-radius:18px;padding:24px 20px;
-  }
-  .fact .num{
-    font-family:"Fraunces",serif;font-size:36px;font-weight:700;
-    color:var(--rise);line-height:1;
-  }
-  .fact .num sub{font-size:17px;color:var(--ink-soft);font-family:"Hanken Grotesk",sans-serif;font-weight:500;vertical-align:baseline;}
-  .fact p{font-size:14px;color:var(--ink-soft);margin-top:8px;line-height:1.5;}
-
-  /* ---- how it works ---- */
-  .how{padding:60px 24px 0;max-width:860px;margin:0 auto;}
-  .section-label{
-    font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--ink-soft);text-align:center;margin-bottom:28px;
-  }
-  .steps{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  /* signature card: annotated resume → climbing score */
+  .card-stage{position:relative;}
+  .resume{
+    background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--shadow-lift);padding:26px 26px 24px;transform:rotate(-1.4deg);
     position:relative;
   }
-  .steps::before{
-    content:"";position:absolute;top:19px;
-    left:calc(12.5% + 18px);right:calc(12.5% + 18px);
-    height:1px;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 14px);
+  .resume::before{ /* faint ruled margin line, the document world */
+    content:"";position:absolute;left:54px;top:18px;bottom:18px;width:1px;background:var(--line);
   }
-  .step{text-align:center;padding:0 10px;}
-  .step .pin{
-    width:38px;height:38px;border-radius:50%;
-    background:var(--paper-2);border:1.5px solid var(--rise);
-    display:grid;place-items:center;
-    font-family:"Fraunces",serif;font-weight:700;color:var(--rise);font-size:15px;
-    margin:0 auto;position:relative;z-index:2;
+  .resume-head{display:flex;align-items:center;gap:12px;padding-left:18px;margin-bottom:18px;}
+  .avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--rise),var(--rise-bright));
+    display:grid;place-items:center;color:#fff;font-weight:700;font-family:"Fraunces",serif;}
+  .resume-head .nm{font-weight:700;font-size:15px;}
+  .resume-head .role{font-size:13px;color:var(--ink-soft);}
+  .bullet-label{padding-left:18px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;}
+  .bullet{
+    padding-left:18px;position:relative;min-height:92px;font-size:15px;line-height:1.5;
   }
-  .step h3{font-size:13px;font-weight:700;margin-top:13px;font-family:"Hanken Grotesk",sans-serif;letter-spacing:0;}
-  .step p{font-size:12.5px;color:var(--ink-soft);margin-top:5px;line-height:1.45;}
+  .bullet .before,.bullet .after{position:absolute;left:18px;right:0;transition:opacity .5s ease;}
+  .bullet .before{color:var(--ink-soft);}
+  .bullet .after{opacity:0;color:var(--ink);font-weight:500;}
+  .bullet .after b{background:var(--highlight-soft);font-weight:600;padding:0 2px;border-radius:3px;}
+  .upgraded .bullet .before{opacity:0;}
+  .upgraded .bullet .after{opacity:1;}
 
-  /* ---- resume card demo ---- */
-  .demo-wrap{max-width:560px;margin:64px auto 0;padding:0 24px;}
-  .resume-card{
-    background:var(--paper-2);border:1px solid var(--line);
-    border-radius:22px;box-shadow:var(--shadow);
-    padding:28px 28px 24px;
-    position:relative;
-  }
-  /* faint ruled margin line */
-  .resume-card::before{
-    content:"";position:absolute;left:58px;top:20px;bottom:20px;
-    width:1px;background:var(--line);
-  }
-  .rc-head{display:flex;align-items:center;gap:12px;padding-left:20px;margin-bottom:20px;}
-  .rc-avatar{
-    width:40px;height:40px;border-radius:11px;flex-shrink:0;
-    background:linear-gradient(135deg,var(--rise),var(--rise-bright));
-    display:grid;place-items:center;color:#fff;font-weight:700;
-    font-family:"Fraunces",serif;font-size:18px;
-  }
-  .rc-head .rc-name{font-weight:700;font-size:15px;}
-  .rc-head .rc-role{font-size:13px;color:var(--ink-soft);}
-  .rc-label{
-    padding-left:20px;font-size:11px;font-weight:700;
-    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;
-  }
-  .rc-bullet{
-    padding-left:20px;position:relative;min-height:72px;
-    font-size:15px;line-height:1.5;
-  }
-  .rc-bullet .before,.rc-bullet .after{
-    position:absolute;left:20px;right:0;
-    transition:opacity .55s ease;
-  }
-  .rc-bullet .before{color:var(--ink-soft);}
-  .rc-bullet .after{opacity:0;color:var(--ink);font-weight:500;}
-  .rc-bullet .after b{
-    background:rgba(255,196,77,.38);font-weight:600;
-    padding:0 3px;border-radius:3px;
-  }
-  .rc-upgraded .rc-bullet .before{opacity:0;}
-  .rc-upgraded .rc-bullet .after{opacity:1;}
-
-  /* check mark on upgrade */
-  .rc-check{
-    position:absolute;top:16px;right:20px;
-    color:var(--rise);font-size:18px;font-weight:700;
-    opacity:0;transition:opacity .4s ease .5s;
-  }
-  .rc-upgraded .rc-check{opacity:1;}
-
-  /* margin annotation */
-  .rc-note{
-    position:absolute;right:-10px;top:80px;width:190px;
-    font-family:"Caveat",cursive;font-size:21px;line-height:1.2;
-    color:var(--rise);font-weight:600;transform:rotate(3deg);
-    opacity:0;transition:opacity .5s ease .35s,transform .5s ease .35s;
-    pointer-events:none;
-  }
-  .rc-upgraded .rc-note{opacity:1;transform:rotate(3deg) translateY(-3px);}
-  .rc-note .arrow{display:block;font-size:18px;margin-bottom:2px;transform:scaleX(-1) rotate(10deg);}
-
-  /* meter */
-  .rc-meter{
-    margin-top:22px;padding:16px 18px;
-    background:var(--paper);border:1px solid var(--line);border-radius:14px;
-  }
-  .rc-meter-top{display:flex;justify-content:space-between;align-items:baseline;}
-  .rc-meter-top .lab{font-size:13px;color:var(--ink-soft);font-weight:500;}
-  .rc-meter-top .lab b{color:var(--ink);font-weight:700;}
-  .rc-score{
-    font-family:"Fraunces",serif;font-weight:700;font-size:34px;
-    color:var(--rise);line-height:1;
-  }
-  .rc-score .pct{font-size:16px;color:var(--ink-soft);font-weight:600;}
-  .rc-track{height:10px;background:var(--line);border-radius:99px;margin-top:12px;overflow:hidden;}
-  .rc-fill{
-    height:100%;width:41%;border-radius:99px;
+  .meter{margin-top:22px;padding:16px 18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;}
+  .meter-top{display:flex;justify-content:space-between;align-items:baseline;}
+  .meter-top .lab{font-size:13px;color:var(--ink-soft);font-weight:500;}
+  .meter-top .lab b{color:var(--ink);font-weight:700;}
+  .score{font-family:"Fraunces",serif;font-weight:700;font-size:34px;color:var(--rise);line-height:1;}
+  .score .pct{font-size:16px;color:var(--ink-soft);font-weight:600;}
+  .track{height:10px;background:var(--line);border-radius:99px;margin-top:12px;overflow:hidden;}
+  .fill{height:100%;width:41%;border-radius:99px;
     background:linear-gradient(90deg,var(--rise),var(--rise-bright));
-    transition:width 1.6s cubic-bezier(.2,.7,.2,1);
-  }
-  .rc-delta{
-    font-size:12px;color:var(--rise);font-weight:700;margin-top:8px;
-    opacity:0;transition:opacity .4s ease .7s;
-  }
-  .rc-upgraded .rc-delta{opacity:1;}
+    transition:width 1.6s cubic-bezier(.2,.7,.2,1);}
+  .delta{font-size:12px;color:var(--rise);font-weight:700;margin-top:8px;opacity:0;transition:opacity .4s ease .6s;}
+  .upgraded .delta{opacity:1;}
 
-  /* ---- final cta ---- */
-  .final{padding:64px 24px 80px;text-align:center;}
-  .final h2{font-size:clamp(26px,4vw,44px);}
-  .final h2 em{font-style:italic;color:var(--rise);}
-  .final .sub{font-size:17px;color:var(--ink-soft);margin-top:14px;}
-  .cta-row{display:flex;gap:12px;justify-content:center;margin-top:28px;flex-wrap:wrap;}
-  .cta-row .btn{font-size:15px;padding:13px 24px;}
+  .margin-note{position:absolute;right:-6px;top:96px;width:170px;text-align:left;transform:rotate(4deg);
+    opacity:0;transition:opacity .5s ease .3s, transform .5s ease .3s;pointer-events:none;}
+  .upgraded .margin-note{opacity:1;transform:rotate(4deg) translateY(-4px);}
+  .margin-note .arrow{transform:scaleX(-1) rotate(8deg);margin-bottom:-2px;}
 
-  /* ---- footer ---- */
-  footer{
-    border-top:1px solid var(--line);padding:28px 28px 48px;
+  /* scan beam → green checkmark, looping over the resume card */
+  .scan-overlay{--scan-dur:4.6s;position:absolute;inset:0;border-radius:var(--r);overflow:hidden;pointer-events:none;z-index:3;}
+  .scan-tint{position:absolute;inset:0;background:rgba(34,197,94,.07);opacity:0;animation:scanTint var(--scan-dur) linear infinite;}
+  .scan-bar{position:absolute;top:0;bottom:0;width:64px;left:-14%;
+    background:linear-gradient(90deg,transparent,rgba(34,197,94,.16) 42%,rgba(34,197,94,.5) 50%,rgba(34,197,94,.16) 58%,transparent);
+    animation:scanMove var(--scan-dur) linear infinite;}
+  .scan-bar::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:2.5px;transform:translateX(-50%);
+    background:var(--scan);box-shadow:0 0 16px 2px rgba(34,197,94,.8);}
+  .scan-check{position:absolute;top:50%;left:50%;width:84px;height:84px;border-radius:50%;
+    transform:translate(-50%,-50%) scale(.4);opacity:0;background:var(--scan);
+    box-shadow:0 12px 32px -6px rgba(34,197,94,.6), 0 0 0 9px rgba(34,197,94,.14);
+    display:grid;place-items:center;animation:checkPop var(--scan-dur) ease infinite;}
+  .scan-check svg{width:46px;height:46px;}
+  .scan-check path{fill:none;stroke:#fff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:32;stroke-dashoffset:32;animation:checkDraw var(--scan-dur) ease infinite;}
+  @keyframes scanMove{
+    0%{left:-14%;opacity:0;} 5%{opacity:1;}
+    50%{left:100%;opacity:1;} 56%{left:100%;opacity:0;} 100%{opacity:0;}
   }
-  .foot-in{
-    max-width:1060px;margin:0 auto;
-    display:flex;justify-content:space-between;align-items:center;
-    flex-wrap:wrap;gap:14px;
+  @keyframes scanTint{
+    0%,3%{opacity:0;} 12%{opacity:1;} 50%{opacity:1;} 60%{opacity:0;} 100%{opacity:0;}
   }
-  footer p{font-size:13px;color:var(--ink-soft);}
+  @keyframes checkPop{
+    0%,52%{opacity:0;transform:translate(-50%,-50%) scale(.4);}
+    60%{opacity:1;transform:translate(-50%,-50%) scale(1.12);}
+    66%{transform:translate(-50%,-50%) scale(1);}
+    84%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+    94%,100%{opacity:0;transform:translate(-50%,-50%) scale(.92);}
+  }
+  @keyframes checkDraw{
+    0%,54%{stroke-dashoffset:32;} 68%{stroke-dashoffset:0;} 100%{stroke-dashoffset:0;}
+  }
+  /* keep the long bullet clear of the margin note while it's visible */
+  @media(min-width:621px){ .bullet .before,.bullet .after{right:150px;} }
 
-  /* ---- reveal ---- */
-  .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease;}
+  /* ---------- AI chat box (chat-first entry) ---------- */
+  .chat{position:relative;margin-top:30px;background:var(--paper-2);border:1px solid var(--line);border-radius:20px;
+    box-shadow:var(--shadow);padding:16px 16px 14px;max-width:540px;}
+  .chat.dragging{border-color:var(--rise);}
+  .chat.dragging::after{content:"Drop your resume — PDF or DOCX";position:absolute;inset:0;border-radius:20px;
+    background:rgba(42,125,225,.08);border:2px dashed var(--rise);display:grid;place-items:center;
+    color:var(--rise);font-weight:700;font-size:14px;pointer-events:none;z-index:3;}
+  .chat-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 12px;border-bottom:1px solid var(--line);}
+  .chat-ai{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;}
+  .chat-ai .spark{color:var(--rise);font-size:16px;}
+  .chat-status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);font-weight:500;}
+  .chat-status .dot{width:7px;height:7px;border-radius:50%;background:var(--rise-bright);box-shadow:0 0 0 4px rgba(91,163,240,.22);}
+  .chat-msgs{display:flex;flex-direction:column;gap:10px;padding:14px 4px;max-height:240px;overflow-y:auto;}
+  .msg{max-width:88%;padding:11px 14px;border-radius:15px;font-size:14.5px;line-height:1.46;}
+  .msg.bot{background:var(--paper);color:var(--ink);border-bottom-left-radius:5px;align-self:flex-start;}
+  .msg.user{background:var(--rise);color:#fff;border-bottom-right-radius:5px;align-self:flex-end;}
+  .msg.typing{display:flex;gap:5px;align-items:center;}
+  .msg.typing span{width:7px;height:7px;border-radius:50%;background:var(--ink-soft);opacity:.45;animation:bob 1s infinite;}
+  .msg.typing span:nth-child(2){animation-delay:.15s;}
+  .msg.typing span:nth-child(3){animation-delay:.3s;}
+  @keyframes bob{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-4px);opacity:.9;}}
+  .chat-chips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 4px 12px;}
+  .cchip{font-family:inherit;font-size:13px;font-weight:600;color:var(--rise);background:rgba(42,125,225,.08);
+    border:1px solid rgba(42,125,225,.22);border-radius:99px;padding:7px 13px;cursor:pointer;transition:background .15s ease;}
+  .cchip:hover{background:rgba(42,125,225,.16);}
+  .chat-input{display:flex;align-items:flex-end;gap:8px;background:var(--paper);border:1px solid var(--line);
+    border-radius:14px;padding:8px 8px 8px 14px;transition:border-color .2s ease, box-shadow .2s ease;}
+  .chat-input:focus-within{border-color:var(--rise);box-shadow:0 0 0 4px rgba(42,125,225,.13);}
+  .chat-input textarea{flex:1;border:0;background:transparent;resize:none;font-family:inherit;font-size:15px;
+    color:var(--ink);line-height:1.45;max-height:120px;outline:none;padding:6px 0;}
+  .chat-input textarea::placeholder{color:var(--ink-soft);}
+  .chat-send{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:0;background:var(--rise);color:#fff;
+    font-size:18px;font-weight:700;cursor:pointer;display:grid;place-items:center;transition:transform .15s ease, background .2s ease;}
+  .chat-send:hover{transform:translateY(-1px);background:#1f6fce;}
+  .chat-foot{font-size:12px;color:var(--ink-soft);margin-top:10px;padding-left:4px;display:flex;align-items:center;gap:7px;}
+  .chat-foot .pdot{width:6px;height:6px;border-radius:50%;background:var(--highlight);}
+  .chat-attach{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:0;background:transparent;
+    color:var(--ink-soft);font-size:17px;cursor:pointer;display:grid;place-items:center;transition:background .15s ease,color .15s ease;}
+  .chat-attach:hover{background:rgba(42,125,225,.1);color:var(--rise);}
+  .chat-attached{display:none;flex-wrap:wrap;gap:8px;padding:0 4px 10px;}
+  .att-pill{display:inline-flex;align-items:center;gap:9px;background:var(--paper);border:1px solid var(--line);
+    border-radius:10px;padding:7px 9px 7px 8px;max-width:100%;}
+  .att-ic{font-size:10px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--rise);
+    border-radius:5px;padding:3px 5px;line-height:1;}
+  .att-name{font-size:13px;font-weight:600;color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .att-size{font-size:12px;color:var(--ink-soft);}
+  .att-x{border:0;background:transparent;color:var(--ink-soft);font-size:18px;line-height:1;cursor:pointer;padding:0 2px;}
+  .att-x:hover{color:var(--ink);}
+  .msg.msg-file{display:flex;flex-direction:column;align-items:flex-start;}
+  .msg-att{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);
+    border:1px solid rgba(255,255,255,.32);border-radius:9px;padding:6px 9px;}
+  .msg-att .att-ic{background:#fff;color:var(--rise);}
+  .msg-att .att-name{color:#fff;max-width:160px;}
+  .msg-att-text{margin-top:8px;}
+
+  /* ---------- generic section ---------- */
+  section{padding:84px 0;}
+  .sec-head{max-width:30em;}
+  .sec-head h2{font-size:clamp(30px,4vw,44px);margin-top:14px;}
+  .sec-head p{margin-top:16px;color:var(--ink-soft);font-size:18px;}
+
+  /* hidden curriculum band */
+  .curriculum{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .rules{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 48px;margin-top:44px;}
+  .rule{display:flex;gap:16px;align-items:flex-start;padding:20px 0;border-top:1px solid var(--line);}
+  .rule .num{font-family:"Fraunces",serif;font-style:italic;font-size:15px;color:var(--rise);font-weight:600;padding-top:3px;min-width:28px;}
+  .rule p{font-size:17.5px;line-height:1.45;}
+
+  /* how it works — a real sequence, numbering earns its place */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:48px;counter-reset:step;}
+  .step{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);padding:24px 22px 26px;position:relative;
+    transition:transform .25s ease, box-shadow .25s ease;}
+  .step:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+  .step .idx{font-family:"Fraunces",serif;font-weight:600;font-size:14px;color:var(--rise);letter-spacing:.04em;}
+  .step h3{font-size:21px;margin-top:14px;}
+  .step p{font-size:15px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
+  .step .tag{display:inline-block;margin-top:16px;font-size:12px;font-weight:600;color:var(--ink-soft);
+    border:1px solid var(--line);border-radius:99px;padding:4px 10px;}
+
+  /* benchmark — dark section */
+  .bench{background:var(--ink);color:var(--paper);}
+  .bench .eyebrow{color:#9fb0c9;}
+  .bench-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+  .bench h2{color:var(--paper);font-size:clamp(30px,4vw,46px);margin-top:14px;}
+  .bench .sub{margin-top:18px;color:#b9c4d6;font-size:18px;max-width:26em;}
+  .gauge{background:#1d3052;border:1px solid var(--line-ink);border-radius:22px;padding:30px 30px 34px;box-shadow:var(--shadow-lift);}
+  .gauge .target{font-size:14px;color:#9fb0c9;}
+  .gauge .target b{color:#fff;}
+  .gauge .big{font-family:"Fraunces",serif;font-size:46px;font-weight:700;color:var(--highlight);line-height:1.05;margin-top:6px;}
+  .gauge .big span{font-size:18px;color:#b9c4d6;font-weight:500;font-family:"Hanken Grotesk",sans-serif;}
+  .gtrack{height:14px;border-radius:99px;background:#0f1f38;margin-top:18px;position:relative;overflow:hidden;}
+  .gfill{height:100%;width:40%;border-radius:99px;background:linear-gradient(90deg,var(--rise-bright),var(--highlight));transition:width 1.6s cubic-bezier(.2,.7,.2,1);}
+  .gauge .you{font-size:13px;color:#9fb0c9;margin-top:12px;}
+  .gap-label{font-size:13px;color:#9fb0c9;margin-top:24px;margin-bottom:10px;font-weight:600;letter-spacing:.04em;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{font-size:13px;font-weight:600;padding:7px 13px;border-radius:99px;background:#243a60;color:#dbe4f0;border:1px solid var(--line-ink);}
+  .chip.miss{background:transparent;border-style:dashed;color:#9fb0c9;}
+
+  /* audiences */
+  .aud{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:48px;}
+  .aud-card{padding:28px 24px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper-2);}
+  .aud-card .ic{font-family:"Fraunces",serif;font-weight:700;font-size:22px;color:var(--rise);
+    width:46px;height:46px;border-radius:12px;background:rgba(47,111,94,.1);display:grid;place-items:center;}
+  .aud-card h3{font-size:20px;margin-top:18px;}
+  .aud-card p{font-size:15px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
+
+  /* roadmap — the four-stage journey (genuine sequence) */
+  .road{position:relative;margin-top:52px;}
+  .road-line{position:absolute;top:24px;left:6%;right:6%;height:2px;
+    background:repeating-linear-gradient(90deg,var(--line) 0 8px,transparent 8px 16px);}
+  .stages{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;position:relative;}
+  .stage{text-align:left;}
+  .stage .pin{width:50px;height:50px;border-radius:50%;background:var(--paper);border:2px solid var(--rise);
+    display:grid;place-items:center;font-family:"Fraunces",serif;font-weight:700;color:var(--rise);font-size:18px;
+    position:relative;z-index:2;}
+  .stage h3{font-size:19px;margin-top:18px;}
+  .stage .q{font-family:"Fraunces",serif;font-style:italic;font-weight:500;color:var(--ink-soft);font-size:15px;margin-top:6px;}
+  .stage p{font-size:14.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5;}
+
+  /* final cta */
+  .final{text-align:center;}
+  .final-card{background:var(--ink);color:var(--paper);border-radius:30px;padding:64px 40px;position:relative;overflow:hidden;}
+  .final-card h2{color:var(--paper);font-size:clamp(30px,4.4vw,50px);}
+  .final-card h2 .hl::after{background:var(--highlight);height:.42em;}
+  .final-card p{color:#b9c4d6;font-size:18px;margin-top:18px;max-width:30em;margin-left:auto;margin-right:auto;}
+  .final-card .hero-cta{justify-content:center;margin-top:30px;}
+  .final-card .free-note{justify-content:center;color:#9fb0c9;}
+  .final-note{position:absolute;left:34px;bottom:24px;transform:rotate(-5deg);color:var(--highlight);}
+
+  /* footer */
+  footer{padding:48px 0 60px;border-top:1px solid var(--line);}
+  .foot-in{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+  .foot-in .brand{font-size:21px;}
+  .foot-in p{font-size:14px;color:var(--ink-soft);}
+
+  /* reveal-on-scroll */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease, transform .7s ease;}
   .reveal.in{opacity:1;transform:none;}
 
-  /* ---- responsive ---- */
-  @media(max-width:680px){
-    .facts{grid-template-columns:1fr;gap:12px;}
-    .steps{grid-template-columns:repeat(2,1fr);gap:28px 14px;}
-    .steps::before{display:none;}
-    .rc-note{display:none;}
-    .nav-right .nav-link{display:none;}
+  /* ---------- responsive ---------- */
+  @media(max-width:920px){
+    .hero-grid{grid-template-columns:1fr;gap:48px;}
+    .bench-grid{grid-template-columns:1fr;gap:36px;}
+    .steps{grid-template-columns:repeat(2,1fr);}
+    .stages{grid-template-columns:repeat(2,1fr);gap:36px 22px;}
+    .road-line{display:none;}
+    .aud{grid-template-columns:1fr;}
+    .rules{grid-template-columns:1fr;gap:0;}
+  }
+  @media(max-width:620px){
+    body{font-size:16px;}
+    .nav-links{display:none;}
+    .steps{grid-template-columns:1fr;}
+    .stages{grid-template-columns:1fr;}
+    .margin-note{display:none;}
+    section{padding:62px 0;}
+    .final-note{display:none;}
   }
   @media(prefers-reduced-motion:reduce){
-    *{transition:none!important;animation:none!important;}
+    *{transition:none!important;animation:none!important;scroll-behavior:auto!important;}
     .reveal{opacity:1;transform:none;}
+    .hl::after{transform:scaleX(1)!important;}
   }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<header>
-  <div class="nav-in">
+<header class="nav">
+  <div class="wrap nav-in">
     <div class="brand">Hir<span class="ed">ED</span></div>
-    <div class="nav-right">
-      <a href="#how" class="nav-link">How it works</a>
-      <a href="#prepared" class="nav-link">Readiness</a>
-      <a href="#start" class="btn btn-dark">Check your readiness</a>
-    </div>
+    <nav class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#prepared">Readiness</a>
+      <a href="#journey">The journey</a>
+      <a href="#start" class="btn btn-primary nav-cta">Check your readiness</a>
+    </nav>
   </div>
 </header>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="pill-badge">✦ AI Career Tutor</div>
-  <h1>Learn the rules<br/><em>nobody wrote down.</em></h1>
-  <p class="sub">There's a hidden curriculum to getting hired. HirED teaches it — get your readiness score, the 1–3 gaps that actually move the needle, and free ways to close them.</p>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">An AI career tutor</p>
+      <h1 style="margin-top:18px;">Some people learn how hiring works at the <em>dinner table.</em><br/>The rest learn it <span class="hl">here.</span></h1>
+      <p class="sub">There's a hidden curriculum to getting hired — how to quantify a bullet, what recruiters actually weigh, which skills to learn next. HirED teaches it. Describe yourself, pick a job or school, and get a readiness score, the gaps that matter, free ways to close them, and a tailored resume.</p>
+      <div class="chat" id="chat">
+        <div class="chat-head">
+          <span class="chat-ai"><span class="spark">✦</span> HirED AI</span>
+          <span class="chat-status"><span class="dot"></span> career tutor · online</span>
+        </div>
+        <div class="chat-msgs" id="chatMsgs">
+          <div class="msg bot">Hi — I'm your career tutor. Tell me what you're aiming for and a bit about yourself, or paste your resume. I'll find the gaps that matter and how to close them.</div>
+        </div>
+        <div class="chat-chips" id="chatChips">
+          <button class="cchip">I'm switching careers</button>
+          <button class="cchip">First job — no resume yet</button>
+          <button class="cchip">I have a job posting</button>
+        </div>
+        <div class="chat-attached" id="chatAttached"></div>
+        <form class="chat-input" id="chatForm">
+          <input type="file" id="chatFile" accept=".pdf,.doc,.docx,.txt,.rtf" hidden />
+          <button type="button" class="chat-attach" id="chatAttach" aria-label="Attach resume" title="Attach your resume (PDF, DOCX)">📎</button>
+          <textarea id="chatText" rows="1" placeholder="Tell HirED about yourself, or attach your resume…"></textarea>
+          <button type="submit" class="chat-send" aria-label="Send">↑</button>
+        </form>
+        <p class="chat-foot"><span class="pdot"></span> Preview — full AI coaching connects soon. Free to use.</p>
+      </div>
+    </div>
+
+    <div class="card-stage">
+      <div class="resume" id="resumeCard">
+        <div class="resume-head">
+          <div class="avatar">M</div>
+          <div>
+            <div class="nm">Maya R.</div>
+            <div class="role">Targeting: Marketing Coordinator</div>
+          </div>
+        </div>
+        <div class="bullet-label">Experience · one bullet</div>
+        <div class="bullet">
+          <span class="before">Managed social media for a local nonprofit.</span>
+          <span class="after">Grew a nonprofit's Instagram <b>3× (1.2k→3.6k)</b>, driving <b>40+ volunteer signups</b>.</span>
+        </div>
+        <div class="scan-overlay" aria-hidden="true">
+          <div class="scan-tint"></div>
+          <div class="scan-bar"></div>
+          <div class="scan-check"><svg viewBox="0 0 44 44"><path d="M12 23 l7 7 l14 -16"/></svg></div>
+        </div>
+        <div class="meter">
+          <div class="meter-top">
+            <span class="lab">Readiness for <b>Marketing Coordinator</b></span>
+            <span class="score"><span id="scoreNum">41</span><span class="pct">/100</span></span>
+          </div>
+          <div class="track"><div class="fill" id="fillBar"></div></div>
+          <div class="delta">▲ +35 after one fix — and we'll show you the next two</div>
+        </div>
+        <div class="margin-note note">
+          <span class="arrow">↘</span>
+          recruiters skim for numbers — nobody tells you that
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- MAIN INPUT -->
-<div class="input-section" id="start">
-  <div class="input-card" id="inputCard">
-    <div class="input-text">
-      <textarea id="chatText" rows="3"
-        placeholder="Tell HirED about yourself — your background, skills, what you're going after. Or just paste your resume…"></textarea>
+<!-- HIDDEN CURRICULUM -->
+<section class="curriculum" id="curriculum">
+  <div class="wrap reveal">
+    <div class="sec-head">
+      <p class="eyebrow">The hidden curriculum</p>
+      <h2>The rules nobody wrote down.</h2>
+      <p>Kids with white-collar parents absorb these for free. Everyone else finds out the hard way — after the rejection. Here's a few we teach on day one.</p>
     </div>
-    <div class="input-attached" id="inputAttached"></div>
-    <div class="input-bar">
-      <div class="input-bar-left">
-        <button class="target-chip" id="targetChip" title="Pick your target role">🎯 Pick a target role</button>
-        <button class="icon-btn" id="attachBtn" title="Attach resume (PDF, DOCX)">📎</button>
-        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" hidden />
-      </div>
-      <button class="send-btn" id="sendBtn" aria-label="Analyze my readiness">↑</button>
+    <div class="rules">
+      <div class="rule"><span class="num">i.</span><p>Recruiters skim for <span class="hl">numbers</span>, not adjectives. "Hard-working" says nothing; "cut response time 30%" says everything.</p></div>
+      <div class="rule"><span class="num">ii.</span><p>"Responsible for" describes a chair. Lead with the <span class="hl">result</span> you produced.</p></div>
+      <div class="rule"><span class="num">iii.</span><p>The exact skills in the job post are the words they'll <span class="hl">search</span> for. Mirror the ones you really have.</p></div>
+      <div class="rule"><span class="num">iv.</span><p>Most of your score comes from things you can <span class="hl">fix today</span> — not from the degree you don't have.</p></div>
     </div>
   </div>
-
-  <div class="drop-zone" id="dropZone">
-    <span class="dz-ic">📄</span>
-    <p><b>Click to upload</b> or drag &amp; drop your resume</p>
-    <p class="dz-sub">PDF, DOCX, TXT · up to 10 MB</p>
-  </div>
-
-  <p class="input-foot">
-    <span class="dot"></span>
-    Free to use · No account needed to get your first score
-  </p>
-</div>
-
-<!-- FACTS -->
-<div class="facts reveal" id="how">
-  <div class="fact">
-    <div class="num">5 <sub>categories scored</sub></div>
-    <p>Skills match, quantified wins, experience, education, and clarity — each scored separately so you know exactly what to fix.</p>
-  </div>
-  <div class="fact">
-    <div class="num">1–3 <sub>gaps surfaced</sub></div>
-    <p>Not a list of 20 things. We surface the gaps that move your score the most — with the <em>why</em> behind each one.</p>
-  </div>
-  <div class="fact">
-    <div class="num">$0 <sub>to learn</sub></div>
-    <p>Every gap maps to free resources — library programs, MOOCs, community college, certifications. No paywalls.</p>
-  </div>
-</div>
+</section>
 
 <!-- HOW IT WORKS -->
-<div class="how reveal">
-  <p class="section-label">How it works</p>
-  <div class="steps">
-    <div class="step">
-      <div class="pin">1</div>
-      <h3>Tell us about you</h3>
-      <p>Type, paste, or drop a resume. No account required.</p>
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow">How it works</p>
+      <h2>From "I think this is fine" to knowing exactly where you stand.</h2>
+      <p>Four steps. The score is deterministic — fix a gap and the number actually moves.</p>
     </div>
-    <div class="step">
-      <div class="pin">2</div>
-      <h3>Pick a target</h3>
-      <p>A role, company, or school you're aiming for.</p>
-    </div>
-    <div class="step">
-      <div class="pin">3</div>
-      <h3>Get your score</h3>
-      <p>One honest readiness number, with the why.</p>
-    </div>
-    <div class="step">
-      <div class="pin">4</div>
-      <h3>Fix it &amp; re-score</h3>
-      <p>Close a gap. Watch your number actually climb.</p>
-    </div>
-  </div>
-</div>
-
-<!-- RESUME CARD DEMO -->
-<div class="demo-wrap reveal" id="prepared">
-  <div class="resume-card" id="resumeCard">
-    <span class="rc-check">✓</span>
-    <div class="rc-head">
-      <div class="rc-avatar">M</div>
-      <div>
-        <div class="rc-name">Maya R.</div>
-        <div class="rc-role">Targeting: Marketing Coordinator</div>
+    <div class="steps reveal">
+      <div class="step">
+        <div class="idx">Step 01</div>
+        <h3>Tell us about you</h3>
+        <p>Type a few lines, paste a resume, or drop a PDF. No account, no perfect resume required.</p>
+        <span class="tag">Chat · Paste · Upload</span>
+      </div>
+      <div class="step">
+        <div class="idx">Step 02</div>
+        <h3>Pick a target</h3>
+        <p>A company and role you're aiming at — or a school program. We parse what it really asks for.</p>
+        <span class="tag">Job or school</span>
+      </div>
+      <div class="step">
+        <div class="idx">Step 03</div>
+        <h3>See your readiness</h3>
+        <p>One honest score, what's helping and hurting it, and the 1–3 gaps that move the needle — with the <em>why</em>.</p>
+        <span class="tag">Score + the why</span>
+      </div>
+      <div class="step">
+        <div class="idx">Step 04</div>
+        <h3>Learn it &amp; re-score</h3>
+        <p>Free courses and certs for each gap, plus a tailored resume with reasons. Re-run it and watch the number climb.</p>
+        <span class="tag">Free resources</span>
       </div>
     </div>
-    <div class="rc-label">Experience · one bullet</div>
-    <div class="rc-bullet">
-      <span class="before">Managed social media for a local nonprofit.</span>
-      <span class="after">Grew a nonprofit's Instagram <b>3× (1.2k→3.6k)</b> in 4 months, driving <b>40+ volunteer signups</b>.</span>
-    </div>
-    <div class="rc-note">
-      <span class="arrow">↘</span>
-      recruiters skim for numbers — nobody tells you that
-    </div>
-    <div class="rc-meter">
-      <div class="rc-meter-top">
-        <span class="lab">Readiness for <b>Marketing Coordinator</b></span>
-        <span class="rc-score"><span id="scoreNum">41</span><span class="pct">/100</span></span>
-      </div>
-      <div class="rc-track"><div class="rc-fill" id="rcFill"></div></div>
-      <div class="rc-delta">▲ +35 after one fix — and we'll show you the next two</div>
-    </div>
-  </div>
-</div>
-
-<!-- FINAL CTA -->
-<section class="final reveal">
-  <h2>Your score is<br/><em>waiting.</em></h2>
-  <p class="sub">One honest number. The gaps that matter. Free ways to close them.</p>
-  <div class="cta-row">
-    <a href="#start" class="btn btn-rise">Check your readiness</a>
-    <a href="#how" class="btn btn-ghost">How it works</a>
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- BENCHMARK / READINESS -->
+<section class="bench" id="prepared">
+  <div class="wrap bench-grid">
+    <div class="reveal">
+      <p class="eyebrow">How prepared are you, really?</p>
+      <h2>Measured against people who already got in.</h2>
+      <p class="sub">We benchmark you against people who actually landed your target role or school — so your number isn't abstract. You see where you stand, and exactly what the top tier has that you don't.</p>
+      <div class="hero-cta"><a href="#start" class="btn" style="background:var(--highlight);color:var(--ink);">Find your percentile</a></div>
+    </div>
+    <div class="gauge reveal">
+      <div class="target">Benchmark · <b>Marketing Coordinator</b> at a mid-size brand</div>
+      <div class="big">Top 60% <span>and climbing</span></div>
+      <div class="gtrack"><div class="gfill" id="gfill"></div></div>
+      <div class="you">You're ahead of <b style="color:#fff;">40%</b> of people who landed this role.</div>
+      <div class="gap-label">WHAT THE TOP TIER HAS THAT YOU DON'T</div>
+      <div class="chips">
+        <span class="chip miss">+ Google Analytics cert</span>
+        <span class="chip miss">+ A/B testing example</span>
+        <span class="chip miss">Paid-ads basics</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCES -->
+<section id="who">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow">Who it's for</p>
+      <h2>Built for the people the old playbook left out.</h2>
+    </div>
+    <div class="aud reveal">
+      <div class="aud-card">
+        <div class="ic">1°</div>
+        <h3>First-gen students</h3>
+        <p>No resume yet, no one at home to ask. We help you build the first one and explain every choice along the way.</p>
+      </div>
+      <div class="aud-card">
+        <div class="ic">↻</div>
+        <h3>Career changers</h3>
+        <p>Pivoting into a field you don't have the vocabulary for yet. We map what transfers and what to learn next.</p>
+      </div>
+      <div class="aud-card">
+        <div class="ic">↗</div>
+        <h3>Re-entering the market</h3>
+        <p>Displaced or starting over? Reinvent fast with a clear, free roadmap from where you are to where you're going.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JOURNEY / ROADMAP -->
+<section id="journey" style="background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="eyebrow">The journey</p>
+      <h2>We meet you wherever you are.</h2>
+      <p>Not sure what job fits yet? Start at the beginning. Already interviewing? Jump in there. HirED routes you forward through four stages.</p>
+    </div>
+    <div class="road reveal">
+      <div class="road-line"></div>
+      <div class="stages">
+        <div class="stage">
+          <div class="pin">1</div>
+          <h3>Discovery</h3>
+          <p class="q">"What jobs even fit me?"</p>
+          <p>Role suggestions from your background and interests, plus plain-English explainers of what each job actually is.</p>
+        </div>
+        <div class="stage">
+          <div class="pin">2</div>
+          <h3>Free upskilling</h3>
+          <p class="q">"What do I learn — for free?"</p>
+          <p>Each gap mapped to free courses, certs, library resources, and apprenticeships near you.</p>
+        </div>
+        <div class="stage">
+          <div class="pin">3</div>
+          <h3>Interviewing</h3>
+          <p class="q">"Who's hiring, and how do I prep?"</p>
+          <p>Mock-interview practice, elevator-pitch coaching, and the unwritten etiquette of the room.</p>
+        </div>
+        <div class="stage">
+          <div class="pin">4</div>
+          <h3>Onboarding</h3>
+          <p class="q">"How do I succeed once I'm in?"</p>
+          <p>30/60/90-day guidance and onboarding resources so the new job sticks.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final" id="start">
+  <div class="wrap">
+    <div class="final-card reveal">
+      <h2>Find out where you stand — <span class="hl">free.</span></h2>
+      <p>One honest score, the gaps that matter, free ways to close them, and a resume that earns the interview. Then watch your number climb.</p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-rise">Check your readiness</a>
+        <a href="#how" class="btn" style="background:transparent;color:var(--paper);border:1px solid var(--line-ink);">See how it works</a>
+      </div>
+      <p class="free-note"><span class="dot"></span> No account needed to get your first score</p>
+      <div class="final-note note"><span class="arrow">↗</span> you've got more than you think</div>
+    </div>
+  </div>
+</section>
+
 <footer>
-  <div class="foot-in">
+  <div class="wrap foot-in">
     <div class="brand">Hir<span class="ed">ED</span></div>
-    <p>Teaching the hidden curriculum of getting hired · Education over novelty</p>
+    <p>Teaching the hidden curriculum of getting hired. &nbsp;·&nbsp; Education over novelty.</p>
   </div>
 </footer>
 
 <script>
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // file handling
-  const fileInput    = document.getElementById('fileInput');
-  const attachBtn    = document.getElementById('attachBtn');
-  const inputAttached= document.getElementById('inputAttached');
-  const dropZone     = document.getElementById('dropZone');
-  const inputCard    = document.getElementById('inputCard');
-  let attachedFile   = null;
-
-  const fileKind = n => (n.split('.').pop()||'file').toUpperCase().slice(0,4);
-  const fileSize = b => b<1024 ? b+' B' : b<1048576 ? Math.round(b/1024)+' KB' : (b/1048576).toFixed(1)+' MB';
-
-  function setFile(f){
-    if(!f) return;
-    if(!/\.(pdf|docx?|txt)$/i.test(f.name)){ alert('Please attach a PDF, DOCX, or TXT file.'); return; }
-    attachedFile = f; renderAttached();
-  }
-  function renderAttached(){
-    inputAttached.innerHTML='';
-    if(!attachedFile){ inputAttached.style.display='none'; return; }
-    inputAttached.style.display='flex';
-    const pill=document.createElement('div'); pill.className='att-pill';
-    const ic=document.createElement('span'); ic.className='att-ic'; ic.textContent=fileKind(attachedFile.name);
-    const nm=document.createElement('span'); nm.className='att-name'; nm.textContent=attachedFile.name;
-    const sz=document.createElement('span'); sz.className='att-size'; sz.textContent=fileSize(attachedFile.size);
-    const x=document.createElement('button'); x.type='button'; x.className='att-x'; x.textContent='×';
-    x.setAttribute('aria-label','Remove');
-    x.addEventListener('click',()=>{ attachedFile=null; fileInput.value=''; renderAttached(); });
-    pill.append(ic,nm,sz,x); inputAttached.appendChild(pill);
-  }
-
-  attachBtn.addEventListener('click',()=>fileInput.click());
-  fileInput.addEventListener('change',()=>setFile(fileInput.files[0]));
-  dropZone.addEventListener('click',()=>fileInput.click());
-
-  ['dragenter','dragover'].forEach(ev=>{
-    dropZone.addEventListener(ev,e=>{ e.preventDefault(); dropZone.classList.add('over'); });
-    inputCard.addEventListener(ev,e=>{ e.preventDefault(); inputCard.classList.add('dragging'); });
-  });
-  ['dragleave','drop'].forEach(ev=>{
-    dropZone.addEventListener(ev,e=>{ e.preventDefault(); dropZone.classList.remove('over'); });
-    inputCard.addEventListener(ev,e=>{ e.preventDefault(); inputCard.classList.remove('dragging'); });
-  });
-  dropZone.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
-  inputCard.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
-
-  // textarea auto-grow
-  const chatText = document.getElementById('chatText');
-  chatText.addEventListener('input',()=>{
-    chatText.style.height='auto';
-    chatText.style.height=Math.min(chatText.scrollHeight,150)+'px';
-  });
-  chatText.addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }
-  });
-
-  // send
-  document.getElementById('sendBtn').addEventListener('click', handleSend);
-  function handleSend(){
-    const text = chatText.value.trim();
-    if(!text && !attachedFile) return;
-    // TODO: POST /score with FormData
-    // const fd = new FormData();
-    // if(attachedFile) fd.append('resume_file', attachedFile);
-    // fd.append('text', text);
-    // fetch('/score', { method:'POST', body:fd }).then(...)
-    console.log('Submit:', { text, file: attachedFile?.name });
-  }
-
-  // target chip cycles example roles
-  const roles = ['Software Engineering Intern','Product Manager','Marketing Coordinator','Data Analyst','UX Designer','Nurse Practitioner'];
-  let rIdx = 0;
-  document.getElementById('targetChip').addEventListener('click',()=>{
-    rIdx = (rIdx+1) % roles.length;
-    document.getElementById('targetChip').textContent = '🎯 ' + roles[rIdx];
-  });
-
   // count-up helper
   function countUp(el, from, to, ms){
-    if(reduce){ el.textContent=to; return; }
-    const start=performance.now();
+    if(reduce){ el.textContent = to; return; }
+    const start = performance.now();
     function tick(now){
-      const t=Math.min(1,(now-start)/ms);
-      const e=1-Math.pow(1-t,3);
-      el.textContent=Math.round(from+(to-from)*e);
+      const t = Math.min(1,(now-start)/ms);
+      const eased = 1-Math.pow(1-t,3);
+      el.textContent = Math.round(from+(to-from)*eased);
       if(t<1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
   }
 
-  // resume card upgrade sequence — triggers on scroll into view
-  let cardRan = false;
-  function runCard(){
-    if(cardRan) return; cardRan=true;
+  // hero signature sequence
+  const card = document.getElementById('resumeCard');
+  function runHero(){
     setTimeout(()=>{
-      document.getElementById('resumeCard').classList.add('rc-upgraded');
-      document.getElementById('rcFill').style.width='76%';
+      card.classList.add('upgraded');
+      document.getElementById('fillBar').style.width = '76%';
       countUp(document.getElementById('scoreNum'), 41, 76, 1500);
-    }, reduce ? 0 : 700);
+    }, reduce ? 0 : 900);
+  }
+  if(reduce){
+    card.classList.add('upgraded');
+    document.getElementById('fillBar').style.width='76%';
+    document.getElementById('scoreNum').textContent='76';
+  } else { runHero(); }
+
+  // AI chat — front-end preview; real coaching wires into the backend later
+  const chatBox=document.getElementById('chat');
+  const chatMsgs=document.getElementById('chatMsgs');
+  const chatForm=document.getElementById('chatForm');
+  const chatText=document.getElementById('chatText');
+  const chatChips=document.getElementById('chatChips');
+  const chatFile=document.getElementById('chatFile');
+  const chatAttach=document.getElementById('chatAttach');
+  const chatAttached=document.getElementById('chatAttached');
+  let chatStarted=false;
+  let attachedFile=null;   // held here until the backend exists to receive it
+
+  const okTypes=/\.(pdf|docx?|txt|rtf)$/i;
+  function fileSize(b){ return b<1024?b+' B':b<1048576?Math.round(b/1024)+' KB':(b/1048576).toFixed(1)+' MB'; }
+  function fileKind(name){ return (name.split('.').pop()||'file').toUpperCase().slice(0,4); }
+
+  function setFile(f){
+    if(!f) return;
+    if(!okTypes.test(f.name)){ addMsg("That file type isn't supported yet — try a PDF, DOCX, or TXT.",'bot'); return; }
+    attachedFile=f; renderAttached();
+  }
+  function renderAttached(){
+    chatAttached.innerHTML='';
+    if(!attachedFile){ chatAttached.style.display='none'; return; }
+    chatAttached.style.display='flex';
+    const pill=document.createElement('div'); pill.className='att-pill';
+    const ic=document.createElement('span'); ic.className='att-ic'; ic.textContent=fileKind(attachedFile.name);
+    const nm=document.createElement('span'); nm.className='att-name'; nm.textContent=attachedFile.name;
+    const sz=document.createElement('span'); sz.className='att-size'; sz.textContent=fileSize(attachedFile.size);
+    const x=document.createElement('button'); x.type='button'; x.className='att-x'; x.setAttribute('aria-label','Remove'); x.textContent='×';
+    x.addEventListener('click',()=>{ attachedFile=null; chatFile.value=''; renderAttached(); });
+    pill.append(ic,nm,sz,x); chatAttached.appendChild(pill);
   }
 
-  // scroll reveals + card trigger
-  const io = new IntersectionObserver(entries=>{
+  function addMsg(text,who){
+    const d=document.createElement('div');
+    d.className='msg '+who; d.textContent=text;
+    chatMsgs.appendChild(d); chatMsgs.scrollTop=chatMsgs.scrollHeight;
+  }
+  function addFileMsg(file,text){
+    const d=document.createElement('div'); d.className='msg user msg-file';
+    const pill=document.createElement('div'); pill.className='msg-att';
+    const ic=document.createElement('span'); ic.className='att-ic'; ic.textContent=fileKind(file.name);
+    const nm=document.createElement('span'); nm.className='att-name'; nm.textContent=file.name;
+    pill.append(ic,nm); d.appendChild(pill);
+    if(text){ const p=document.createElement('div'); p.className='msg-att-text'; p.textContent=text; d.appendChild(p); }
+    chatMsgs.appendChild(d); chatMsgs.scrollTop=chatMsgs.scrollHeight;
+  }
+  function showTyping(){
+    const t=document.createElement('div');
+    t.className='msg bot typing';
+    t.innerHTML='<span></span><span></span><span></span>';
+    chatMsgs.appendChild(t); chatMsgs.scrollTop=chatMsgs.scrollHeight;
+    return t;
+  }
+  function replyFor(userText,hadFile){
+    const lc=userText.toLowerCase();
+    if(hadFile)
+      return "Got your resume — I'll read it for skills, quantified wins, and gaps. Now tell me the role, company, or school you're targeting and I'll score your readiness.";
+    if(/switch|career|chang|pivot|transition/.test(lc))
+      return "Love that. What role or industry are you moving into? Once I have your target, I'll score your readiness, show what transfers from your background, and map the first skills to learn — for free.";
+    if(/no resume|first job|student|no experience|nothing|never/.test(lc))
+      return "No problem — most people start with nothing. Tell me a project, job, or activity you're proud of, plus a role you're curious about, and I'll help you build a first resume and a plan.";
+    if(/job|posting|role|company|hiring|position|apply/.test(lc))
+      return "Perfect — paste the role and company (or the posting) and I'll pull out the skills they really screen for, then check them against your background.";
+    return "Got it. What role, company, or school are you targeting? With that I'll generate your readiness score and the 1–3 gaps that move the needle.";
+  }
+  function botReply(userText,hadFile){
+    const t=showTyping();
+    const reply=replyFor(userText,hadFile);
+    setTimeout(()=>{ t.remove(); addMsg(reply,'bot'); }, reduce?0:950);
+  }
+
+  function sendChat(text){
+    const t=(text||'').trim();
+    const file=attachedFile;
+    if(!t && !file) return;
+    if(!chatStarted){ chatChips.style.display='none'; chatStarted=true; }
+    if(file){
+      addFileMsg(file,t);
+      // TODO(backend): hand `file` (+ `t`) to intakeProfile — e.g.
+      //   const fd=new FormData(); fd.append('resume',file); fd.append('note',t);
+      //   fetch('/api/intakeProfile',{method:'POST',body:fd})
+      attachedFile=null; chatFile.value=''; renderAttached();
+    } else {
+      addMsg(t,'user');
+    }
+    botReply(t,!!file);
+    chatText.value=''; chatText.style.height='auto';
+  }
+
+  if(chatForm){
+    chatForm.addEventListener('submit',e=>{ e.preventDefault(); sendChat(chatText.value); });
+    chatText.addEventListener('input',()=>{ chatText.style.height='auto'; chatText.style.height=Math.min(chatText.scrollHeight,120)+'px'; });
+    chatText.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(chatText.value);} });
+    chatChips.querySelectorAll('.cchip').forEach(c=>c.addEventListener('click',()=>sendChat(c.textContent)));
+    chatAttach.addEventListener('click',()=>chatFile.click());
+    chatFile.addEventListener('change',()=>setFile(chatFile.files[0]));
+    // drag & drop resumes onto the chat box
+    ['dragenter','dragover'].forEach(ev=>chatBox.addEventListener(ev,e=>{ e.preventDefault(); chatBox.classList.add('dragging'); }));
+    ['dragleave','drop'].forEach(ev=>chatBox.addEventListener(ev,e=>{ e.preventDefault(); chatBox.classList.remove('dragging'); }));
+    chatBox.addEventListener('drop',e=>{ if(e.dataTransfer.files&&e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+  }
+
+  // scroll reveals
+  const io = new IntersectionObserver((entries)=>{
     entries.forEach(e=>{
       if(e.isIntersecting){
         e.target.classList.add('in');
-        if(e.target.querySelector('#resumeCard')) runCard();
+        if(e.target.querySelector('#gfill')){
+          e.target.querySelector('#gfill').style.width = '60%';
+        }
         io.unobserve(e.target);
       }
     });
-  },{threshold:.2});
+  },{threshold:.18});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 </script>
 </body>
