@@ -1,0 +1,5 @@
+# OPTIONAL — real job-board scraping for the readiness / job-data feature
+# (app/services/jobs.py, scripts/jobs_fetch.py). Kept out of core requirements.txt
+# so the backend stays light/portable.
+#   pip install -r requirements-jobs.txt
+python-jobspy        # scrapes Indeed/Google/ZipRecruiter/LinkedIn -> DataFrame (pulls pandas)
