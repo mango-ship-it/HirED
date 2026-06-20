@@ -77,7 +77,97 @@
   .btn-ghost:hover{border-color:var(--ink);}
 
   /* ---- hero ---- */
-  .hero{padding:72px 24px 0;text-align:center;}
+  .hero{padding:72px 24px 0;text-align:center;position:relative;overflow:hidden;}
+  .hero > *:not(.hero-aura){position:relative;z-index:2;}
+
+  /* ---- aura background ---- */
+  .hero-aura{
+    position:absolute;inset:0;pointer-events:none;z-index:0;
+    transition:opacity .5s ease;
+  }
+
+  /* real handshake photo */
+  .hero-photo{
+    position:absolute;inset:0;
+    background:url('assets/handshake.jpg') center 40% / cover no-repeat;
+    opacity:.13;
+    transition:opacity .5s ease;
+    /* subtle ken-burns drift */
+    animation:photoDrift 18s ease-in-out infinite alternate;
+  }
+  @keyframes photoDrift{
+    0%{transform:scale(1) translateY(0);}
+    100%{transform:scale(1.05) translateY(-10px);}
+  }
+
+  /* gradient overlay so text stays readable */
+  .hero-overlay{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, var(--paper) 75%),
+      linear-gradient(to bottom, transparent 30%, var(--paper) 100%);
+  }
+
+  /* aura glow orbs (sit above photo, below text) */
+  .ag{
+    position:absolute;top:50%;left:50%;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+  }
+  .ag-core{
+    width:280px;height:280px;
+    background:radial-gradient(circle,rgba(91,163,240,.45) 0%,rgba(42,125,225,.18) 50%,transparent 100%);
+    filter:blur(40px);
+    animation:auraPulse 3.5s ease-in-out infinite;
+  }
+  .ag-mid{
+    width:500px;height:340px;
+    background:radial-gradient(ellipse,rgba(42,125,225,.15) 0%,transparent 65%);
+    filter:blur(55px);
+    animation:auraPulse 5s ease-in-out infinite reverse;
+  }
+  .ag-amber{
+    width:180px;height:180px;
+    background:radial-gradient(circle,rgba(255,196,77,.2) 0%,transparent 70%);
+    filter:blur(32px);
+    animation:auraPulse 3.2s ease-in-out infinite .9s;
+  }
+  @keyframes auraPulse{
+    0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.65;}
+    50%{transform:translate(-50%,-50%) scale(1.16);opacity:1;}
+  }
+
+  /* expanding rings */
+  .ar{
+    position:absolute;top:50%;left:50%;
+    border-radius:50%;
+    border:1.5px solid rgba(91,163,240,.32);
+    transform:translate(-50%,-50%) scale(0);
+    opacity:0;
+  }
+  .ar1{width:160px;height:160px;animation:ringOut 4.5s ease-out infinite 0s;}
+  .ar2{width:300px;height:300px;animation:ringOut 4.5s ease-out infinite 1.5s;}
+  .ar3{width:460px;height:460px;animation:ringOut 4.5s ease-out infinite 3s;}
+  @keyframes ringOut{
+    0%{transform:translate(-50%,-50%) scale(0);opacity:.7;}
+    100%{transform:translate(-50%,-50%) scale(1);opacity:0;}
+  }
+
+  /* floating particles */
+  .ap{
+    position:absolute;
+    left:var(--x);top:var(--y);
+    width:var(--s);height:var(--s);
+    border-radius:50%;
+    background:var(--rise-bright);
+    opacity:0;
+    animation:floatUp 3.4s ease-out infinite var(--d);
+  }
+  @keyframes floatUp{
+    0%{transform:translateY(0) scale(1);opacity:0;}
+    20%{opacity:.8;}
+    100%{transform:translateY(-80px) scale(0);opacity:0;}
+  }
   .pill-badge{
     display:inline-flex;align-items:center;gap:7px;
     font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
@@ -342,6 +432,116 @@
   /* keep the long bullet clear of the margin note on wider screens */
   @media(min-width:681px){ .rc-bullet .before,.rc-bullet .after{right:185px;} }
 
+  /* ---- target input overlay ---- */
+  .target-input{
+    font-family:inherit;font-size:13px;font-weight:600;
+    color:var(--ink);background:var(--paper-2);
+    border:1.5px solid var(--rise);border-radius:99px;
+    padding:6px 14px;outline:none;width:220px;
+  }
+
+  /* ---- loading state ---- */
+  .loading-section{
+    display:none;text-align:center;padding:56px 24px;
+    max-width:660px;margin:0 auto;
+  }
+  .loader-ring{
+    width:48px;height:48px;border-radius:50%;margin:0 auto 20px;
+    border:3px solid var(--line);border-top-color:var(--rise);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loader-steps{
+    display:flex;flex-direction:column;gap:8px;margin-top:20px;
+    max-width:280px;margin-left:auto;margin-right:auto;text-align:left;
+  }
+  .loader-step{
+    font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px;
+    opacity:.4;transition:opacity .4s ease;
+  }
+  .loader-step.active{opacity:1;color:var(--ink);}
+  .loader-step.done{opacity:.7;color:var(--rise);}
+  .loader-step .ls-ic{width:16px;text-align:center;font-size:12px;}
+
+  /* ---- results section ---- */
+  .results-section{
+    display:none;max-width:660px;margin:0 auto;padding:0 24px 80px;
+  }
+  .res-header{text-align:center;padding:40px 0 28px;}
+  .res-header .res-label{font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:12px;}
+  .res-header .res-label b{color:var(--ink);}
+  .res-big-score{
+    font-family:"Fraunces",serif;font-size:80px;font-weight:700;
+    color:var(--rise);line-height:1;display:inline-block;
+  }
+  .res-big-score .res-denom{font-size:28px;color:var(--ink-soft);font-weight:500;font-family:"Hanken Grotesk",sans-serif;}
+  .res-track{
+    height:12px;background:var(--line);border-radius:99px;
+    margin:16px auto 0;max-width:280px;overflow:hidden;
+  }
+  .res-fill{height:100%;width:0;border-radius:99px;transition:width 1.6s cubic-bezier(.2,.7,.2,1),background .6s ease;}
+
+  /* category bars */
+  .res-cats{display:flex;flex-direction:column;gap:10px;margin-top:28px;}
+  .res-cat{
+    background:var(--paper-2);border:1px solid var(--line);
+    border-radius:14px;padding:14px 16px;
+  }
+  .res-cat-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .res-cat-name{font-size:13px;font-weight:700;}
+  .res-cat-score{font-family:"Fraunces",serif;font-size:16px;font-weight:700;}
+  .res-cat-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;}
+  .res-cat-fill{height:100%;border-radius:99px;width:0;transition:width 1.2s cubic-bezier(.2,.7,.2,1) .2s;}
+
+  /* lesson cards */
+  .res-lessons{display:flex;flex-direction:column;gap:12px;margin-top:20px;}
+  .res-lesson{
+    background:var(--paper-2);border:1px solid var(--line);
+    border-radius:16px;padding:20px 18px;
+  }
+  .res-lesson-tag{
+    font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--rise);background:rgba(42,125,225,.1);
+    border-radius:99px;padding:3px 10px;display:inline-block;margin-bottom:12px;
+  }
+  .res-lesson h3{font-size:15px;font-family:"Hanken Grotesk",sans-serif;letter-spacing:0;margin-bottom:8px;}
+  .res-lesson .ex{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
+  .res-lesson .action{
+    font-size:13px;font-weight:600;color:var(--ink);
+    background:var(--paper);border-radius:10px;padding:10px 12px;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .res-lesson .action::before{content:"→";color:var(--rise);flex-shrink:0;}
+
+  /* resources inside lesson */
+  .res-resources{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+  .res-resource{
+    font-size:12px;color:var(--ink-soft);
+    display:flex;gap:6px;align-items:center;
+  }
+  .res-resource::before{content:"•";color:var(--rise);}
+
+  /* benchmark */
+  .res-bench{
+    margin-top:20px;background:var(--ink);border-radius:18px;
+    padding:22px 22px;color:#fff;
+  }
+  .res-bench-loading{font-size:14px;color:#9fb0c9;text-align:center;}
+  .res-bench-content{display:none;}
+  .res-bench-label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9fb0c9;margin-bottom:6px;}
+  .res-bench-big{font-family:"Fraunces",serif;font-size:36px;font-weight:700;color:var(--highlight);line-height:1;}
+  .res-bench-big span{font-size:15px;color:#9fb0c9;font-family:"Hanken Grotesk",sans-serif;font-weight:500;}
+  .res-bench-track{height:8px;border-radius:99px;background:#0f1f38;margin-top:12px;overflow:hidden;}
+  .res-bench-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--rise-bright),var(--highlight));transition:width 1.4s cubic-bezier(.2,.7,.2,1);}
+  .res-bench-sub{font-size:13px;color:#9fb0c9;margin-top:10px;}
+
+  /* error */
+  .res-error{
+    background:#fff1f1;border:1px solid #fca5a5;border-radius:14px;
+    padding:16px 18px;font-size:14px;color:#991b1b;text-align:center;
+    margin-top:16px;display:none;
+  }
+
   /* ---- final cta ---- */
   .final{padding:64px 24px 80px;text-align:center;}
   .final h2{font-size:clamp(26px,4vw,44px);}
@@ -396,6 +596,32 @@
 
 <!-- HERO -->
 <section class="hero">
+
+  <!-- aura + handshake photo -->
+  <div class="hero-aura" id="heroAura">
+    <!-- real handshake photo (place assets/handshake.jpg in landing/) -->
+    <div class="hero-photo"></div>
+    <!-- gradient overlay for text readability -->
+    <div class="hero-overlay"></div>
+    <!-- aura glow orbs -->
+    <div class="ag ag-mid"></div>
+    <div class="ag ag-core"></div>
+    <div class="ag ag-amber"></div>
+    <!-- expanding rings emanating from center -->
+    <div class="ar ar1"></div>
+    <div class="ar ar2"></div>
+    <div class="ar ar3"></div>
+    <!-- floating light particles -->
+    <div class="ap" style="--x:47%;--y:62%;--d:0s;--s:5px"></div>
+    <div class="ap" style="--x:53%;--y:58%;--d:.6s;--s:4px"></div>
+    <div class="ap" style="--x:45%;--y:68%;--d:1.1s;--s:6px"></div>
+    <div class="ap" style="--x:55%;--y:72%;--d:.3s;--s:4px"></div>
+    <div class="ap" style="--x:50%;--y:55%;--d:1.8s;--s:5px"></div>
+    <div class="ap" style="--x:43%;--y:60%;--d:.9s;--s:3px"></div>
+    <div class="ap" style="--x:57%;--y:65%;--d:1.4s;--s:4px"></div>
+    <div class="ap" style="--x:49%;--y:78%;--d:.5s;--s:5px"></div>
+  </div>
+
   <div class="pill-badge">✦ AI Career Tutor</div>
   <h1>Learn the rules<br/><em>nobody wrote down.</em></h1>
   <p class="sub">There's a hidden curriculum to getting hired. HirED teaches it — get your readiness score, the 1–3 gaps that actually move the needle, and free ways to close them.</p>
@@ -411,7 +637,8 @@
     <div class="input-attached" id="inputAttached"></div>
     <div class="input-bar">
       <div class="input-bar-left">
-        <button class="target-chip" id="targetChip" title="Pick your target role">🎯 Pick a target role</button>
+        <button class="target-chip" id="targetChip" title="Click to set target role">🎯 <span id="targetLabel">Pick a target role</span></button>
+        <input type="text" id="targetInput" class="target-input" placeholder="e.g. Software Engineer at Google" style="display:none;" />
         <button class="icon-btn" id="attachBtn" title="Attach resume (PDF, DOCX)">📎</button>
         <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" hidden />
       </div>
@@ -429,6 +656,43 @@
     <span class="dot"></span>
     Free to use · No account needed to get your first score
   </p>
+</div>
+
+<!-- LOADING -->
+<div class="loading-section" id="loadingSection">
+  <div class="loader-ring"></div>
+  <div class="loader-steps">
+    <div class="loader-step" id="ls1"><span class="ls-ic">📄</span> Parsing your resume</div>
+    <div class="loader-step" id="ls2"><span class="ls-ic">🤖</span> Claude extracting your profile</div>
+    <div class="loader-step" id="ls3"><span class="ls-ic">📊</span> Computing your readiness score</div>
+    <div class="loader-step" id="ls4"><span class="ls-ic">💡</span> Writing your lesson plan</div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="results-section" id="resultsSection">
+  <div class="res-error" id="resError"></div>
+  <div class="res-header">
+    <div class="res-label">Readiness score for <b id="resTargetLabel">your target</b></div>
+    <div>
+      <span class="res-big-score" id="resScoreNum">0</span><span class="res-big-score res-denom">/100</span>
+    </div>
+    <div class="res-track"><div class="res-fill" id="resFill"></div></div>
+  </div>
+  <div class="res-cats" id="resCats"></div>
+  <div class="res-lessons" id="resLessons"></div>
+  <div class="res-bench" id="resBench">
+    <div class="res-bench-loading" id="resBenchLoading">Benchmarking against real candidates…</div>
+    <div class="res-bench-content" id="resBenchContent">
+      <div class="res-bench-label">How prepared are you, really?</div>
+      <div class="res-bench-big">Top <span id="resPct">—</span>% <span>of candidates</span></div>
+      <div class="res-bench-track"><div class="res-bench-fill" id="resBenchFill"></div></div>
+      <div class="res-bench-sub" id="resBenchSub"></div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:28px;">
+    <button class="btn btn-ghost" id="rescoreBtn">↩ Start over</button>
+  </div>
 </div>
 
 <!-- FACTS -->
@@ -531,6 +795,15 @@
 <script>
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // fade aura out as user scrolls past the hero
+  const heroAura = document.getElementById('heroAura');
+  if(heroAura && !reduce){
+    window.addEventListener('scroll', ()=>{
+      const fade = Math.max(0, 1 - window.scrollY / (window.innerHeight * 0.55));
+      heroAura.style.opacity = fade;
+    }, { passive: true });
+  }
+
   // file handling
   const fileInput    = document.getElementById('fileInput');
   const attachBtn    = document.getElementById('attachBtn');
@@ -586,26 +859,208 @@
     if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSend(); }
   });
 
-  // send
-  document.getElementById('sendBtn').addEventListener('click', handleSend);
-  function handleSend(){
-    const text = chatText.value.trim();
-    if(!text && !attachedFile) return;
-    // TODO: POST /score with FormData
-    // const fd = new FormData();
-    // if(attachedFile) fd.append('resume_file', attachedFile);
-    // fd.append('text', text);
-    // fetch('/score', { method:'POST', body:fd }).then(...)
-    console.log('Submit:', { text, file: attachedFile?.name });
+  // ---- API config ----
+  const API_BASE = 'https://processes-tag-essential-rotation.trycloudflare.com';
+
+  // stable session user_id
+  let userId = sessionStorage.getItem('hired_uid');
+  if(!userId){ userId = crypto.randomUUID(); sessionStorage.setItem('hired_uid', userId); }
+
+  // ---- target chip → inline input ----
+  let currentTarget = { type: 'role', value: '' };
+  const targetChip  = document.getElementById('targetChip');
+  const targetInput = document.getElementById('targetInput');
+  const targetLabel = document.getElementById('targetLabel');
+
+  function commitTarget(){
+    const v = targetInput.value.trim();
+    if(v){ currentTarget.value = v; targetLabel.textContent = v; }
+    targetInput.style.display = 'none';
+    targetChip.style.display  = 'inline-flex';
+  }
+  targetChip.addEventListener('click', ()=>{
+    targetChip.style.display  = 'none';
+    targetInput.style.display = 'inline-block';
+    targetInput.value = currentTarget.value;
+    targetInput.focus();
+  });
+  targetInput.addEventListener('blur', commitTarget);
+  targetInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); commitTarget(); } });
+
+  // ---- category display labels ----
+  const CAT_LABELS = {
+    skills_match:'Skills Match', quantified_achievements:'Quantified Impact',
+    experience:'Experience', education:'Education', clarity:'Clarity'
+  };
+
+  // ---- score color ----
+  function scoreColor(v){ return v<40?'#E5484D':v<70?'#F5A524':'#22C55E'; }
+
+  // ---- loading steps ----
+  const loadSteps = ['ls1','ls2','ls3','ls4'];
+  let stepTimers = [];
+  function showLoading(){
+    document.getElementById('loadingSection').style.display = 'block';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('inputCard').style.display      = 'none';
+    document.getElementById('dropZone').style.display       = 'none';
+    document.querySelector('.input-foot').style.display     = 'none';
+    loadSteps.forEach(id=>{ const el=document.getElementById(id); el.className='loader-step'; });
+    let i=0;
+    function nextStep(){
+      if(i>0) document.getElementById(loadSteps[i-1]).className='loader-step done';
+      if(i<loadSteps.length){ document.getElementById(loadSteps[i]).className='loader-step active'; i++; stepTimers.push(setTimeout(nextStep,1800)); }
+    }
+    nextStep();
+    document.getElementById('loadingSection').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  function hideLoading(){
+    stepTimers.forEach(clearTimeout); stepTimers=[];
+    document.getElementById('loadingSection').style.display='none';
   }
 
-  // target chip cycles example roles
-  const roles = ['Software Engineering Intern','Product Manager','Marketing Coordinator','Data Analyst','UX Designer','Nurse Practitioner'];
-  let rIdx = 0;
-  document.getElementById('targetChip').addEventListener('click',()=>{
-    rIdx = (rIdx+1) % roles.length;
-    document.getElementById('targetChip').textContent = '🎯 ' + roles[rIdx];
+  // ---- show results ----
+  function showResults(data){
+    hideLoading();
+    const sec = document.getElementById('resultsSection');
+    sec.style.display='block';
+    document.getElementById('resTargetLabel').textContent = currentTarget.value || 'your target';
+
+    // big score
+    const scoreEl = document.getElementById('resScoreNum');
+    const fill     = document.getElementById('resFill');
+    fill.style.background = scoreColor(data.score);
+    countUp(scoreEl, 0, data.score, 1600, v=>{
+      fill.style.width = v+'%';
+      scoreEl.style.color = scoreColor(v);
+    });
+
+    // category bars
+    const catsEl = document.getElementById('resCats');
+    catsEl.innerHTML = '';
+    Object.entries(data.categories||{}).forEach(([key,cat])=>{
+      const label = CAT_LABELS[key]||key;
+      const color = scoreColor(cat.score);
+      const div = document.createElement('div'); div.className='res-cat';
+      div.innerHTML = `
+        <div class="res-cat-top">
+          <span class="res-cat-name">${label}</span>
+          <span class="res-cat-score" style="color:${color}">${cat.score}</span>
+        </div>
+        <div class="res-cat-bar"><div class="res-cat-fill" style="background:${color};width:${cat.score}%"></div></div>`;
+      catsEl.appendChild(div);
+    });
+
+    // lesson cards
+    const lessonsEl = document.getElementById('resLessons');
+    lessonsEl.innerHTML = '';
+    (data.lessons||[]).forEach(l=>{
+      const tag = CAT_LABELS[l.category]||l.category;
+      const div = document.createElement('div'); div.className='res-lesson';
+      div.innerHTML = `
+        <span class="res-lesson-tag">${tag}</span>
+        <h3>${l.principle}</h3>
+        <div class="ex">${l.example}</div>
+        <div class="action">${l.action}</div>
+        <div class="res-resources" id="res-resources-${l.category}"></div>`;
+      lessonsEl.appendChild(div);
+    });
+
+    sec.scrollIntoView({behavior:'smooth',block:'start'});
+
+    // fire secondary calls
+    if(data.score && currentTarget.value){
+      callBenchmark(data.score, currentTarget.value);
+    }
+    (data.lessons||[]).forEach(l=>callResources(l.category));
+  }
+
+  // ---- /benchmark ----
+  async function callBenchmark(score, targetValue){
+    try{
+      const r = await fetch(`${API_BASE}/benchmark`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ score, target: targetValue })
+      });
+      if(!r.ok) return;
+      const d = await r.json();
+      document.getElementById('resBenchLoading').style.display='none';
+      document.getElementById('resBenchContent').style.display='block';
+      document.getElementById('resPct').textContent = d.percentile;
+      document.getElementById('resBenchFill').style.width = d.percentile+'%';
+      document.getElementById('resBenchSub').textContent =
+        `You're ahead of ${d.percentile}% of candidates targeting this role.`;
+    }catch(e){ document.getElementById('resBenchLoading').textContent='Benchmark unavailable right now.'; }
+  }
+
+  // ---- /resources ----
+  async function callResources(gapCategory){
+    try{
+      const r = await fetch(`${API_BASE}/resources`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ gap_category: gapCategory, context: currentTarget.value })
+      });
+      if(!r.ok) return;
+      const d = await r.json();
+      const container = document.getElementById(`res-resources-${gapCategory}`);
+      if(!container||!d.resources?.length) return;
+      d.resources.forEach(res=>{
+        const el = document.createElement('div'); el.className='res-resource';
+        el.textContent = res; container.appendChild(el);
+      });
+    }catch{}
+  }
+
+  // ---- show error ----
+  function showError(msg){
+    hideLoading();
+    // restore input
+    document.getElementById('inputCard').style.display='block';
+    document.getElementById('dropZone').style.display='block';
+    document.querySelector('.input-foot').style.display='flex';
+    const errEl = document.getElementById('resError');
+    errEl.textContent = msg || 'Something went wrong. Please try again.';
+    errEl.style.display='block';
+    document.getElementById('resultsSection').style.display='block';
+    document.getElementById('resultsSection').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  // ---- re-score button ----
+  document.getElementById('rescoreBtn').addEventListener('click',()=>{
+    document.getElementById('resultsSection').style.display='none';
+    document.getElementById('inputCard').style.display='block';
+    document.getElementById('dropZone').style.display='block';
+    document.querySelector('.input-foot').style.display='flex';
+    chatText.value=''; chatText.style.height='auto';
+    attachedFile=null; fileInput.value=''; renderAttached();
+    document.getElementById('start').scrollIntoView({behavior:'smooth',block:'start'});
   });
+
+  // ---- handleSend — real /score call ----
+  document.getElementById('sendBtn').addEventListener('click', handleSend);
+  async function handleSend(){
+    const text = chatText.value.trim();
+    if(!text && !attachedFile){ chatText.focus(); return; }
+    if(!currentTarget.value){
+      targetChip.style.borderColor='var(--rise)';
+      targetChip.click();
+      return;
+    }
+    showLoading();
+    const fd = new FormData();
+    fd.append('user_id', userId);
+    fd.append('target', JSON.stringify(currentTarget));
+    if(attachedFile) fd.append('resume_file', attachedFile);
+    else fd.append('resume_text', text);
+    try{
+      const r = await fetch(`${API_BASE}/score`,{ method:'POST', body:fd });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.error||`Error ${r.status}`);
+      showResults(d);
+    }catch(err){
+      showError(err.message);
+    }
+  }
 
   // count-up helper
   // score → zone color (low = red, medium = amber, strong = green)
