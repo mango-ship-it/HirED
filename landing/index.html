@@ -19,6 +19,7 @@
     --rise-bright:#5BA3F0;
     --line:#D3E2F4;
     --line-ink:#284b74;
+    --scan:#22C55E;
     --shadow:0 2px 4px rgba(22,37,61,.05), 0 20px 48px -20px rgba(22,37,61,.22);
   }
 
@@ -241,11 +242,7 @@
     padding:28px 28px 24px;
     position:relative;
   }
-  /* faint ruled margin line */
-  .resume-card::before{
-    content:"";position:absolute;left:58px;top:20px;bottom:20px;
-    width:1px;background:var(--line);
-  }
+  /* ruled margin line removed */
   .rc-head{display:flex;align-items:center;gap:12px;padding-left:20px;margin-bottom:20px;}
   .rc-avatar{
     width:40px;height:40px;border-radius:11px;flex-shrink:0;
@@ -260,7 +257,7 @@
     letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;
   }
   .rc-bullet{
-    padding-left:20px;position:relative;min-height:72px;
+    padding-left:20px;position:relative;min-height:96px;
     font-size:15px;line-height:1.5;
   }
   .rc-bullet .before,.rc-bullet .after{
@@ -320,6 +317,28 @@
   }
   .rc-upgraded .rc-delta{opacity:1;}
 
+  /* scan beam → green checkmark, looping over the resume card */
+  .scan-overlay{--scan-dur:4.6s;position:absolute;inset:0;border-radius:22px;overflow:hidden;pointer-events:none;z-index:4;}
+  .scan-tint{position:absolute;inset:0;background:rgba(34,197,94,.07);opacity:0;animation:scanTint var(--scan-dur) linear infinite;}
+  .scan-bar{position:absolute;top:0;bottom:0;width:64px;left:-14%;
+    background:linear-gradient(90deg,transparent,rgba(34,197,94,.16) 42%,rgba(34,197,94,.5) 50%,rgba(34,197,94,.16) 58%,transparent);
+    animation:scanMove var(--scan-dur) linear infinite;}
+  .scan-bar::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:2.5px;transform:translateX(-50%);
+    background:var(--scan);box-shadow:0 0 16px 2px rgba(34,197,94,.8);}
+  .scan-check{position:absolute;top:50%;left:50%;width:82px;height:82px;border-radius:50%;
+    transform:translate(-50%,-50%) scale(.4);opacity:0;background:var(--scan);
+    box-shadow:0 12px 32px -6px rgba(34,197,94,.6), 0 0 0 9px rgba(34,197,94,.14);
+    display:grid;place-items:center;animation:checkPop var(--scan-dur) ease infinite;}
+  .scan-check svg{width:44px;height:44px;}
+  .scan-check path{fill:none;stroke:#fff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+    stroke-dasharray:32;stroke-dashoffset:32;animation:checkDraw var(--scan-dur) ease infinite;}
+  @keyframes scanMove{0%{left:-14%;opacity:0;}5%{opacity:1;}50%{left:100%;opacity:1;}56%{left:100%;opacity:0;}100%{opacity:0;}}
+  @keyframes scanTint{0%,3%{opacity:0;}12%{opacity:1;}50%{opacity:1;}60%{opacity:0;}100%{opacity:0;}}
+  @keyframes checkPop{0%,52%{opacity:0;transform:translate(-50%,-50%) scale(.4);}60%{opacity:1;transform:translate(-50%,-50%) scale(1.12);}66%{transform:translate(-50%,-50%) scale(1);}84%{opacity:1;transform:translate(-50%,-50%) scale(1);}94%,100%{opacity:0;transform:translate(-50%,-50%) scale(.92);}}
+  @keyframes checkDraw{0%,54%{stroke-dashoffset:32;}68%{stroke-dashoffset:0;}100%{stroke-dashoffset:0;}}
+  /* keep the long bullet clear of the margin note on wider screens */
+  @media(min-width:681px){ .rc-bullet .before,.rc-bullet .after{right:185px;} }
+
   /* ---- final cta ---- */
   .final{padding:64px 24px 80px;text-align:center;}
   .final h2{font-size:clamp(26px,4vw,44px);}
@@ -354,6 +373,7 @@
   @media(prefers-reduced-motion:reduce){
     *{transition:none!important;animation:none!important;}
     .reveal{opacity:1;transform:none;}
+    .scan-overlay{display:none!important;}
   }
 </style>
 </head>
@@ -465,7 +485,7 @@
     <div class="rc-label">Experience · one bullet</div>
     <div class="rc-bullet">
       <span class="before">Managed social media for a local nonprofit.</span>
-      <span class="after">Grew a nonprofit's Instagram <b>3× (1.2k→3.6k)</b> in 4 months, driving <b>40+ volunteer signups</b>.</span>
+      <span class="after">Grew a nonprofit's Instagram <b>3× (1.2k→3.6k)</b>, driving <b>40+ volunteer signups</b>.</span>
     </div>
     <div class="rc-note">
       <span class="arrow">↘</span>
@@ -478,6 +498,11 @@
       </div>
       <div class="rc-track"><div class="rc-fill" id="rcFill"></div></div>
       <div class="rc-delta">▲ +35 after one fix — and we'll show you the next two</div>
+    </div>
+    <div class="scan-overlay" aria-hidden="true">
+      <div class="scan-tint"></div>
+      <div class="scan-bar"></div>
+      <div class="scan-check"><svg viewBox="0 0 44 44"><path d="M12 23 l7 7 l14 -16"/></svg></div>
     </div>
   </div>
 </div>
