@@ -34,7 +34,12 @@ class Store:
         try:
             import redis.asyncio as redis
 
-            client = redis.from_url(url, decode_responses=True, socket_connect_timeout=1)
+            client = redis.from_url(
+                url,
+                decode_responses=True,
+                socket_connect_timeout=5,  # remote Redis Cloud + TLS needs > 1s
+                socket_timeout=5,
+            )
             await client.ping()
             self._redis = client
             logger.info("Store: connected to Redis (%s)", url)
