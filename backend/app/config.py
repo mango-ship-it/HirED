@@ -1,0 +1,51 @@
+"""Central configuration. All secrets come from the environment / .env.
+
+Never hardcode keys. `Settings` is validated once at import; missing required
+keys surface as a clear startup error rather than a confusing 500 mid-request.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Runtime configuration loaded from environment variables / .env."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # --- Sponsors (optional at import; validated per-feature at call time) ---
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
+    deepgram_api_key: str = Field(default="", alias="DEEPGRAM_API_KEY")
+
+    # --- Fetch.ai uAgent addresses (filled after agents start) ---
+    resource_agent_address: str = Field(default="", alias="RESOURCE_AGENT_ADDRESS")
+    benchmark_agent_address: str = Field(default="", alias="BENCHMARK_AGENT_ADDRESS")
+
+    # --- Infra ---
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    public_base_url: str = Field(default="http://localhost:8000", alias="PUBLIC_BASE_URL")
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        alias="CORS_ORIGINS",
+    )
+
+    # --- Models ---
+    claude_model: str = Field(default="claude-opus-4-8", alias="CLAUDE_MODEL")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Cached settings accessor — import this, don't instantiate Settings directly."""
+    return Settings()

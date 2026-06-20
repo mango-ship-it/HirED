@@ -1,0 +1,1 @@
+"""HirED FastAPI backend package."""

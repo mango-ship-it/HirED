@@ -1,0 +1,23 @@
+# HirED backend — pinned for the hackathon.
+#
+# RUNTIME: pin Python 3.12 (e.g. `pyenv local 3.12` or a 3.12 venv).
+# Local default is 3.14.5, which works for the pure-Python stack (FastAPI,
+# Anthropic, Deepgram) but is risky for uAgents: it pulls in cosmpy ->
+# protobuf<6 + pynacl/bcrypt/grpcio native wheels, where 3.14 wheel coverage
+# still lags. 3.12 has guaranteed wheels for every dependency below.
+
+# --- web framework ---
+fastapi==0.138.0
+uvicorn[standard]==0.49.0
+python-multipart==0.0.20         # required for UploadFile / multipart on /transcribe
+pydantic==2.13.4
+pydantic-settings==2.7.1
+
+# --- sponsors ---
+anthropic==0.111.0               # Claude: extraction + lesson generation
+deepgram-sdk==7.3.1              # Deepgram: TTS (Aura) + STT (Nova)
+uagents==0.25.2                  # Fetch.ai: resource + benchmark uAgents
+
+# --- infra ---
+redis==5.2.1                     # cache/queue (optional at MVP; degrades gracefully)
+httpx==0.28.1

@@ -10,7 +10,7 @@
 - **Target input:** company + role text first (job-description URL = stretch).
 - **Agents via Fetch.ai (uAgents):** resource lookup and peer-benchmark each run as a standalone
   **uAgent** (own process, auto-registered on Fetch.ai's Almanac); FastAPI bridges to them with
-  `uagents.query()`. See §8.
+  `send_sync_message()`. See §8.
 - **Jobs/LinkedIn via Sai:** **Sai** (Simular's computer-using GUI agent) connects users to live job
   postings, LinkedIn, and applications — it drives real sites/apps in a remote desktop. See §8.
 - **Voice via Deepgram:** speech-to-text for a spoken elevator pitch / voice mock-interviews, plus
@@ -98,11 +98,11 @@ role/school are seeded for the demo and can be enriched live via **Sai** (Linked
 
 ## 8. Architecture & stack
 - **Frontend:** React + Vite + Tailwind v4  *(Bobby, Chris)* — contract in `FRONTEND.md` (frontend branch).
-- **Backend:** FastAPI (**Python**) + Redis  *(Kaden, Inseon)*. Runs as **3 processes**: the FastAPI
-  server + the two Fetch.ai uAgents. All sponsor integrations live here.
+- **Backend:** FastAPI (**Python 3.12**) + Redis  *(Kaden, Inseon)*. Runs as **3 processes** (or 2 with
+  a uAgents Bureau): the FastAPI server + the two Fetch.ai uAgents. All sponsor integrations live here.
 - **AI:** Claude for extraction / target-parse / lesson-gen (**not** scoring — see §7).
 - **Agents (Fetch.ai uAgents):** `resource_agent` (curated free FGLI resources per gap) and
-  `benchmark_agent` (peer percentile) run as standalone uAgents; FastAPI bridges via `uagents.query()`.
+  `benchmark_agent` (peer percentile) run as standalone uAgents; FastAPI bridges via `send_sync_message()`.
 - **Jobs/LinkedIn (Sai):** Simular's GUI agent connects users to live job postings + LinkedIn and can
   drive applications; also used to enrich benchmark profiles.
 - **Voice (Deepgram):** speech-to-text (spoken pitch / mock-interviews) + TTS narration for lessons.
@@ -115,8 +115,8 @@ role/school are seeded for the demo and can be enriched live via **Sai** (Linked
 | Endpoint | Input | Output | Backed by |
 |----------|-------|--------|-----------|
 | `POST /score` | `{ resume, target }` | `{ score, categories: {…}, lessons: [...] }` | Claude extract + deterministic score (§7) |
-| `POST /benchmark` | `{ score, target }` | `{ percentile }` | Fetch.ai `benchmark_agent` via `query()` |
-| `POST /resources` | `{ gap_category, context }` | `{ resources: [...] }` | Fetch.ai `resource_agent` via `query()` |
+| `POST /benchmark` | `{ score, target }` | `{ percentile }` | Fetch.ai `benchmark_agent` via `send_sync_message()` |
+| `POST /resources` | `{ gap_category, context }` | `{ resources: [...] }` | Fetch.ai `resource_agent` via `send_sync_message()` |
 | `POST /narrate` | `{ text }` | `{ audio_url }` | Deepgram TTS (Aura) |
 | `POST /transcribe` | audio | `{ text }` | Deepgram STT |
 
@@ -124,50 +124,52 @@ role/school are seeded for the demo and can be enriched live via **Sai** (Linked
 Internally `/score` runs intake/extract → parse target → score → 1–3 lessons (the old
 intakeProfile/parseTarget/getReport steps collapse into this single endpoint).
 
-### Fetch.ai uAgents — pattern (sponsor)
-Each agent is a real uAgent in its own process (genuine SDK usage, not a disguised function call):
+### Fetch.ai uAgents — pattern (sponsor) — verified against `uagents==0.25.2`
+Each agent is a real uAgent in its own process (genuine SDK usage, not a disguised function call).
+Use **`@on_query` + `send_sync_message`** for the external one-shot bridge (`query()` still works but
+is **deprecated** in 0.25.x). **Pin Python 3.12** — uAgents isn't tested on 3.14.
 
 ```python
 # agents/resource_agent.py
-from uagents import Agent, Context, Model
+from uagents import Agent, Context
+from agents.messages import ResourceRequest, ResourceResponse   # shared Model classes
 
-class ResourceRequest(Model):
-    gap_category: str
-    context: str
+agent = Agent(name="resource_agent", seed="hired_resource_seed",  # seed → stable agent1q… address
+              port=8001, endpoint=["http://127.0.0.1:8001/submit"])
 
-class ResourceResponse(Model):
-    resources: list[str]
+@agent.on_event("startup")
+async def _startup(ctx: Context):
+    ctx.logger.info(f"address: {agent.address}")            # copy into RESOURCE_AGENT_ADDRESS
 
-agent = Agent(name="resource_agent", seed="resource_agent_seed", port=8001,
-              endpoint=["http://localhost:8001/submit"])
-
-RESOURCE_DB = {"quantified_achievements": ["…"]}  # curated FGLI list
-
-@agent.on_message(model=ResourceRequest, replies=ResourceResponse)
+@agent.on_query(model=ResourceRequest, replies={ResourceResponse})   # on_query, NOT on_message
 async def handle(ctx: Context, sender: str, msg: ResourceRequest):
     await ctx.send(sender, ResourceResponse(resources=RESOURCE_DB.get(msg.gap_category, [])))
 
 if __name__ == "__main__":
-    agent.run()   # auto-registers on the Almanac, prints its agent1q… address
+    agent.run()   # auto-registers on the Almanac + auto-funds on testnet; prints agent1q…
 ```
 
-FastAPI bridges to it with one call (no manual futures / message-queue plumbing):
+FastAPI bridges to it with one call — `send_sync_message` returns a **typed** reply Model (no manual
+Envelope / `json.loads`):
 
 ```python
 # app/services/fetch_bridge.py
-from uagents.query import query
-from uagents.envelope import Envelope
-import json
+from uagents.communication import send_sync_message   # query() is deprecated in 0.25.x
 
-async def ask_agent(address: str, msg, timeout: int = 15):
-    resp = await query(destination=address, message=msg, timeout=timeout)
-    return json.loads(resp.decode_payload()) if isinstance(resp, Envelope) else resp
+async def ask_agent(address, message, response_type, *, timeout=15):
+    reply = await send_sync_message(destination=address, message=message,
+                                    response_type=response_type, timeout=timeout)
+    if isinstance(reply, response_type):
+        return reply                       # decoded model instance
+    raise AgentUnavailableError(reply)     # MsgStatus/Envelope on failure → graceful fallback
 ```
 
-**Run setup (3 terminals):** `python agents/resource_agent.py` · `python agents/benchmark_agent.py` ·
-`uvicorn app.main:app`. Copy each agent's printed `agent1q…` address into backend config once at
-startup. Backend owns this; the frontend has zero knowledge Fetch.ai is involved — it just calls
-`/resources` / `/benchmark`. (uAgent registration auto-funds on testnet — no manual key needed.)
+**Run (3 terminals, or 2 with a Bureau):** `python agents/resource_agent.py` ·
+`python agents/benchmark_agent.py` · `uvicorn app.main:app` — *or* `python agents/bureau.py` (both
+agents in one process; the Bureau needs its own `port`/`endpoint`) + `uvicorn app.main:app`. Copy each
+printed `agent1q…` address into `backend/.env` once (stable across restarts via the seed). Backend
+owns this; the frontend has zero knowledge Fetch.ai is involved — it just calls `/resources` /
+`/benchmark`. (Registration auto-funds on testnet — no manual key needed.)
 
 ### Voice (Deepgram) — sponsor
 - **STT:** record audio → Deepgram → transcript → same `/score` intake pipeline (voice = input adapter).
