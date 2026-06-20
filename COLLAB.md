@@ -85,3 +85,33 @@ a stable URL).
 2. You send the team the tunnel URL.
 3. They put it in their frontend `.env` as `VITE_API_BASE_URL`.
 4. Teammates never need the key. The app also runs free (no key) for frontend dev.
+
+---
+
+## Frontend integration — paste THIS to the frontend team
+
+They need one thing from you: the backend URL (your tunnel link) as `VITE_API_BASE_URL`.
+No key. Then call these. **Everything is JSON except `/score`, which is multipart.**
+
+`POST {VITE_API_BASE_URL}/score` — **multipart/form-data** (NOT JSON):
+- `user_id` — a UUID generated once per visitor (`crypto.randomUUID()`)
+- `target` — a JSON **string**: `JSON.stringify({ type: "role", value: "<dream job/school>" })`
+- `resume_file` — the uploaded `.pdf`/`.docx`/`.rtf`/`.txt`  **OR**  `resume_text` — pasted text
+
+```js
+const fd = new FormData();
+fd.append("user_id", crypto.randomUUID());
+fd.append("target", JSON.stringify({ type: "role", value: targetText }));
+if (file) fd.append("resume_file", file); else fd.append("resume_text", text);
+const r = await fetch(`${import.meta.env.VITE_API_BASE_URL}/score`, { method: "POST", body: fd });
+const data = await r.json();
+// data = { score, categories, lessons, matched_skills, missing_skills, status }
+```
+
+The rest are plain `POST` with a JSON body:
+- `/benchmark` → `{ user_id, score, target:{type,value} }` → `{ percentile, sample_size, message }`
+- `/resources` → `{ user_id, gap_category, context:{first_gen,target_type} }` → `{ resources:[{name,url,description}] }`
+- `/report` → `{ user_id, target, score, categories, lessons, matched_skills, missing_skills, percentile }` → `{ summary, strengths, weaknesses, next_steps, jobs, mentors, slides }`
+- `/narrate` → `{ text }` → `{ audio_url }` (play in an `<audio>` tag)
+
+Full request/response shapes: **`API_CONTRACT.md`**. No API key ever goes in the frontend.
