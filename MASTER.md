@@ -8,10 +8,19 @@
 ## 0. Decisions locked (2026-06-20)
 - **Profile input is chat-first:** chat / elevator-pitch → resume paste → PDF/DOCX → LinkedIn URL.
 - **Target input:** company + role text first (job-description URL = stretch).
-- **Live data via Poke:** job data **and** peer-benchmark profiles are gathered live through Poke's
-  API/agent (sponsor integration). ⚠️ Poke's inbound API returns only a *delivery ack*, not the
-  answer — getting data back into the app needs a callback webhook or a custom MCP server; use Claude
-  (+ BrowserBase) for anything that must be synchronous. See §8.
+- **Agents via Fetch.ai (uAgents):** resource lookup and peer-benchmark each run as a standalone
+  **uAgent** (own process, auto-registered on Fetch.ai's Almanac); FastAPI bridges to them with
+  `uagents.query()`. See §8.
+- **Jobs/LinkedIn via Sai:** **Sai** (Simular's computer-using GUI agent) connects users to live job
+  postings, LinkedIn, and applications — it drives real sites/apps in a remote desktop. See §8.
+- **Voice via Deepgram:** speech-to-text for a spoken elevator pitch / voice mock-interviews, plus
+  **TTS narration** for the slide-based lessons. See §8.
+- **Lessons = narrated slides, not Pika video:** lessons + roadmap ship as custom slide cards with
+  Deepgram TTS narration (Pika video lessons dropped). See §10.
+- **API contract locked in `FRONTEND.md`:** `/score`, `/benchmark`, `/resources` (+ voice) — backend
+  implements exactly those shapes (§8).
+- **Python backend, 3 processes:** FastAPI + the two uAgents run as separate Python processes; all
+  sponsor integrations (Claude, Fetch.ai, Deepgram, Redis, Sai) live server-side.
 - **Planning Skill:** built a reusable `plan-feature` Claude Code skill under `.claude/skills/` (see §13).
 
 ---
@@ -55,9 +64,9 @@ Research anchors: *apprenticeships, skills-based hiring, navigating pathways to 
 services, career readiness (NACE).*
 
 ## 5. Core user flow
-1. **Input (chat-first)** — primary entry is a **chat / elevator-pitch** box (type a few lines about
-   yourself); then paste a **resume**, upload a **PDF/DOCX**, or submit a **LinkedIn URL**.
-   Build order: chat → resume → PDF → LinkedIn.
+1. **Input (chat-first)** — primary entry is a **chat / elevator-pitch** box: **type or speak** a few
+   lines about yourself (voice via **Deepgram**); then paste a **resume**, upload a **PDF/DOCX**, or
+   submit a **LinkedIn URL**. Build order: chat → resume → PDF → LinkedIn (voice as an add-on to chat).
 2. **Target** — **company + role** text first (job-description URL = stretch); optionally a school/program.
 3. **Analyze** — extract a structured profile; parse the target into required skills.
 4. **Score** — deterministic compatibility score (§7) + matched/missing skills.
@@ -68,8 +77,9 @@ services, career readiness (NACE).*
 ## 6. Killer feature — "How prepared are you?"
 Benchmark the user against **people who already secured that dream job/school**. Output a percentile /
 readiness bar: *"You're ahead of 40% of people who landed this role — here's what the top tier has
-that you don't."* Makes the score **relative and motivating**, not abstract. **Benchmark profiles are
-gathered live via Poke** (§8) — Poke's agent surfaces people who've landed the target role/school.
+that you don't."* Makes the score **relative and motivating**, not abstract. The **percentile is
+computed by a Fetch.ai benchmark uAgent** (§8); the profiles of people who landed the target
+role/school are seeded for the demo and can be enriched live via **Sai** (LinkedIn).
 
 ## 7. Scoring (deterministic, not ML)
 - **Extract first, score second.** Claude pulls structured data (skills found, # quantified
@@ -81,50 +91,101 @@ gathered live via Poke** (§8) — Poke's agent surfaces people who've landed th
   most resume tools over-weight the wrong things.
 - **Deterministic = trustworthy.** Same input → same score. Fix a gap → the number moves. That's
   what makes the demo land.
-- The **percentile** (§6) is computed separately from Poke-sourced benchmark profiles — it does not
-  feed the score formula.
+- The **percentile** (§6) is computed separately by the Fetch.ai benchmark uAgent — it does not feed
+  the score formula.
 - *[OPEN] Normalize each term to 0–1:* `skills_match = matched / required` (from parsed target);
   define simple proxies for `quantified_achievements`, `experience`, `clarity`.
 
 ## 8. Architecture & stack
-- **Frontend:** React + Vite + Tailwind v4  *(Bobby, Chris)*
-- **Backend:** FastAPI + Redis  *(Kaden, Inseon)*
-- **AI:** Claude for extraction / target-parse / lesson-gen (**not** scoring).
-- **Async:** AI calls aren't instant → Redis-backed queue; run independent calls in parallel,
-  dependent ones in order; frontend shows skeleton/loading.
-- **Sponsors in play:** Claude (AI) · Redis (cache/queue) · **Poke** (agentic live data — jobs +
-  benchmark) · BrowserBase (scrape job-desc URLs) · Pika (design/video) · Orkes (workflow
-  orchestration — Inseon's 12–1 PM workshop) · Sai *[?]*.
+- **Frontend:** React + Vite + Tailwind v4  *(Bobby, Chris)* — contract in `FRONTEND.md` (frontend branch).
+- **Backend:** FastAPI (**Python**) + Redis  *(Kaden, Inseon)*. Runs as **3 processes**: the FastAPI
+  server + the two Fetch.ai uAgents. All sponsor integrations live here.
+- **AI:** Claude for extraction / target-parse / lesson-gen (**not** scoring — see §7).
+- **Agents (Fetch.ai uAgents):** `resource_agent` (curated free FGLI resources per gap) and
+  `benchmark_agent` (peer percentile) run as standalone uAgents; FastAPI bridges via `uagents.query()`.
+- **Jobs/LinkedIn (Sai):** Simular's GUI agent connects users to live job postings + LinkedIn and can
+  drive applications; also used to enrich benchmark profiles.
+- **Voice (Deepgram):** speech-to-text (spoken pitch / mock-interviews) + TTS narration for lessons.
+- **Async:** Claude / Deepgram / agent calls aren't instant → Redis cache + queue; run independent
+  calls in parallel, dependent ones in order; frontend shows skeleton/loading.
+- **Sponsors in play:** Claude (AI) · **Fetch.ai** (uAgents — resources + benchmark) · **Sai**
+  (GUI agent — jobs/LinkedIn) · **Deepgram** (voice / TTS) · Redis (cache/queue) · Pika (slide design).
 
-### API contract (frontend → FastAPI)
-| Endpoint | Input | Output |
-|----------|-------|--------|
-| `intakeProfile(text \| file \| url)` | chat text / resume paste / PDF·DOCX / LinkedIn URL | structured profile |
-| `parseTarget(posting)` | company/role text (or URL, stretch) | role + required skills |
-| `getReport(profile, job)` | profile + target | score, matched/missing, 1–3 gap lessons, resources |
-| `tailorResume(profile, job)` | profile + target | tailored resume (diff: added/removed + reasons) |
+### API contract — LOCKED in `FRONTEND.md` (frontend builds against these shapes)
+| Endpoint | Input | Output | Backed by |
+|----------|-------|--------|-----------|
+| `POST /score` | `{ resume, target }` | `{ score, categories: {…}, lessons: [...] }` | Claude extract + deterministic score (§7) |
+| `POST /benchmark` | `{ score, target }` | `{ percentile }` | Fetch.ai `benchmark_agent` via `query()` |
+| `POST /resources` | `{ gap_category, context }` | `{ resources: [...] }` | Fetch.ai `resource_agent` via `query()` |
+| `POST /narrate` | `{ text }` | `{ audio_url }` | Deepgram TTS (Aura) |
+| `POST /transcribe` | audio | `{ text }` | Deepgram STT |
 
-`getReport` must be **re-callable** with updated inputs → same mechanism, new result (powers the re-score loop).
+`/score` must be **re-callable** with an edited resume → new result (powers the re-score money-shot loop).
+Internally `/score` runs intake/extract → parse target → score → 1–3 lessons (the old
+intakeProfile/parseTarget/getReport steps collapse into this single endpoint).
 
-### Poke integration (live data — sponsor)
-- **What:** Poke (poke.com, The Interaction Company) is an agentic assistant with web + app
-  integrations, reachable by API/MCP. We use it for **live job data** and **peer-benchmark profiles**.
-- **Inbound API:** `POST https://poke.com/api/v1/inbound/api-message`, header
-  `Authorization: Bearer <V2_KEY>` (create the key in Poke "Kitchen"), body `{"message": "..."}`.
-  Store the key in `.env` — never commit it.
-- ⚠️ **Gotcha:** the inbound API responds with a *delivery ack* (`{"success": true}`), **not** the
-  agent's answer. To get data back into HirED:
-  - **(a) Custom MCP server** — register our endpoint at `poke.com/integrations/new` so Poke can call
-    HirED tools, or
-  - **(b) Callback webhook** — instruct Poke to POST results to a HirED endpoint; UI shows an async
-    "gathering…" state.
-- **Synchronous fallback:** anything that must resolve inside one request (e.g. scoring) uses Claude
-  (+ BrowserBase for a URL) directly; reserve Poke for the agentic/async/notify layer + sponsor credit.
+### Fetch.ai uAgents — pattern (sponsor)
+Each agent is a real uAgent in its own process (genuine SDK usage, not a disguised function call):
+
+```python
+# agents/resource_agent.py
+from uagents import Agent, Context, Model
+
+class ResourceRequest(Model):
+    gap_category: str
+    context: str
+
+class ResourceResponse(Model):
+    resources: list[str]
+
+agent = Agent(name="resource_agent", seed="resource_agent_seed", port=8001,
+              endpoint=["http://localhost:8001/submit"])
+
+RESOURCE_DB = {"quantified_achievements": ["…"]}  # curated FGLI list
+
+@agent.on_message(model=ResourceRequest, replies=ResourceResponse)
+async def handle(ctx: Context, sender: str, msg: ResourceRequest):
+    await ctx.send(sender, ResourceResponse(resources=RESOURCE_DB.get(msg.gap_category, [])))
+
+if __name__ == "__main__":
+    agent.run()   # auto-registers on the Almanac, prints its agent1q… address
+```
+
+FastAPI bridges to it with one call (no manual futures / message-queue plumbing):
+
+```python
+# app/services/fetch_bridge.py
+from uagents.query import query
+from uagents.envelope import Envelope
+import json
+
+async def ask_agent(address: str, msg, timeout: int = 15):
+    resp = await query(destination=address, message=msg, timeout=timeout)
+    return json.loads(resp.decode_payload()) if isinstance(resp, Envelope) else resp
+```
+
+**Run setup (3 terminals):** `python agents/resource_agent.py` · `python agents/benchmark_agent.py` ·
+`uvicorn app.main:app`. Copy each agent's printed `agent1q…` address into backend config once at
+startup. Backend owns this; the frontend has zero knowledge Fetch.ai is involved — it just calls
+`/resources` / `/benchmark`. (uAgent registration auto-funds on testnet — no manual key needed.)
+
+### Voice (Deepgram) — sponsor
+- **STT:** record audio → Deepgram → transcript → same `/score` intake pipeline (voice = input adapter).
+- **TTS (Aura):** `/narrate` returns an audio URL; the frontend plays lessons via `<audio>` and
+  auto-advances slides on `onEnded`. **This replaces Pika video lessons** (narrated slides + roadmap).
+- **Keys:** store the Deepgram API key in `.env` — never commit it.
+
+### Jobs/LinkedIn (Sai) — sponsor
+- **What:** Sai (Simular) is a computer-using GUI agent — it logs into real sites/apps in a remote
+  desktop, fills forms, and submits. We use it to **connect users to live job postings + LinkedIn**
+  and (stretch) auto-apply behind per-step approval gates.
+- **Integration note:** *[OPEN]* Sai is GUI/desktop-first — confirm whether there's a programmatic
+  API/handoff or whether it runs as a side workflow feeding data into the backend (§12).
 
 ## 9. Team & ownership
 - **Frontend / UI-UX:** Bobby, Chris
-- **Backend:** Kaden, Inseon
-- **Design/video assets:** Pika
+- **Backend (FastAPI + Fetch.ai uAgents):** Kaden, Inseon
+- **Slide design + assets:** Pika · **lesson narration:** Deepgram TTS
 
 ## 10. Build plan & TODOs (phased)
 Tight clock: Sat 6/20 → Sun 6/21, closing 4–6 PM Sun. **[ASSUMPTION] code freeze ~Sun midday.**
@@ -132,15 +193,15 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 
 ### Phase 0 — Setup (now)
 - [ ] Scaffold `/frontend` (Vite React TS + Tailwind v4) and `/backend` (FastAPI)
-- [ ] `.env` + sponsor keys (Claude, Redis, Poke V2, BrowserBase); Redis running (docker/local)
+- [ ] `.env` + sponsor keys (Claude, Deepgram, Sai; Fetch.ai uAgents auto-fund on testnet — no key); Redis running (docker/local)
 - [ ] Lock the API contract + shared types (this doc)
 
-### Phase 1 — Backend thin slice (end-to-end score)
-- [ ] **Profile from chat text** (no file parsing yet): Claude extraction → structured profile (skills, quantified count, exp, edu)
-- [ ] `parseTarget`: role + required skills from **company/role text**
-- [ ] Scoring formula → score + matched/missing
-- [ ] `getReport` returns score + gaps (resources stubbed)
-- [ ] *(next adapters)* `intakeProfile`: resume paste → PDF/DOCX → LinkedIn URL
+### Phase 1 — Backend thin slice (`POST /score`)
+- [ ] **`/score`**: Claude extracts a structured profile from `resume` text + parses `target` → skills, quantified count, exp, edu
+- [ ] Scoring formula (pure Python) → `score` + per-category `categories` breakdown
+- [ ] 1–3 `lessons` (principle → example → next step); resource list stubbed first
+- [ ] `/score` returns `{ score, categories, lessons }` (matches FRONTEND.md)
+- [ ] *(next adapters)* resume paste → PDF/DOCX → LinkedIn URL → voice (Deepgram STT)
 
 ### Phase 2 — Frontend thin slice
 - [ ] **Chat / elevator-pitch input** (primary); resume paste next; PDF drag-drop + LinkedIn URL after
@@ -155,19 +216,21 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 - [ ] Roadmap view (stages 1–4)
 
 ### Phase 4 — Money shot
-- [ ] `tailorResume`: tailored resume w/ visible diff + reasons
-- [ ] Re-upload → re-score loop, smooth
-- [ ] Peer-benchmark percentile bar — data via **Poke** (set up MCP/callback; Claude fallback)
+- [ ] Edit a bullet → **re-call `/score`** → old vs new score side-by-side (keep it smooth)
+- [ ] **`POST /benchmark`** percentile bar — Fetch.ai `benchmark_agent` via `query()`
+- [ ] `tailorResume` (stretch endpoint): tailored resume w/ visible diff + reasons
 
 ### Phase 5 — Polish & pitch
-- [ ] **Poke**: V2 API key in `.env`; live job-data lookups + MCP/callback wired and demoed
-- [ ] Async/parallel AI calls + Redis caching
-- [ ] Job-desc **URL** input via BrowserBase (if time)
-- [ ] Demo script + slides (Pika); pitch tied to hidden-curriculum + AI-displacement
+- [ ] **Fetch.ai**: `resource_agent` + `benchmark_agent` running as own processes, bridged & demoed (`/resources`, `/benchmark`)
+- [ ] **Deepgram**: spoken pitch (STT) + `/narrate` TTS for narrated slide lessons, wired & demoed
+- [ ] **Sai**: connect users to live job postings / LinkedIn (stretch: auto-apply with approval gates)
+- [ ] Async/parallel Claude + voice + agent calls + Redis caching
+- [ ] Demo script + slide deck (Pika design); pitch tied to hidden-curriculum + AI-displacement
 - [ ] **Seed demo data** so the live demo never depends on a cold/slow API
 
 ### Stretch
-- [ ] **Video lessons** (Pika / UGC-style tutor) alongside the roadmap
+- [ ] **Narrated lesson player** — slide cards + Deepgram TTS, auto-advance on audio `onEnded`
+- [ ] **Sai auto-apply** to matching roles with per-step approval gates
 - [ ] School/program targets · location-personalized resources
 
 ## 11. Schedule / logistics
@@ -178,13 +241,16 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 - **Closing / winners:** 4–6 PM Sun — Wheeler Auditorium
 
 ## 12. Open questions
-**Resolved 2026-06-20** (see §0): input method (company/role text first) · profile input (chat-first)
-· benchmark data (live via Poke) · planning skill (yes — built).
+**Resolved 2026-06-20** (see §0): input method · profile input (chat-first) · Fetch.ai = uAgents
+(resource + benchmark) · Sai = jobs/LinkedIn GUI agent · benchmark via Fetch.ai uAgent · lessons =
+narrated slides (not Pika video) · API contract locked in `FRONTEND.md` · planning skill (built).
 
 **Still open:**
 - **Target type** — jobs only for MVP, or jobs **and** schools? *[ASSUMPTION: jobs only; schools = stretch]*
 - **Submission deadline** — actual code-freeze/submit time Sunday?
-- **Poke return path** — custom MCP server vs callback webhook for getting data back (§8)?
+- **Sai handoff** — programmatic API vs a side workflow feeding the backend? Auto-apply in scope, or
+  just surface/connect postings? (§8)
+- **Benchmark data** — seeded demo profiles only, or live-enriched via Sai/LinkedIn?
 
 ## 13. Planning Skill (`plan-feature`)
 A reusable Claude Code skill at `.claude/skills/plan-feature/SKILL.md`. Given any feature/task, it
