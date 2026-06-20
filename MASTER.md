@@ -1,7 +1,7 @@
 # HirED — Master Plan
 
 > Single source of truth for the hackathon build. Last updated **2026-06-20**.
-> Legend: **[ASSUMPTION]** = my working default pending your confirmation · **[OPEN]** = needs a call (see §12).
+> Legend: **[ASSUMPTION]** = my working default pending your confirmation · **[OPEN]** = needs a call (see §11).
 
 <!-- NEW: Tagline -->
 
@@ -20,22 +20,22 @@ The score + roadmap result module is internally branded **NextStep** — this is
 - **Target input:** company + role text first (job-description URL = stretch).
 - **Agents via Fetch.ai (uAgents):** resource lookup and peer-benchmark each run as a standalone
   **uAgent** (own process, auto-registered on Fetch.ai's Almanac); FastAPI bridges to them with
-  `uagents.query()`. See §8.
+  `uagents.query()`. See §7.
 - **Jobs/LinkedIn via Sai:** **Sai** (Simular's computer-using GUI agent) connects users to live job
-  postings, LinkedIn, and applications — it drives real sites/apps in a remote desktop. See §8.
+  postings, LinkedIn, and applications — it drives real sites/apps in a remote desktop. See §7.
 - **Voice via Deepgram:** speech-to-text for a spoken elevator pitch / voice mock-interviews, plus
-  **TTS narration** for the slide-based lessons. See §8.
+  **TTS narration** for the slide-based lessons. See §7.
 - **Lessons = narrated slides, not Pika video:** lessons + roadmap ship as custom slide cards with
-  Deepgram TTS narration (Pika video lessons dropped). See §10.
+  Deepgram TTS narration (Pika video lessons dropped). See §9.
 - **API contract locked in `FRONTEND.md`:** `/score`, `/benchmark`, `/resources` (+ voice) — backend
-  implements exactly those shapes (§8).
+  implements exactly those shapes (§7).
 - **Python backend, 3 processes:** FastAPI + the two uAgents run as separate Python processes; all
   sponsor integrations (Claude, Fetch.ai, Deepgram, Redis, Sai) live server-side.
-- **Planning Skill:** built a reusable `plan-feature` Claude Code skill under `.claude/skills/` (see §13).
+- **Planning Skill:** built a reusable `plan-feature` Claude Code skill under `.claude/skills/` (see §12).
 - <!-- NEW --> **Benchmark mechanism locked:** the peer-benchmark percentile is computed via
   **scraped JDs → synthetic competitor resumes (with generated avatars) → pairwise 2AFC comparisons
   judged by Claude → ELO aggregation → percentile.** This is the concrete algorithm behind the
-  `benchmark_agent` referenced in §0/§6/§8.
+  `benchmark_agent` referenced in §0/§6/§7.
 
 ---
 
@@ -91,7 +91,7 @@ services, career readiness (NACE)._
      extraction than arbitrary resume PDFs); plain PDF/DOCX upload and resume paste are also accepted.
    - Build order: chat → resume paste → PDF/DOCX → LinkedIn URL (voice as an add-on to chat).
 2. **Strict deadline** — user enters their hard timeline (e.g., "looking for a summer internship next
-   year," "graduating this December"). This feeds roadmap pacing (§10 Phase 3) — gaps get sequenced
+   year," "graduating this December"). This feeds roadmap pacing (§9 Phase 3) — gaps get sequenced
    against how much runway the user actually has, not a generic timeline.
 3. **Job goal / target** — company + role text first (job-description URL = stretch); optionally a
    school/program. Target company is enriched with:
@@ -140,6 +140,22 @@ The report should read like **comments from a recruiter**, not a dry scorecard:
   - Head-to-head bar comparing the user vs. 2–3 representative competitors.
   - Timeline/roadmap visualization for the suggestion phase (§5.4).
 
+#### How the score is computed (deterministic, not ML)
+
+- **Extract first, score second.** Claude pulls structured data (skills found, # quantified
+  achievements, experience, education, clarity signals). Claude does **not** invent the number.
+- **Fixed weighted formula** (our code):
+  `score = skills_match×0.35 + quantified_achievements×0.25 + experience×0.20 + education×0.10 + clarity×0.10` _(weights sum to 1.0)_
+- **Weights from research, not vibes.** Quantified work + skills-match weighted highest; Schmidt &
+  Hunter's meta-analysis shows years-of-experience and education are _weak_ predictors of performance —
+  most resume tools over-weight the wrong things.
+- **Deterministic = trustworthy.** Same input → same score. Fix a gap → the number moves. That's
+  what makes the demo land.
+- The **percentile** (§6) is computed separately via the 2AFC/ELO pipeline — it does not feed
+  the score formula.
+- _[OPEN] Normalize each term to 0–1:_ `skills_match = matched / required` (from parsed target);
+  define simple proxies for `quantified_achievements`, `experience`, `clarity`.
+
 ### 5.4 Suggestion / next-step phase <!-- NEW -->
 
 1. **Apply for jobs** — surface live postings (Sai/LinkedIn).
@@ -163,29 +179,13 @@ Mechanism (this **is** what the Fetch.ai `benchmark_agent` does internally):
 set, though a **seeded fallback set [ASSUMPTION]** should exist so the demo never depends on a live
 scrape/generation succeeding in real time.
 
-## 7. Scoring (deterministic, not ML)
-
-- **Extract first, score second.** Claude pulls structured data (skills found, # quantified
-  achievements, experience, education, clarity signals). Claude does **not** invent the number.
-- **Fixed weighted formula** (our code):
-  `score = skills_match×0.35 + quantified_achievements×0.25 + experience×0.20 + education×0.10 + clarity×0.10` _(weights sum to 1.0)_
-- **Weights from research, not vibes.** Quantified work + skills-match weighted highest; Schmidt &
-  Hunter's meta-analysis shows years-of-experience and education are _weak_ predictors of performance —
-  most resume tools over-weight the wrong things.
-- **Deterministic = trustworthy.** Same input → same score. Fix a gap → the number moves. That's
-  what makes the demo land.
-- The **percentile** (§6) is computed separately via the 2AFC/ELO pipeline — it does not feed
-  the score formula.
-- _[OPEN] Normalize each term to 0–1:_ `skills_match = matched / required` (from parsed target);
-  define simple proxies for `quantified_achievements`, `experience`, `clarity`.
-
-## 8. Architecture & stack
+## 7. Architecture & stack
 
 - **Frontend:** React + Vite + Tailwind v4 _(Bobby, Chris)_ — contract in `FRONTEND.md` (frontend branch).
 - **Backend:** FastAPI (**Python**) + Redis _(Kaden, Inseon)_. Runs as **3 processes**: the FastAPI
   server + the two Fetch.ai uAgents. All sponsor integrations live here.
 - **AI:** Claude for extraction / target-parse / lesson-gen / 2AFC judging (**not** the deterministic
-  score — see §7). <!-- NEW --> A **larger Claude model** is used once per session to draft the
+  score — see §5.3). <!-- NEW --> A **larger Claude model** is used once per session to draft the
   judging rubric consumed by the (likely smaller/faster) judge calls — see §5.2 **[OPEN]**.
 - **Agents (Fetch.ai uAgents):** `resource_agent` (curated free FGLI resources per gap) and
   `benchmark_agent` (peer percentile — implements the §6 scrape→generate→2AFC→ELO pipeline) run as
@@ -210,12 +210,12 @@ scrape/generation succeeding in real time.
 
 | Endpoint                | Input                       | Output                                       | Backed by                                                  |
 | ----------------------- | --------------------------- | -------------------------------------------- | ---------------------------------------------------------- |
-| `POST /score`           | `{ resume, target }`        | `{ score, categories: {…}, lessons: [...] }` | Claude extract + deterministic score (§7)                  |
+| `POST /score`           | `{ resume, target }`        | `{ score, categories: {…}, lessons: [...] }` | Claude extract + deterministic score (§5.3)                 |
 | `POST /benchmark`       | `{ score, target }`         | `{ percentile }`                             | Fetch.ai `benchmark_agent` — scrape→generate→2AFC→ELO (§6) |
 | `POST /resources`       | `{ gap_category, context }` | `{ resources: [...] }`                       | Fetch.ai `resource_agent` via `query()`                    |
 | `POST /narrate`         | `{ text }`                  | `{ audio_url }`                              | Deepgram TTS (Aura)                                        |
 | `POST /transcribe`      | audio                       | `{ text }`                                   | Deepgram STT                                               |
-| `GET /benchmark/status` | —                           | `{ stage, progress, message }`               | Redis job status _(new — see §8 status mechanism)_         |
+| `GET /benchmark/status` | —                           | `{ stage, progress, message }`               | Redis job status _(new — see §7 status mechanism)_         |
 
 `/score` must be **re-callable** with an edited resume → new result (powers the re-score money-shot loop).
 Internally `/score` runs intake/extract → parse target → score → 1–3 lessons (the old
@@ -281,15 +281,15 @@ startup. Backend owns this; the frontend has zero knowledge Fetch.ai is involved
   **scrape JDs for the benchmark pipeline (§6)**, **source mentor recommendations (§5.4)**, and
   (stretch) auto-apply behind per-step approval gates.
 - **Integration note:** _[OPEN]_ Sai is GUI/desktop-first — confirm whether there's a programmatic
-  API/handoff or whether it runs as a side workflow feeding data into the backend (§12).
+  API/handoff or whether it runs as a side workflow feeding data into the backend (§11).
 
-## 9. Team & ownership
+## 8. Team & ownership
 
 - **Frontend / UI-UX:** Bobby, Chris
 - **Backend (FastAPI + Fetch.ai uAgents):** Kaden, Inseon
 - **Slide design + assets:** Pika · **lesson narration:** Deepgram TTS
 
-## 10. Build plan & TODOs (phased)
+## 9. Build plan & TODOs (phased)
 
 Tight clock: Sat 6/20 → Sun 6/21, closing 4–6 PM Sun. **[ASSUMPTION] code freeze ~Sun midday.**
 Rule: ship a working **end-to-end thin slice first**, then add breadth.
@@ -315,7 +315,7 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 - [ ] Target input field (company + role) <!-- NEW --> + deadline field + company-info auto-lookup display
 - [ ] Results screen: score number + matched/missing
 - [ ] API wrapper (fetch/axios) → FastAPI
-- [ ] Loading / skeleton state <!-- NEW --> → evolve into the dynamic ~5-min status feed (§5.2/§8)
+- [ ] Loading / skeleton state <!-- NEW --> → evolve into the dynamic ~5-min status feed (§5.2/§7)
 
 ### Phase 3 — Education layer
 
@@ -349,7 +349,7 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 - [ ] **Sai auto-apply** to matching roles with per-step approval gates
 - [ ] School/program targets · location-personalized resources
 
-## 11. Schedule / logistics
+## 10. Schedule / logistics
 
 - **Check-in:** 9:00 AM Sat (8:30 if first-timer) — 2nd Floor, Upper Sproul entrance
 - **Intro to Hackathons:** 9–10 AM Sat — 3rd Floor, Stephens Room
@@ -357,7 +357,7 @@ Rule: ship a working **end-to-end thin slice first**, then add breadth.
 - **Orkes workshop (Inseon):** Sat 6/20, 12–1 PM — 3rd Floor, Stephens Room
 - **Closing / winners:** 4–6 PM Sun — Wheeler Auditorium
 
-## 12. Open questions
+## 11. Open questions
 
 **Resolved 2026-06-20** (see §0): input method · profile input (chat-first) · Fetch.ai = uAgents
 (resource + benchmark) · Sai = jobs/LinkedIn GUI agent · benchmark via Fetch.ai uAgent · lessons =
@@ -369,18 +369,18 @@ benchmark mechanism = scrape→generate→2AFC→ELO (§0/§6).
 - **Target type** — jobs only for MVP, or jobs **and** schools? _[ASSUMPTION: jobs only; schools = stretch]_
 - **Submission deadline** — actual code-freeze/submit time Sunday?
 - **Sai handoff** — programmatic API vs a side workflow feeding the backend? Auto-apply in scope, or
-  just surface/connect postings? (§8)
+  just surface/connect postings? (§7)
 - **Benchmark data** — fully live scrape+generate each session, or seeded demo profiles with live
   enrichment as a fallback? _[ASSUMPTION: seeded fallback always present, §6]_
 - <!-- NEW --> **Judging-rubric authorship** — what does the larger-Claude-model-authored guideline
   for the LLM-judge actually contain, and is it regenerated per session or per target role? Needs
   research before Phase 4 (§5.2).
-- <!-- NEW --> **Avatar image generation** — which tool/sponsor for the competitor avatars (§8)?
-- <!-- NEW --> **Status-feed transport** — polling vs SSE vs WebSocket for the ~5-min analyzing UI (§8)?
+- <!-- NEW --> **Avatar image generation** — which tool/sponsor for the competitor avatars (§7)?
+- <!-- NEW --> **Status-feed transport** — polling vs SSE vs WebSocket for the ~5-min analyzing UI (§7)?
 - <!-- NEW --> **Mentor scraping** — any LinkedIn ToS / consent consideration before surfacing scraped
   profiles as "reach out to them" suggestions (§5.4)? Worth a quick check even for demo purposes.
 
-## 13. Planning Skill (`plan-feature`)
+## 12. Planning Skill (`plan-feature`)
 
 A reusable Claude Code skill at `.claude/skills/plan-feature/SKILL.md`. Given any feature/task, it
 produces a phased plan in this doc's style: one-line goal → constraints → thin end-to-end slice →
