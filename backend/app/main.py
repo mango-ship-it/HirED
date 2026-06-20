@@ -71,6 +71,17 @@ app.include_router(voice_routes.router, tags=["voice"])
 app.include_router(report_routes.router, tags=["report"])
 
 
+@app.get("/", tags=["meta"])
+async def root() -> dict[str, str]:
+    """Friendly landing for the base URL — the API lives under named paths."""
+    return {
+        "service": "HirED API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health", tags=["meta"])
 async def health() -> dict[str, object]:
     """Liveness + config visibility (no secrets leaked — booleans only)."""

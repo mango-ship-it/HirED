@@ -17,6 +17,12 @@ _TARGET = json.dumps(
 )
 
 
+def test_root_ok():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["service"] == "HirED API"
+
+
 def test_health_ok():
     response = client.get("/health")
     assert response.status_code == 200
