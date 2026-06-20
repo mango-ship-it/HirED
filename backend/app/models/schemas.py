@@ -13,56 +13,60 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 # --------------------------------------------------------------------------- #
-# /score
+# /score  (API_CONTRACT.md: multipart upload in; these model the JSON response)
 # --------------------------------------------------------------------------- #
 
 
-class ScoreRequest(BaseModel):
-    """Input to /score. `resume` is plain text (chat pitch, pasted resume, or
-    transcript). `target` is the company + role text (or a pasted job posting)."""
+class Target(BaseModel):
+    """The user's goal. Sent on /score as a JSON string field in the multipart form."""
 
-    resume: str = Field(min_length=1, description="Resume / pitch / transcript text")
-    target: str = Field(min_length=1, description="Target company + role text")
+    type: str = Field(description='"role" | "school" | "job_posting_text"')
+    value: str = Field(min_length=1, description="e.g. 'Software Engineering Internship'")
 
 
 class Lesson(BaseModel):
-    """A single micro-lesson for one gap: principle -> example -> next step.
+    """One micro-lesson for a gap: principle -> example -> action (API_CONTRACT.md).
 
-    `category` ties the lesson back to a scoring category so the frontend can
-    fetch resources for it via /resources.
+    `category` is the snake_case scoring category (e.g. "quantified_achievements")
+    so the frontend can fetch resources for it via /resources.
     """
 
     category: str
-    title: str
     principle: str
     example: str
-    next_step: str
+    action: str
 
 
 class CategoryBreakdown(BaseModel):
-    """Per-category breakdown for one scoring category (FRONTEND.md: label every
-    score as a learnable skill — 'Quantified Impact: 40/100', never a bare number).
-
-    Matches `app.scoring.ScoreResult.to_payload()`.
-    """
+    """Per-category breakdown: 0-100 score + its weight in the formula (§7)."""
 
     score: int = Field(ge=0, le=100)
     weight: float
-    contribution: float
+
+
+class ScoreStatus(BaseModel):
+    """Per-section readiness (API_CONTRACT.md). `/score` returns scoring
+    synchronously; benchmark/resources come from their own endpoints, so they
+    start "pending" and the frontend renders them when ready."""
+
+    scoring: str = "complete"
+    benchmark: str = "pending"
+    resources: str = "pending"
 
 
 class ScoreResponse(BaseModel):
-    """Output of /score.
+    """Output of /score (API_CONTRACT.md).
 
-    `score` is 0-100. `categories` maps each HUMAN-LABELED scoring category
-    (e.g. "Skills Match", "Quantified Impact") -> its breakdown (score/weight/
-    contribution) for the per-category bars. `lessons` is the 1-3 gaps that move
-    the needle. Shape mirrors `app.scoring.ScoreResult.to_payload()`.
+    `categories` maps each snake_case scoring category (skills_match,
+    quantified_achievements, experience, education, clarity) -> {score, weight}.
+    `lessons` are the 1-3 gaps that move the needle; `status` tells the frontend
+    which sections are ready.
     """
 
     score: int = Field(ge=0, le=100)
     categories: dict[str, CategoryBreakdown]
     lessons: list[Lesson]
+    status: ScoreStatus = Field(default_factory=ScoreStatus)
 
 
 # --------------------------------------------------------------------------- #

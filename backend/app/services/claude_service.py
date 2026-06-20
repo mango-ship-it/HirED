@@ -35,12 +35,11 @@ _LESSONS_JSON_SCHEMA: dict = {
                 "type": "object",
                 "properties": {
                     "category": {"type": "string"},
-                    "title": {"type": "string"},
                     "principle": {"type": "string"},
                     "example": {"type": "string"},
-                    "next_step": {"type": "string"},
+                    "action": {"type": "string"},
                 },
-                "required": ["category", "title", "principle", "example", "next_step"],
+                "required": ["category", "principle", "example", "action"],
                 "additionalProperties": False,
             },
         }
@@ -63,9 +62,10 @@ _LESSONS_SYSTEM = (
     "You are a supportive career tutor for HirED, teaching the 'hidden curriculum' of "
     "job hunting to first-generation and low-income job seekers. Given a candidate's "
     "lowest-scoring categories, write 1-3 micro-lessons that each move the needle. "
-    "Each lesson has: a short title, a one-sentence PRINCIPLE (the rule), a concrete "
-    "before/after EXAMPLE, and ONE specific NEXT STEP the user can do today. Be warm, "
-    "concrete, and jargon-free. Frame everything as a teachable skill, never as a flaw."
+    "Each lesson has: a one-sentence PRINCIPLE (the rule), a concrete before/after "
+    "EXAMPLE, and ONE specific ACTION the user can do today. Be warm, concrete, and "
+    "jargon-free. Frame everything as a teachable skill, never as a flaw. Set each "
+    "lesson's `category` to the exact snake_case category key it addresses."
 )
 
 

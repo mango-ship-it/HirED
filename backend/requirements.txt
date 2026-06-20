@@ -21,3 +21,12 @@ uagents==0.25.2                  # Fetch.ai: resource + benchmark uAgents
 # --- infra ---
 redis==5.2.1                     # cache/queue (optional at MVP; degrades gracefully)
 httpx==0.28.1
+
+# --- resume parsing (POST /score file upload; API_CONTRACT.md) ---
+pdfplumber==0.11.10              # PDF text extraction (layout-aware; good for resume PDFs)
+pypdf==6.13.3                    # lighter PDF fallback (pure-python)
+python-docx==1.2.0               # DOCX text extraction (import name: `docx`)
+
+# --- dev / test ---
+pytest==9.1.1
+fpdf2==2.8.4                     # generate small PDF fixtures in tests (pure-python)
