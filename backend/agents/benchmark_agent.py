@@ -69,8 +69,14 @@ async def _startup(ctx: Context) -> None:
 
 @agent.on_query(model=BenchmarkRequest, replies={BenchmarkResponse})
 async def handle_query(ctx: Context, sender: str, msg: BenchmarkRequest) -> None:
-    """Return the candidate's readiness percentile vs. the seeded cohort."""
-    await ctx.send(sender, BenchmarkResponse(percentile=percentile_of(msg.score)))
+    """Return the candidate's readiness percentile + cohort size vs. the seeded cohort."""
+    await ctx.send(
+        sender,
+        BenchmarkResponse(
+            percentile=percentile_of(msg.score),
+            sample_size=len(_REFERENCE_COHORT),
+        ),
+    )
 
 
 if __name__ == "__main__":

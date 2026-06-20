@@ -75,12 +75,15 @@ class ScoreResponse(BaseModel):
 
 
 class BenchmarkRequest(BaseModel):
+    user_id: str = Field(min_length=1, description="Same client-generated UUID sent to /score")
     score: int = Field(ge=0, le=100)
-    target: str = Field(min_length=1)
+    target: Target
 
 
 class BenchmarkResponse(BaseModel):
     percentile: int = Field(ge=0, le=100)
+    sample_size: int = Field(ge=0, description="Size of the comparison cohort")
+    message: str = Field(description="Motivating, plain-language framing of the percentile")
 
 
 # --------------------------------------------------------------------------- #
@@ -88,13 +91,27 @@ class BenchmarkResponse(BaseModel):
 # --------------------------------------------------------------------------- #
 
 
+class ResourceContext(BaseModel):
+    """Optional tailoring signals (API_CONTRACT.md)."""
+
+    first_gen: bool = False
+    target_type: str = ""
+
+
 class ResourcesRequest(BaseModel):
+    user_id: str = Field(min_length=1, description="Same client-generated UUID sent to /score")
     gap_category: str = Field(min_length=1)
-    context: str = Field(default="", description="Optional context to tailor results")
+    context: ResourceContext = Field(default_factory=ResourceContext)
+
+
+class Resource(BaseModel):
+    name: str
+    url: str
+    description: str
 
 
 class ResourcesResponse(BaseModel):
-    resources: list[str]
+    resources: list[Resource]
 
 
 # --------------------------------------------------------------------------- #

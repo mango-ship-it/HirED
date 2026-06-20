@@ -108,19 +108,35 @@ def test_score_missing_required_fields_is_422():
 
 def test_benchmark_falls_back_without_agent():
     response = client.post(
-        "/benchmark", json={"score": 70, "target": "Data Analyst at Acme"}
+        "/benchmark",
+        json={"user_id": "u1", "score": 70, "target": {"type": "role", "value": "Data Analyst"}},
     )
     assert response.status_code == 200
-    assert 0 <= response.json()["percentile"] <= 100
+    body = response.json()
+    assert 0 <= body["percentile"] <= 100
+    assert body["sample_size"] >= 0
+    assert isinstance(body["message"], str) and body["message"]
+
+
+def test_benchmark_requires_target_object():
+    # Old shape (target as a bare string) must now fail validation.
+    response = client.post("/benchmark", json={"user_id": "u1", "score": 70, "target": "Data Analyst"})
+    assert response.status_code == 422
 
 
 def test_resources_falls_back_without_agent():
     response = client.post(
-        "/resources", json={"gap_category": "skills_match", "context": ""}
+        "/resources",
+        json={
+            "user_id": "u1",
+            "gap_category": "skills_match",
+            "context": {"first_gen": True, "target_type": "tech_internship"},
+        },
     )
     assert response.status_code == 200
     resources = response.json()["resources"]
     assert isinstance(resources, list) and resources
+    assert set(resources[0]) == {"name", "url", "description"}
 
 
 def test_narrate_requires_nonempty_text():
