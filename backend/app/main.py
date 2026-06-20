@@ -35,13 +35,29 @@ app = FastAPI(
 )
 
 # CORS so the Vite/React frontend can call us directly.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Out of the box we allow ANY locally-served frontend (any localhost / 127.0.0.1
+# port) — so every teammate running the frontend on their own machine works with no
+# config — plus any explicit origins in CORS_ORIGINS (e.g. a deployed frontend URL).
+# Set CORS_ORIGINS=* to open it to everything (this disables credentials); only do
+# that briefly — an open, key-holding backend can have its Claude credits used by anyone.
+_cors_origins = settings.cors_origin_list
+if "*" in _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Serve generated narration audio. /static/audio/<file>.mp3
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
