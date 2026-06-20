@@ -1073,7 +1073,11 @@
       const r = await fetch(`${API_BASE}/score`,{ method:'POST', body:fd });
       const d = await r.json();
       if(!r.ok) throw new Error(d.error||`Error ${r.status}`);
-      showResults(d);
+      // hand the results to the dedicated results page
+      sessionStorage.setItem('hired_result', JSON.stringify(d));
+      sessionStorage.setItem('hired_target', JSON.stringify(currentTarget));
+      sessionStorage.setItem('hired_api', API_BASE);
+      window.location.href = 'results.html';
     }catch(err){
       showError(err.message);
     }
