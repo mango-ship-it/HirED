@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # --- Models ---
     claude_model: str = Field(default="claude-opus-4-8", alias="CLAUDE_MODEL")
 
+    # --- Scoring engine (pluggable; a teammate's scorer can drop in) ---
+    # "deterministic" (default) or "custom" (app/services/custom_scorer.py). See
+    # app/services/scoring_engine.py for how to add one.
+    scorer: str = Field(default="deterministic", alias="SCORER")
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

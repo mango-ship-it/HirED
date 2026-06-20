@@ -25,14 +25,13 @@ from app.models.schemas import (
     ScoreStatus,
     Target,
 )
-from app.scoring import compute_score
-from app.services.claude_service import get_claude_service
 from app.services.document_parser import (
     DocumentParseError,
     UnsupportedDocumentError,
     extract_text,
 )
-from app.services.profile_signals import profile_to_signals
+from app.services.extractor import extract_profile, generate_lessons
+from app.services.scoring_engine import get_scorer
 
 logger = logging.getLogger("hired.routes.score")
 
@@ -81,36 +80,27 @@ async def score(
             400,
         )
 
-    # 3. Claude extracts structured facts; pure code computes the deterministic score.
-    claude = get_claude_service()
-    try:
-        profile = await claude.extract_profile(resume, target_obj.value)
-    except Exception as exc:
-        logger.exception("extraction failed")
-        return error_response(f"Profile extraction failed: {exc}", ErrorCode.SERVER_ERROR, 502)
-
-    result = compute_score(profile_to_signals(profile))
+    # 3. Extract structured facts (Claude if ANTHROPIC_API_KEY is set, else heuristic
+    #    — so this works with zero config), then SCORE via the pluggable scorer.
+    profile = await extract_profile(resume, target_obj.value)
+    outcome = await get_scorer().score(profile=profile, resume=resume, target=target_obj.value)
     categories = {
-        category.key: CategoryBreakdown(score=category.score, weight=category.weight)
-        for category in result.categories.values()
+        key: CategoryBreakdown(score=cat.score, weight=cat.weight)
+        for key, cat in outcome.categories.items()
     }
 
-    # 4. Lessons for the weakest categories — valuable, but not worth failing the score over.
-    key_scores = {category.key: category.score for category in result.categories.values()}
-    try:
-        lessons = await claude.generate_lessons(
-            resume=resume,
-            target=target_obj.value,
-            categories=key_scores,
-            profile=profile,
-        )
-    except Exception:
-        logger.exception("lesson generation failed; returning score without lessons")
-        lessons = []
+    # 4. Lessons for the weakest categories (Claude if keyed, else templated fallback).
+    key_scores = {key: cat.score for key, cat in outcome.categories.items()}
+    lessons = await generate_lessons(
+        resume=resume,
+        target=target_obj.value,
+        category_scores=key_scores,
+        profile=profile,
+    )
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     return ScoreResponse(
-        score=result.score,
+        score=outcome.score,
         categories=categories,
         lessons=lessons,
         matched_skills=list(profile.matched_skills),

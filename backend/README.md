@@ -44,6 +44,43 @@ Each term is normalized to 0..1 in `app/scoring.py` (`skills_match = matched /
 required`). Same input → same score; fix a gap → the number moves (the re-score
 money shot). Claude extracts the raw signals; it never invents the number.
 
+## Pipeline & pluggable scoring
+
+`/score` runs three stages — only the middle one is Claude:
+
+1. **Parse** (`services/document_parser.py`): file (PDF/DOCX/RTF/TXT) → text.
+2. **Extract** (`services/extractor.py`): text → structured signals. Uses **Claude**
+   when `ANTHROPIC_API_KEY` is set, else a dependency-free **heuristic**
+   (`heuristic_extractor.py`). **So `/score` works with no key** — the frontend can
+   integrate immediately; quality upgrades automatically once the key is added.
+3. **Score** (`services/scoring_engine.py`): signals → number + categories.
+   **Pluggable** — default is the deterministic formula above; a teammate's scorer
+   drops in via one env var.
+
+### Plug in a custom scorer
+
+Create `app/services/custom_scorer.py`:
+
+```python
+from app.services.scoring_engine import CategoryScore, ScoreOutcome
+
+class CustomScorer:
+    name = "custom"
+    async def score(self, *, profile, resume, target) -> ScoreOutcome:
+        # ...your model / formula... Return the FIVE snake_case contract categories
+        # so the frontend bars + "what the top tier has" chips keep working:
+        return ScoreOutcome(score=72, categories={
+            "skills_match":            CategoryScore(score=65, weight=0.35),
+            "quantified_achievements": CategoryScore(score=40, weight=0.25),
+            "experience":              CategoryScore(score=80, weight=0.20),
+            "education":               CategoryScore(score=90, weight=0.10),
+            "clarity":                 CategoryScore(score=70, weight=0.10),
+        })
+```
+
+Then set `SCORER=custom` in `.env`. No route or contract changes. An unknown or
+broken scorer logs and falls back to deterministic — the page never breaks.
+
 ## Run (MASTER.md §8)
 
 ```bash

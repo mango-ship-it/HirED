@@ -1,53 +1,20 @@
 """Integration smoke tests for the API contract — no network, no API keys.
 
-Verifies the app boots, routes are wired, request validation works, `/score`
-returns the API_CONTRACT.md shape (with Claude mocked), and the Fetch.ai agent
-routes fall back gracefully when no agent is configured (the demo-safety path).
+With no ANTHROPIC_API_KEY in the test env, /score runs the heuristic extractor +
+deterministic scorer end-to-end. That's the point: the first page works with zero
+config, so these tests double as proof the frontend is unblocked.
 """
 import json
 
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.extraction import ExtractedProfile
-from app.models.schemas import Lesson
 
 client = TestClient(app)
 
-_TARGET = json.dumps({"type": "role", "value": "Software Engineering Internship"})
-
-
-class _FakeClaude:
-    """Deterministic stand-in for ClaudeService so /score runs without a network."""
-
-    async def extract_profile(self, resume: str, target: str) -> ExtractedProfile:
-        return ExtractedProfile(
-            required_skills=["python", "sql", "airflow"],
-            matched_skills=["python", "sql"],
-            missing_skills=["airflow"],
-            quantified_achievement_count=2,
-            total_achievement_count=5,
-            years_experience=2.0,
-            education_level="bachelor",
-            clarity_signal=0.6,
-            target_summary="Software Engineering Internship",
-        )
-
-    async def generate_lessons(self, *, resume, target, categories, profile):
-        return [
-            Lesson(
-                category="quantified_achievements",
-                principle="Recruiters scan for numbers.",
-                example="Before: 'helped' -> After: 'cut latency 30%'.",
-                action="Add a metric to bullet 2.",
-            )
-        ]
-
-
-def _mock_claude(monkeypatch):
-    import app.routes.score as score_route
-
-    monkeypatch.setattr(score_route, "get_claude_service", lambda: _FakeClaude())
+_TARGET = json.dumps(
+    {"type": "role", "value": "Data Analyst — needs SQL, Python, and Tableau"}
+)
 
 
 def test_health_ok():
@@ -55,14 +22,17 @@ def test_health_ok():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["claude_configured"] is False
+    assert body["claude_configured"] is False  # no key in test env -> heuristic path
 
 
-def test_score_returns_contract_shape(monkeypatch):
-    _mock_claude(monkeypatch)
+def test_score_returns_contract_shape_with_no_api_key():
     response = client.post(
         "/score",
-        data={"user_id": "u1", "target": _TARGET, "resume_text": "Jane Doe. Python, SQL."},
+        data={
+            "user_id": "u1",
+            "target": _TARGET,
+            "resume_text": "Experienced Python developer. Built dashboards, led a team, grew signups 30%.",
+        },
     )
     assert response.status_code == 200
     body = response.json()
@@ -70,21 +40,20 @@ def test_score_returns_contract_shape(monkeypatch):
     # categories keyed by snake_case scoring category, each {score, weight}
     assert "skills_match" in body["categories"]
     assert set(body["categories"]["skills_match"]) == {"score", "weight"}
-    # lessons use the contract field names
+    # lessons use the contract field names (heuristic templates populate them)
+    assert body["lessons"], "expected at least one lesson"
     assert set(body["lessons"][0]) == {"category", "principle", "example", "action"}
-    # per-section status
-    assert body["status"] == {"scoring": "complete", "benchmark": "pending", "resources": "pending"}
     # surfaced skills power the "what the top tier has that you don't" UI
-    assert "python" in body["matched_skills"]
-    assert body["missing_skills"] == ["airflow"]
+    assert "Python" in body["matched_skills"]
+    assert "SQL" in body["missing_skills"]
+    assert body["status"] == {"scoring": "complete", "benchmark": "pending", "resources": "pending"}
 
 
-def test_score_accepts_file_upload(monkeypatch):
-    _mock_claude(monkeypatch)
+def test_score_accepts_file_upload():
     response = client.post(
         "/score",
-        data={"user_id": "u1", "target": _TARGET},
-        files={"resume_file": ("resume.txt", b"Jane Doe\nPython, SQL, Airflow", "text/plain")},
+        data={"user_id": "u1", "target": json.dumps({"type": "role", "value": "Software Engineer"})},
+        files={"resume_file": ("resume.txt", b"Jane Doe\nPython, SQL, Airflow developer", "text/plain")},
     )
     assert response.status_code == 200
     assert "skills_match" in response.json()["categories"]
@@ -105,7 +74,6 @@ def test_score_bad_target_json_returns_invalid_input():
 
 
 def test_score_missing_required_fields_is_422():
-    # No user_id / target at all -> FastAPI form validation.
     assert client.post("/score", data={}).status_code == 422
 
 
@@ -122,7 +90,6 @@ def test_benchmark_falls_back_without_agent():
 
 
 def test_benchmark_requires_target_object():
-    # Old shape (target as a bare string) must now fail validation.
     response = client.post("/benchmark", json={"user_id": "u1", "score": 70, "target": "Data Analyst"})
     assert response.status_code == 422
 
