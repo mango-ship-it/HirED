@@ -48,8 +48,9 @@
     border-bottom:1px solid var(--line);
   }
   .nav-in{
-    max-width:1060px;margin:0 auto;padding:0 28px;
-    display:flex;align-items:center;justify-content:space-between;height:62px;
+    width:100%;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    height:62px;padding:0 clamp(16px,4vw,40px);
   }
   .brand{font-family:"Fraunces",serif;font-weight:600;font-size:23px;letter-spacing:-.02em;}
   .brand .ed{position:relative;}
@@ -244,20 +245,27 @@
     white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;
   }
   .target-chip:hover{border-color:var(--rise);color:var(--rise);}
-  .icon-btn{
-    width:34px;height:34px;border-radius:10px;border:0;
-    background:transparent;color:var(--ink-soft);font-size:17px;
+  .upload-btn{
+    width:38px;height:38px;border-radius:11px;flex-shrink:0;
+    border:1px solid var(--line);background:var(--paper-2);color:var(--ink-soft);
     cursor:pointer;display:grid;place-items:center;
-    transition:background .14s,color .14s;flex-shrink:0;
+    transition:border-color .2s ease,color .2s ease,background .2s ease,transform .2s ease,box-shadow .2s ease;
   }
-  .icon-btn:hover{background:rgba(42,125,225,.1);color:var(--rise);}
+  .upload-btn svg{width:19px;height:19px;display:block;}
+  .upload-btn .up-arrow{animation:floatUp 2.6s ease-in-out infinite;}
+  .upload-btn:hover{
+    border-color:var(--rise);color:var(--rise);background:rgba(42,125,225,.06);
+    transform:translateY(-1px);box-shadow:0 6px 16px -8px rgba(42,125,225,.45);
+  }
+  @keyframes floatUp{0%,100%{transform:translateY(1.2px);}50%{transform:translateY(-2px);}}
   .send-btn{
     width:30px;height:30px;border-radius:8px;border:0;
-    background:var(--ink);color:#fff;font-size:18px;
+    background:var(--rise);color:#fff;
     cursor:pointer;display:grid;place-items:center;
-    transition:transform .14s,background .18s;flex-shrink:0;
+    transition:transform .14s,background .18s,box-shadow .18s;flex-shrink:0;
   }
-  .send-btn:hover{transform:translateY(-1px);background:var(--rise);}
+  .send-btn svg{width:15px;height:15px;display:block;}
+  .send-btn:hover{transform:translateY(-1px);background:var(--rise-bright);box-shadow:0 5px 14px -7px rgba(42,125,225,.55);}
 
   /* drop zone */
   .drop-zone{
@@ -639,10 +647,19 @@
       <div class="input-bar-left">
         <button class="target-chip" id="targetChip" title="Click to set target role">🎯 <span id="targetLabel">Pick a target role</span></button>
         <input type="text" id="targetInput" class="target-input" placeholder="e.g. Software Engineer at Google" style="display:none;" />
-        <button class="icon-btn" id="attachBtn" title="Attach resume (PDF, DOCX)">📎</button>
+        <button class="upload-btn" id="attachBtn" title="Upload resume (PDF, DOCX)" aria-label="Upload resume">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <g class="up-arrow"><path d="M12 15V6"/><path d="M8 10l4-4 4 4"/></g>
+            <path d="M6 18h12"/>
+          </svg>
+        </button>
         <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" hidden />
       </div>
-      <button class="send-btn" id="sendBtn" aria-label="Analyze my readiness">↑</button>
+      <button class="send-btn" id="sendBtn" aria-label="Analyze my readiness">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 16V8"/><path d="M8 12l4-4 4 4"/>
+        </svg>
+      </button>
     </div>
   </div>
 
