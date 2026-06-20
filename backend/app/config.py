@@ -37,13 +37,20 @@ class Settings(BaseSettings):
         alias="CORS_ORIGINS",
     )
 
-    # --- Models ---
-    claude_model: str = Field(default="claude-opus-4-8", alias="CLAUDE_MODEL")
+    # --- Models (default to the CHEAPEST capable model to conserve API credits;
+    #     set CLAUDE_MODEL=claude-opus-4-8 for higher quality if budget allows) ---
+    claude_model: str = Field(default="claude-haiku-4-5-20251001", alias="CLAUDE_MODEL")
+    gen_model: str = Field(
+        default="claude-haiku-4-5-20251001", alias="GEN_MODEL"
+    )  # optional report/slide polish; templated (free) path is the default
 
     # --- Scoring engine (pluggable; a teammate's scorer can drop in) ---
     # "deterministic" (default) or "custom" (app/services/custom_scorer.py). See
     # app/services/scoring_engine.py for how to add one.
     scorer: str = Field(default="deterministic", alias="SCORER")
+
+    # --- Sai data ingestion (Sai has no public API — we ingest its exported file) ---
+    sai_data_path: str = Field(default="", alias="SAI_DATA_PATH")
 
     @property
     def cors_origin_list(self) -> list[str]:

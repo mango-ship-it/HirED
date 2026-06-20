@@ -21,17 +21,18 @@ cp .env.example .env              # then fill in keys
 
 ## API contract (LOCKED — do not change shapes)
 
-| Endpoint        | Input                       | Output                                  | Backed by              |
-|-----------------|-----------------------------|-----------------------------------------|------------------------|
-| `POST /score`   | `{resume, target}`          | `{score, categories:{...}, lessons:[]}` | Claude + deterministic |
-| `POST /benchmark`| `{score, target}`          | `{percentile}`                          | Fetch.ai benchmark agent|
-| `POST /resources`| `{gap_category, context}`  | `{resources:[...]}`                     | Fetch.ai resource agent |
-| `POST /narrate` | `{text}`                    | `{audio_url}`                           | Deepgram TTS (Aura)    |
-| `POST /transcribe`| audio file (multipart)    | `{text}`                                | Deepgram STT (Nova)    |
+| Endpoint           | Input                                               | Output                                                                | Backed by                              |
+|--------------------|-----------------------------------------------------|-----------------------------------------------------------------------|----------------------------------------|
+| `POST /score`      | multipart: `user_id`, `target`, `resume_file`/`resume_text` | `{score, categories, lessons, matched_skills, missing_skills, status}` | extract (Claude/heuristic) + scorer    |
+| `POST /benchmark`  | `{user_id, score, target}`                          | `{percentile, sample_size, message}`                                  | Fetch.ai benchmark agent (+fallback)   |
+| `POST /resources`  | `{user_id, gap_category, context}`                  | `{resources:[{name,url,description}]}`                                 | Fetch.ai resource agent (+fallback)    |
+| `POST /report`     | scored data + `target`                              | `{summary, strengths, weaknesses, next_steps, jobs, mentors, slides}` | templated (free) + Sai jobs/mentors    |
+| `POST /narrate`    | `{text}`                                             | `{audio_url}`                                                         | Deepgram TTS (cached by text)          |
+| `POST /transcribe` | audio file (multipart)                              | `{text}`                                                              | Deepgram STT (Nova)                    |
 
-`/score`'s `categories` are human-labeled (e.g. `"Skills Match"`, `"Quantified
-Impact"`) with `{score, weight, contribution}` each — see `app/scoring.py`'s
-`to_payload()`.
+`/score`'s `categories` are keyed by snake_case category (`skills_match`, …) with
+`{score, weight}` each. **`API_CONTRACT.md` (repo root) is the authoritative
+frontend/backend contract.**
 
 ## Scoring (deterministic, NOT an LLM number — MASTER.md §7)
 
@@ -80,6 +81,25 @@ class CustomScorer:
 
 Then set `SCORER=custom` in `.env`. No route or contract changes. An unknown or
 broken scorer logs and falls back to deterministic — the page never breaks.
+
+## Live LinkedIn data via Sai (pysimular) — optional
+
+Sai (Simular) is a macOS app driven by the `pysimular` client. Because `run()` blocks
+on a Cocoa run loop for minutes, it can't live in the API — instead a small worker
+produces a JSON file the backend reads (`SAI_DATA_PATH`). A demo **seed ships**, so
+jobs/mentors work with zero setup.
+
+To wire real LinkedIn data (macOS only):
+
+```bash
+# 1. Install the app: open simular-mac-agent-*.dmg -> ~/Applications, launch, sign in to LinkedIn
+# 2. Install the optional client (kept out of core requirements.txt):
+pip install -r requirements-sai.txt
+# 3. Fetch jobs + mentors for a target:
+python scripts/sai_fetch.py "Marketing Coordinator" --out app/data/sai_live.json
+# 4. Point the backend at it in backend/.env:
+#    SAI_DATA_PATH=app/data/sai_live.json
+```
 
 ## Run (MASTER.md §8)
 

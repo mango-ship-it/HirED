@@ -1,0 +1,9 @@
+# OPTIONAL — install ONLY on the macOS machine that runs the Sai LinkedIn fetcher
+# (scripts/sai_fetch.py). Kept out of the core requirements.txt so the backend stays
+# portable + CI-installable on any OS.
+#
+#   pip install -r requirements-sai.txt
+#
+# Also required: the SimularBrowser app (open simular-mac-agent-*.dmg -> ~/Applications,
+# launch once, sign in to LinkedIn).
+pysimular            # pulls requests, aiohttp, pyobjc (macOS only)

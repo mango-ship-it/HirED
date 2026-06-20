@@ -17,8 +17,8 @@ asyncio.to_thread to avoid blocking the FastAPI event loop.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
-import uuid
 from pathlib import Path
 
 from deepgram import DeepgramClient
@@ -47,11 +47,17 @@ class DeepgramService:
     async def narrate(self, text: str) -> str:
         """Synthesize `text` to an MP3 and return its public URL.
 
-        The file is written under static/audio/<uuid>.mp3 and served by FastAPI's
-        StaticFiles mount at /static/audio/...
+        Cached by a hash of (model, text): identical narration is served from the
+        existing file with NO Deepgram call — so re-runs and demo practice don't
+        burn credits. Files live under static/audio/ (served at /static/audio/...).
         """
-        filename = f"{uuid.uuid4().hex}.mp3"
+        digest = hashlib.sha256(f"{_TTS_MODEL}\n{text}".encode()).hexdigest()[:16]
+        filename = f"{digest}.mp3"
         out_path = AUDIO_DIR / filename
+        url = f"{self._public_base_url}/static/audio/{filename}"
+
+        if out_path.exists():  # cache hit — skip the API call
+            return url
 
         def _synthesize() -> None:
             response = self._client.speak.v1.audio.generate(
@@ -62,7 +68,7 @@ class DeepgramService:
             out_path.write_bytes(response.stream.getvalue())
 
         await asyncio.to_thread(_synthesize)
-        return f"{self._public_base_url}/static/audio/{filename}"
+        return url
 
     async def transcribe(self, audio_bytes: bytes) -> str:
         """Transcribe raw audio bytes to text and return the transcript."""

@@ -99,6 +99,44 @@ target: {
 
 ---
 
+## 4. `POST /report` _(additive — backend, frontend please confirm)_
+
+The summary/report page (3rd page). Send the data the frontend already has from
+`/score` (+ `/benchmark`, `/resources`); the backend assembles a narrative report +
+a narratable slide deck and adds Sai-sourced jobs/mentors. **Templated — no API cost.**
+
+**Request:**
+```json
+{
+  "user_id": "string",
+  "target": { "type": "role", "value": "Marketing Coordinator" },
+  "score": 58,
+  "categories": { "skills_match": { "score": 65, "weight": 0.35 }, "...": {} },
+  "lessons": [ { "category": "...", "principle": "...", "example": "...", "action": "..." } ],
+  "matched_skills": ["..."],
+  "missing_skills": ["..."],
+  "percentile": 40,
+  "resources": [ { "name": "...", "url": "...", "description": "..." } ]
+}
+```
+
+**Response (200):**
+```json
+{
+  "summary": "string",
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "next_steps": ["string"],
+  "jobs":    [ { "title": "", "company": "", "location": "", "url": "" } ],
+  "mentors": [ { "name": "", "role": "", "company": "", "url": "", "why": "" } ],
+  "slides":  [ { "index": 0, "title": "", "body": "", "speaker_notes": "" } ]
+}
+```
+`slides[].speaker_notes` is the narratable text — pass it to `POST /narrate` for TTS.
+`jobs`/`mentors` come from Sai (pysimular) when wired, else a built-in demo seed.
+
+---
+
 ## Error Shape (all endpoints, same format)
 
 ```json

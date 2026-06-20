@@ -1,0 +1,52 @@
+{
+  "_note": "Seeded Sai output for the demo. Sai (Simular) has no public API — a teammate tasks Sai to gather live job postings + mentor profiles, exports them to a file like this, and points SAI_DATA_PATH here. Shapes match app/models/report.py (Job, Mentor).",
+  "jobs": [
+    {
+      "title": "Marketing Coordinator",
+      "company": "Bright Labs",
+      "location": "Remote (US)",
+      "url": "https://example.com/jobs/marketing-coordinator"
+    },
+    {
+      "title": "Junior Growth Marketer",
+      "company": "Trailhead Co.",
+      "location": "Austin, TX",
+      "url": "https://example.com/jobs/junior-growth-marketer"
+    },
+    {
+      "title": "Social Media Associate",
+      "company": "Northwind Nonprofit",
+      "location": "Chicago, IL",
+      "url": "https://example.com/jobs/social-media-associate"
+    },
+    {
+      "title": "Marketing Apprentice (paid)",
+      "company": "CivicReach",
+      "location": "Remote (US)",
+      "url": "https://example.com/jobs/marketing-apprentice"
+    }
+  ],
+  "mentors": [
+    {
+      "name": "Priya N.",
+      "role": "Senior Marketing Manager",
+      "company": "Bright Labs",
+      "url": "https://www.linkedin.com/in/example-priya",
+      "why": "Started as a coordinator with a nonprofit background — a path close to yours."
+    },
+    {
+      "name": "Marcus T.",
+      "role": "Growth Lead",
+      "company": "Trailhead Co.",
+      "url": "https://www.linkedin.com/in/example-marcus",
+      "why": "Self-taught analytics; posts openly about breaking into marketing without a degree."
+    },
+    {
+      "name": "Dana W.",
+      "role": "Career Coach (free office hours)",
+      "company": "Community College Career Center",
+      "url": "https://www.linkedin.com/in/example-dana",
+      "why": "Runs free resume reviews for first-gen students."
+    }
+  ]
+}

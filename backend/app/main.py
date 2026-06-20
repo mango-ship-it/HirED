@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routes import agents as agents_routes
+from app.routes import report as report_routes
 from app.routes import score as score_routes
 from app.routes import voice as voice_routes
 
@@ -51,6 +52,7 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 app.include_router(score_routes.router, tags=["score"])
 app.include_router(agents_routes.router, tags=["agents"])
 app.include_router(voice_routes.router, tags=["voice"])
+app.include_router(report_routes.router, tags=["report"])
 
 
 @app.get("/health", tags=["meta"])
