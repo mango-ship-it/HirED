@@ -17,6 +17,7 @@ class ErrorCode:
     PARSE_FAILED = "PARSE_FAILED"
     AGENT_TIMEOUT = "AGENT_TIMEOUT"
     SERVER_ERROR = "SERVER_ERROR"
+    NOT_FOUND = "NOT_FOUND"
 
 
 def error_response(message: str, code: str, status_code: int) -> JSONResponse:

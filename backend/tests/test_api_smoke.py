@@ -117,3 +117,21 @@ def test_resources_falls_back_without_agent():
 
 def test_narrate_requires_nonempty_text():
     assert client.post("/narrate", json={"text": ""}).status_code == 422
+
+
+def test_score_remembers_user_profile():
+    uid = "tester-remember-1"
+    scored = client.post(
+        "/score",
+        data={"user_id": uid, "target": _TARGET, "resume_text": "Python and SQL developer"},
+    )
+    assert scored.status_code == 200
+    saved = client.get(f"/profile/{uid}")
+    assert saved.status_code == 200
+    body = saved.json()
+    assert body["user_id"] == uid
+    assert "missing_skills" in body and "profile" in body
+
+
+def test_profile_unknown_user_is_404():
+    assert client.get("/profile/nobody-xyz").status_code == 404

@@ -15,6 +15,7 @@ Claude only extracts + teaches; it never invents the number (MASTER.md §7).
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Form, UploadFile
 
@@ -32,6 +33,7 @@ from app.services.document_parser import (
 )
 from app.services.extractor import extract_profile, generate_lessons
 from app.services.scoring_engine import get_scorer
+from app.services.store import save_profile
 
 logger = logging.getLogger("hired.routes.score")
 
@@ -97,6 +99,25 @@ async def score(
         category_scores=key_scores,
         profile=profile,
     )
+
+    # Remember this user's parsed profile/skills so the app can recall their inputs
+    # across calls (Redis if available, else in-memory). Best-effort — never fail the
+    # score over a store hiccup.
+    try:
+        await save_profile(
+            user_id,
+            {
+                "user_id": user_id,
+                "target": target_obj.model_dump(),
+                "score": outcome.score,
+                "matched_skills": list(profile.matched_skills),
+                "missing_skills": list(profile.missing_skills),
+                "profile": profile.model_dump(),
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception:
+        logger.exception("failed to save profile for %s", user_id)
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     return ScoreResponse(

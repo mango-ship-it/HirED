@@ -12,6 +12,7 @@ The 3-process setup (MASTER.md §8):
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -20,18 +21,30 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routes import agents as agents_routes
+from app.routes import profile as profile_routes
 from app.routes import report as report_routes
 from app.routes import score as score_routes
 from app.routes import voice as voice_routes
+from app.services.store import get_store
 
 logging.basicConfig(level=logging.INFO)
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Open the per-user store (Redis if reachable, else in-memory) for the app's life."""
+    await get_store().connect()
+    yield
+    await get_store().aclose()
+
+
 app = FastAPI(
     title="HirED API",
     version="0.1.0",
     description="AI career tutor backend — score, benchmark, resources, voice.",
+    lifespan=lifespan,
 )
 
 # CORS so the Vite/React frontend can call us directly.
@@ -69,6 +82,7 @@ app.include_router(score_routes.router, tags=["score"])
 app.include_router(agents_routes.router, tags=["agents"])
 app.include_router(voice_routes.router, tags=["voice"])
 app.include_router(report_routes.router, tags=["report"])
+app.include_router(profile_routes.router, tags=["profile"])
 
 
 @app.get("/", tags=["meta"])
@@ -91,4 +105,5 @@ async def health() -> dict[str, object]:
         "deepgram_configured": bool(settings.deepgram_api_key),
         "resource_agent_configured": bool(settings.resource_agent_address),
         "benchmark_agent_configured": bool(settings.benchmark_agent_address),
+        "store": get_store().backend,
     }
