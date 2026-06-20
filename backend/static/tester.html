@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HirED — backend tester</title>
+<style>
+  :root { --ink:#0E2A47; --line:#D3E2F4; --rise:#2A7DE1; --amber:#FFC44D; --paper:#E8F1FB; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:#48607f; margin:0 0 24px; font-size:14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-weight:600; font-size:13px; margin:12px 0 6px; }
+  input[type=text], textarea, select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+  textarea { min-height:120px; resize:vertical; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:200px; }
+  button { background:var(--rise); color:#fff; border:0; border-radius:10px; padding:12px 22px; font:inherit; font-weight:700; cursor:pointer; margin-top:16px; }
+  button:disabled { opacity:.55; cursor:wait; }
+  .muted { color:#48607f; font-size:13px; }
+  .score-big { font-size:54px; font-weight:800; color:var(--rise); line-height:1; }
+  .bar { height:10px; background:var(--line); border-radius:99px; overflow:hidden; margin:4px 0 10px; }
+  .bar > div { height:100%; background:linear-gradient(90deg,var(--rise),#5BA3F0); }
+  .catname { display:flex; justify-content:space-between; font-size:13px; font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { font-size:12px; padding:4px 10px; border-radius:99px; border:1px solid var(--line); }
+  .chip.miss { border-style:dashed; color:#48607f; }
+  .chip.have { background:#eaf3ff; border-color:#bcdcff; }
+  .lesson { border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:12px; }
+  .lesson h4 { margin:0 0 6px; font-size:15px; }
+  .lesson .k { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#48607f; }
+  pre { background:#0E2A47; color:#dbe9ff; padding:12px; border-radius:10px; overflow:auto; font-size:12px; }
+  .err { background:#fde8e8; border:1px solid #f5b5b5; color:#8a1f1f; padding:12px; border-radius:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HirED — backend tester</h1>
+  <p class="sub">Dev tool. Calls this backend's <code>/score</code> directly. Served from the backend, so no CORS.</p>
+
+  <div class="card">
+    <label>Target (dream job or school)</label>
+    <div class="row">
+      <div style="flex:2"><input id="targetValue" type="text" placeholder="e.g. Software Engineer at Google" value="Software Engineer at Google" /></div>
+      <div style="flex:1">
+        <select id="targetType">
+          <option value="role">role</option>
+          <option value="school">school</option>
+          <option value="job_posting_text">job_posting_text</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Resume — upload a file…</label>
+    <input id="resumeFile" type="file" accept=".pdf,.docx,.rtf,.txt" />
+    <label>…or paste text</label>
+    <textarea id="resumeText" placeholder="e.g. I am a 4th year computer science student at UCLA. I have no project experience."></textarea>
+
+    <button id="go">Score me</button>
+    <span id="status" class="muted" style="margin-left:10px;"></span>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const out = $("out");
+
+$("go").addEventListener("click", async () => {
+  const btn = $("go"); btn.disabled = true; $("status").textContent = "scoring… (Claude can take 5–15s)";
+  out.innerHTML = "";
+  try {
+    const fd = new FormData();
+    fd.append("user_id", crypto.randomUUID());
+    fd.append("target", JSON.stringify({ type: $("targetType").value, value: $("targetValue").value }));
+    const file = $("resumeFile").files[0];
+    const text = $("resumeText").value.trim();
+    if (file) fd.append("resume_file", file);
+    else if (text) fd.append("resume_text", text);
+    else { throw new Error("Add a resume file or paste some text first."); }
+
+    const res = await fetch("/score", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) { renderError(data); return; }
+    render(data);
+  } catch (e) {
+    out.innerHTML = `<div class="err">${e.message}</div>`;
+  } finally {
+    btn.disabled = false; $("status").textContent = "";
+  }
+});
+
+function renderError(data) {
+  out.innerHTML = `<div class="err"><b>${data.code || "Error"}:</b> ${data.error || JSON.stringify(data)}</div>`;
+}
+
+function render(d) {
+  const cats = Object.entries(d.categories || {}).map(([k, c]) => `
+    <div class="catname"><span>${k}</span><span>${c.score}/100</span></div>
+    <div class="bar"><div style="width:${c.score}%"></div></div>`).join("");
+  const have = (d.matched_skills || []).map(s => `<span class="chip have">${s}</span>`).join("");
+  const miss = (d.missing_skills || []).map(s => `<span class="chip miss">+ ${s}</span>`).join("");
+  const lessons = (d.lessons || []).map(l => `
+    <div class="lesson">
+      <div class="k">${l.category}</div>
+      <h4>${l.principle || ""}</h4>
+      <div class="muted">${(l.example || "").replace(/</g,"&lt;")}</div>
+      <p style="margin:8px 0 0"><b>Do this:</b> ${l.action || ""}</p>
+    </div>`).join("");
+  out.innerHTML = `
+    <div class="card">
+      <div class="score-big">${d.score}<span style="font-size:20px;color:#48607f">/100</span></div>
+      <div style="margin-top:14px">${cats}</div>
+    </div>
+    <div class="card">
+      <label style="margin-top:0">Skills you have</label><div class="chips">${have || '<span class="muted">none found</span>'}</div>
+      <label>What the target needs that you're missing</label><div class="chips">${miss || '<span class="muted">none</span>'}</div>
+    </div>
+    <div class="card"><label style="margin-top:0">Lessons</label>${lessons || '<span class="muted">none</span>'}</div>
+    <div class="card"><label style="margin-top:0">Raw JSON</label><pre>${JSON.stringify(d, null, 2)}</pre></div>`;
+}
+</script>
+</body>
+</html>
