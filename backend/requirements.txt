@@ -18,7 +18,7 @@ anthropic==0.111.0               # Claude: extraction + lesson generation
 deepgram-sdk==7.3.1              # Deepgram: TTS (Aura) + STT (Nova)
 uagents==0.25.2                  # Fetch.ai: resource + benchmark uAgents
 openai>=1.57.0                   # TokenRouter 2AFC judge (OpenAI-compatible gateway)
-python-jobspy>=2.3.4             # multi-site JD scraper (LinkedIn, Indeed, Glassdoor, ZipRecruiter)
+python-jobspy>=1.1.0             # multi-site JD scraper (LinkedIn, Indeed, Glassdoor, ZipRecruiter)
 
 # --- infra ---
 redis==5.2.1                     # cache/queue (optional at MVP; degrades gracefully)
