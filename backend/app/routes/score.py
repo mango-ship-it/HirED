@@ -113,5 +113,7 @@ async def score(
         score=result.score,
         categories=categories,
         lessons=lessons,
+        matched_skills=list(profile.matched_skills),
+        missing_skills=list(profile.missing_skills),
         status=ScoreStatus(scoring="complete", benchmark="pending", resources="pending"),
     )

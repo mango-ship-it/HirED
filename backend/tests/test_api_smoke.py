@@ -74,6 +74,9 @@ def test_score_returns_contract_shape(monkeypatch):
     assert set(body["lessons"][0]) == {"category", "principle", "example", "action"}
     # per-section status
     assert body["status"] == {"scoring": "complete", "benchmark": "pending", "resources": "pending"}
+    # surfaced skills power the "what the top tier has that you don't" UI
+    assert "python" in body["matched_skills"]
+    assert body["missing_skills"] == ["airflow"]
 
 
 def test_score_accepts_file_upload(monkeypatch):

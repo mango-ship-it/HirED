@@ -66,6 +66,13 @@ class ScoreResponse(BaseModel):
     score: int = Field(ge=0, le=100)
     categories: dict[str, CategoryBreakdown]
     lessons: list[Lesson]
+    matched_skills: list[str] = Field(
+        default_factory=list, description="Target skills the candidate already has"
+    )
+    missing_skills: list[str] = Field(
+        default_factory=list,
+        description="Target skills the candidate lacks — powers 'what the top tier has that you don't'",
+    )
     status: ScoreStatus = Field(default_factory=ScoreStatus)
 
 

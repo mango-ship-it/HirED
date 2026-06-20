@@ -22,6 +22,7 @@ import re
 PDF_MIME = "application/pdf"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 TEXT_MIMES = frozenset({"text/plain", "text/markdown", "application/octet-stream"})
+RTF_MIMES = frozenset({"application/rtf", "text/rtf"})
 
 # Reject oversized uploads before doing any work (matches the route's guardrail).
 MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -29,6 +30,7 @@ MAX_DOCUMENT_BYTES = 10 * 1024 * 1024  # 10 MB
 # Magic bytes for content sniffing when the client sends a generic content-type.
 _PDF_MAGIC = b"%PDF-"
 _ZIP_MAGIC = b"PK\x03\x04"  # DOCX is a zip container
+_RTF_MAGIC = b"{\\rtf"
 
 
 class UnsupportedDocumentError(ValueError):
@@ -46,6 +48,8 @@ def _detect_kind(content_type: str | None, filename: str | None, data: bytes) ->
         return "pdf"
     if name.endswith(".docx"):
         return "docx"
+    if name.endswith(".rtf"):
+        return "rtf"
     if name.endswith((".txt", ".md", ".text")):
         return "text"
 
@@ -54,10 +58,14 @@ def _detect_kind(content_type: str | None, filename: str | None, data: bytes) ->
         return "pdf"
     if mime == DOCX_MIME:
         return "docx"
+    if mime in RTF_MIMES:
+        return "rtf"
 
     # Fall back to sniffing the bytes (generic octet-stream uploads land here).
     if data.startswith(_PDF_MAGIC):
         return "pdf"
+    if data.startswith(_RTF_MAGIC):
+        return "rtf"
     if data.startswith(_ZIP_MAGIC):
         return "docx"
     if mime in TEXT_MIMES:
@@ -116,6 +124,16 @@ def _extract_docx(data: bytes) -> str:
         raise DocumentParseError(f"Could not read DOCX: {exc}") from exc
 
 
+def _extract_rtf(data: bytes) -> str:
+    """Extract plain text from RTF bytes (strips RTF control words)."""
+    try:
+        from striprtf.striprtf import rtf_to_text
+
+        return rtf_to_text(data.decode("utf-8", errors="replace"))
+    except Exception as exc:
+        raise DocumentParseError(f"Could not read RTF: {exc}") from exc
+
+
 def extract_text(
     data: bytes,
     *,
@@ -139,6 +157,8 @@ def extract_text(
     kind = _detect_kind(content_type, filename, data)
     if kind == "text":
         raw = data.decode("utf-8", errors="replace")
+    elif kind == "rtf":
+        raw = _extract_rtf(data)
     elif kind == "docx":
         raw = _extract_docx(data)
     else:

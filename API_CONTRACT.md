@@ -36,6 +36,8 @@ target: {
       "action": "Add a number to bullet 2 of your projects section."
     }
   ],
+  "matched_skills": ["python", "sql"],
+  "missing_skills": ["airflow", "dbt"],
   "status": {
     "scoring": "complete",
     "benchmark": "complete" | "pending" | "failed",
@@ -43,6 +45,8 @@ target: {
   }
 }
 ```
+
+**`matched_skills` / `missing_skills`** _(additive — added by backend, frontend please confirm)_: the target skills the candidate already has vs. lacks. `missing_skills` is the data source for the **"what the top tier has that you don't"** chips on the readiness/benchmark view (the landing page currently hardcodes these).
 
 **Why `status` exists:** scoring now pulls data from multiple agents (Fetch.ai + scoring agent) running in parallel. Per decision on #6, a slow/failed agent does NOT fail the whole request — `/score` still returns what it has. Frontend reads `status` and conditionally renders the benchmark/resources sections instead of assuming they're always present. If `"pending"`, frontend can poll or just show a "still calculating" state for that section; if `"failed"`, hide that section gracefully rather than showing broken/empty data.
 

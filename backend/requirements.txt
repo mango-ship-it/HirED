@@ -26,6 +26,7 @@ httpx==0.28.1
 pdfplumber==0.11.10              # PDF text extraction (layout-aware; good for resume PDFs)
 pypdf==6.13.3                    # lighter PDF fallback (pure-python)
 python-docx==1.2.0               # DOCX text extraction (import name: `docx`)
+striprtf==0.0.32                 # RTF text extraction (the frontend's upload accepts .rtf)
 
 # --- dev / test ---
 pytest==9.1.1

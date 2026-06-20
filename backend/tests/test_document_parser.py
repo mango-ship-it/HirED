@@ -75,6 +75,16 @@ def test_octet_stream_sniffs_docx_zip_magic():
     assert "Jane Doe" in text
 
 
+def test_rtf_extraction():
+    rtf = (
+        r"{\rtf1\ansi\deff0 Jane Doe\par Software Engineer\par "
+        r"Skills: Python, SQL\par}"
+    ).encode()
+    text = extract_text(rtf, content_type="application/rtf", filename="resume.rtf")
+    assert "Jane Doe" in text
+    assert "Python" in text
+
+
 def test_unsupported_type_raises():
     with pytest.raises(UnsupportedDocumentError):
         extract_text(b"\x89PNG\r\n\x1a\n", content_type="image/png", filename="photo.png")
