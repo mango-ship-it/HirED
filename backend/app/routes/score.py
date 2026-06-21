@@ -37,6 +37,7 @@ from app.services.extractor import extract_profile, generate_lessons
 from app.services.jd_context import build_lesson_context
 from app.services.jd_skills import jd_enriched_skills
 from app.services.jobs import load_jobs
+from app.services.profile_vectors import add_profile
 from app.services.resume_guard import has_usable_resume
 from app.services.scoring_engine import get_scorer
 from app.services.store import get_store, save_profile
@@ -221,6 +222,12 @@ async def score(
         )
     except Exception:
         logger.exception("failed to save profile for %s", user_id)
+
+    # Index this learner into the 'people like you' vector cohort (best-effort, non-blocking).
+    try:
+        await add_profile(user_id, target_obj.value, outcome.score, ", ".join(profile.missing_skills[:6]))
+    except Exception:
+        logger.exception("profile vector indexing failed for %s", user_id)
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     response = ScoreResponse(

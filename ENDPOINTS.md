@@ -130,6 +130,7 @@ Then poll **`GET /video/{prompt_hash}`** → `{ "status":"ready", "video_url":"h
 |---|---|---|
 | `GET /health` | — | `{status, store, vector_index, claude_configured, deepgram_configured, exa_configured, fal_configured}` |
 | `GET /profile/{user_id}` | — | the user's last scored result — `{score, target, categories, lessons, matched_skills, missing_skills, resume_text, has_resume, annotations}` (404 if unseen; `has_resume` + `resume_text` always present, even for legacy records). **Use this to re-render the breakdown page without re-uploading the resume.** |
+| `GET /people-like-you/{user_id}?k=3` | — | past learners with a similar background (RedisVL KNN over profiles) → `{available, count, peers:[{target, score, shared_gaps, similarity}], insight}`. Peers are anonymized. Show "you're not alone — here's the path people like you took." `available:false` if the vector index isn't up. |
 | `POST /progress` | `{user_id, progress:{…}}` | `{user_id, saved:true}` — persists roadmap progress |
 | `GET /progress/{user_id}` | — | `{user_id, progress:{…}}` |
 | `POST /jobs/refresh` | `{target, location?}` | pulls real postings (slow, 10–30s) → caches them |

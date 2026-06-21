@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.errors import ErrorCode, error_response
+from app.services.profile_vectors import people_like_you
 from app.services.store import get_store, load_profile
 
 router = APIRouter()
@@ -30,6 +31,25 @@ async def get_profile(user_id: str):
         "annotations": record.get("annotations") or [],
         "has_resume": bool(resume_text.strip()),
     }
+
+
+@router.get("/people-like-you/{user_id}")
+async def get_people_like_you(user_id: str, k: int = 3):
+    """Past learners with a background like this user's (RedisVL KNN over profiles).
+
+    Returns `{count, peers:[{target, score, shared_gaps, similarity}], insight}`. Peers are
+    anonymized (no names/ids) — just the role they aimed for, their readiness, and shared gaps,
+    so the frontend can show "you're not alone — here's the path people like you took."
+    """
+    record = await load_profile(user_id)
+    if record is None:
+        return error_response("No saved profile for this user.", ErrorCode.NOT_FOUND, 404)
+    target = (record.get("target") or {}).get("value") or ""
+    gaps = ", ".join((record.get("missing_skills") or [])[:6])
+    result = await people_like_you(target, gaps, exclude_user_id=user_id, k=max(1, min(k, 5)))
+    if result is None:
+        return {"count": 0, "peers": [], "insight": "", "available": False}
+    return {**result, "available": True}
 
 
 @router.post("/progress")

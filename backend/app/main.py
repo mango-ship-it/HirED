@@ -42,9 +42,11 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """Open the per-user store + kick off the semantic-resource index build (background)."""
     await get_store().connect()
+    from app.services.profile_vectors import start_build_in_background as start_profiles
     from app.services.vector_resources import start_build_in_background
 
-    start_build_in_background()  # builds the RedisVL vector index without blocking startup
+    start_build_in_background()  # builds the RedisVL resources index without blocking startup
+    start_profiles()  # builds the 'people like you' profile index (seed cohort) in background
     yield
     await get_store().aclose()
 
