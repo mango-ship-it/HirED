@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HirED — Voice Coach Demo</title>
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --bg:#eef2fb; --card:#fff; --accent:#2563eb; --good:#16a34a; --bad:#dc2626; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 64px; }
+  h1 { margin:0 0 2px; } h1 b { background:linear-gradient(transparent 60%,#fde68a 60%); }
+  .sub { color:var(--muted); margin:0 0 22px; }
+  .card { background:var(--card); border-radius:16px; padding:20px; box-shadow:0 1px 3px rgba(15,23,42,.08); margin-bottom:18px; }
+  label { font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
+  input { width:100%; padding:10px 12px; border:1px solid #d8dee9; border-radius:10px; font-size:15px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button { border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  .primary { background:var(--accent); color:#fff; } .primary:disabled { opacity:.45; cursor:not-allowed; }
+  .ghost { background:#eef2ff; color:var(--accent); }
+  .danger { background:#fee2e2; color:var(--bad); }
+  .pill { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); }
+  .dot { width:9px; height:9px; border-radius:50%; background:#cbd5e1; }
+  .dot.on { background:var(--good); } .dot.err { background:var(--bad); } .dot.live { background:var(--accent); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  #transcript { min-height:120px; max-height:320px; overflow:auto; display:flex; flex-direction:column; gap:8px; }
+  .turn { padding:9px 13px; border-radius:12px; max-width:85%; font-size:15px; line-height:1.35; }
+  .user { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:3px; }
+  .assistant { align-self:flex-start; background:#f1f5f9; color:var(--ink); border-bottom-left-radius:3px; }
+  .empty { color:var(--muted); font-style:italic; }
+  #log { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--muted); white-space:pre-wrap; margin-top:10px; max-height:140px; overflow:auto; }
+  .hint { font-size:13px; color:var(--muted); margin:6px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>HirED <b>Voice Coach</b></h1>
+  <p class="sub">Talk to the AI career coach. It knows your readiness profile — and it remembers past conversations.</p>
+
+  <div class="card">
+    <label>Your user ID (the same UUID your app sends to <code>/score</code>)</label>
+    <div class="row">
+      <input id="userId" value="demo-voice-user" />
+      <button class="ghost" id="seedBtn" title="Score a sample resume so the coach has data to talk about">Create sample profile</button>
+    </div>
+    <p class="hint" id="profileHint">Tip: click “Create sample profile” once so the coach has a score + gaps to coach you on.</p>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div class="row">
+        <button class="primary" id="talkBtn">🎙️ Talk to coach</button>
+        <button class="danger" id="stopBtn" disabled>■ Stop</button>
+      </div>
+      <span class="pill"><span class="dot" id="statusDot"></span><span id="statusText">idle</span></span>
+    </div>
+    <div id="transcript" style="margin-top:16px;"><span class="empty">Transcript will appear here as you speak…</span></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <strong>No mic handy?</strong>
+        <p class="hint" style="margin-top:4px;">Hear the coach’s voice without talking — uses <code>/narrate</code>.</p>
+      </div>
+      <button class="ghost" id="narrateBtn">🔊 Hear a sample</button>
+    </div>
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script>
+// Same-origin: open this page AT the backend URL (e.g. https://<tunnel>/static/voice_demo.html),
+// not via file://, so these relative calls reach the API.
+const API = "";
+const WS_FALLBACK = "wss://agent.deepgram.com/v1/agent/converse";
+const AGENT_OUTPUT_RATE = 24000;   // linear16 the agent speaks (matches backend settings)
+const MIC_RATE = 16000;            // linear16 we send up
+
+const $ = (id) => document.getElementById(id);
+const log = (m) => { $("log").textContent += m + "\n"; $("log").scrollTop = 1e9; };
+function setStatus(text, cls) { $("statusText").textContent = text; $("statusDot").className = "dot " + (cls || ""); }
+function addTurn(role, text) {
+  const t = $("transcript");
+  if (t.querySelector(".empty")) t.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "turn " + (role === "user" ? "user" : "assistant");
+  d.textContent = text;
+  t.appendChild(d); t.scrollTop = 1e9;
+}
+
+let ws, audioCtx, micStream, micNode, playHead = 0, running = false;
+
+// ---- Create a sample profile so the coach has something to talk about -------
+$("seedBtn").onclick = async () => {
+  const uid = $("userId").value.trim() || "demo-voice-user";
+  setStatus("scoring sample…", "live");
+  const fd = new FormData();
+  fd.append("user_id", uid);
+  fd.append("target", JSON.stringify({ type: "role", value: "Registered Nurse" }));
+  fd.append("resume_text", "Certified Nursing Assistant, 3 years at a skilled nursing facility. CPR certified. Helped 20+ patients daily with care plans. Currently studying for prerequisites. No RN license yet.");
+  try {
+    const r = await fetch(API + "/score", { method: "POST", body: fd });
+    const j = await r.json();
+    $("profileHint").textContent = `✓ Sample profile ready — readiness ${j.score}/100, target Registered Nurse. Now click “Talk to coach”.`;
+    setStatus("idle", "");
+  } catch (e) { log("seed error: " + e.message); setStatus("error", "err"); }
+};
+
+// ---- Narration fallback (always works) --------------------------------------
+$("narrateBtn").onclick = async () => {
+  try {
+    setStatus("synthesizing…", "live");
+    const r = await fetch(API + "/narrate", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Hi! I'm your HirED career coach. You're closer than you think — let's close your gaps one small step at a time." }) });
+    const j = await r.json();
+    if (!j.audio_url) throw new Error(j.note || "no audio");
+    await new Audio(API + j.audio_url).play();
+    setStatus("idle", "");
+  } catch (e) { log("narrate error: " + e.message); setStatus("error", "err"); }
+};
+
+// ---- Live conversational agent ----------------------------------------------
+$("talkBtn").onclick = startAgent;
+$("stopBtn").onclick = stopAgent;
+
+async function startAgent() {
+  const uid = $("userId").value.trim() || "demo-voice-user";
+  $("talkBtn").disabled = true;
+  setStatus("connecting…", "live");
+  let cfg;
+  try {
+    const r = await fetch(API + "/voice-agent/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: uid }) });
+    cfg = await r.json();
+  } catch (e) { log("config error: " + e.message); return fail(); }
+  if (!cfg.configured) { log("voice agent not configured: " + (cfg.note || "")); return fail(); }
+  if (cfg.remembered_turns) log(`memory: folding ${cfg.remembered_turns} past turn(s) into the prompt`);
+  log("got token + settings; opening WebSocket…");
+
+  // Mic first (so a denied-permission fails fast before the WS opens).
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  } catch (e) { log("microphone denied: " + e.message); return fail(); }
+
+  ws = new WebSocket(cfg.ws_url || WS_FALLBACK, ["bearer", cfg.token]);
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => log("ws open");
+  ws.onerror = (e) => { log("ws error (often auth) — check the token/subprotocol"); };
+  ws.onclose = (e) => { log(`ws closed (${e.code})`); if (running) stopAgent(); };
+
+  ws.onmessage = (ev) => {
+    if (typeof ev.data === "string") {
+      let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === "Welcome") {
+        ws.send(JSON.stringify(cfg.settings));   // backend's personalized Settings, verbatim
+        startMic();
+        running = true;
+        $("stopBtn").disabled = false;
+        setStatus("listening — start talking", "live");
+        if (cfg.greeting) addTurn("assistant", cfg.greeting);
+        setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "KeepAlive" })); }, 5000);
+      } else if (msg.type === "ConversationText") {
+        addTurn(msg.role, msg.content);
+        // Persist the turn -> the coach REMEMBERS it next session (agent memory).
+        fetch(API + "/voice-agent/memory", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: uid, role: msg.role, content: msg.content }) }).catch(() => {});
+      } else if (msg.type === "UserStartedSpeaking") {
+        playHead = audioCtx ? audioCtx.currentTime : 0;   // barge-in: drop queued agent audio
+      } else if (msg.type === "Error") {
+        log("agent error: " + (msg.description || JSON.stringify(msg)));
+      }
+    } else {
+      playPCM(ev.data);   // binary = agent audio (linear16 @ 24k)
+    }
+  };
+
+  function fail() { $("talkBtn").disabled = false; setStatus("error — see log", "err"); }
+}
+
+function startMic() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = audioCtx.createMediaStreamSource(micStream);
+  micNode = audioCtx.createScriptProcessor(4096, 1, 1);
+  const ratio = audioCtx.sampleRate / MIC_RATE;
+  src.connect(micNode); micNode.connect(audioCtx.destination);
+  micNode.onaudioprocess = (e) => {
+    if (!ws || ws.readyState !== 1) return;
+    const input = e.inputBuffer.getChannelData(0);
+    const outLen = Math.floor(input.length / ratio);
+    const pcm = new Int16Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const s = Math.max(-1, Math.min(1, input[Math.floor(i * ratio)]));
+      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    ws.send(pcm.buffer);
+  };
+  playHead = audioCtx.currentTime;
+}
+
+function playPCM(buf) {
+  if (!audioCtx) return;
+  const pcm = new Int16Array(buf);
+  const f32 = new Float32Array(pcm.length);
+  for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 0x8000;
+  const ab = audioCtx.createBuffer(1, f32.length, AGENT_OUTPUT_RATE);
+  ab.copyToChannel(f32, 0);
+  const node = audioCtx.createBufferSource();
+  node.buffer = ab; node.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  if (playHead < now) playHead = now;
+  node.start(playHead);
+  playHead += ab.duration;
+  setStatus("coach speaking…", "live");
+  node.onended = () => { if (running) setStatus("listening — your turn", "live"); };
+}
+
+function stopAgent() {
+  running = false;
+  try { ws && ws.close(); } catch {}
+  try { micNode && micNode.disconnect(); } catch {}
+  try { micStream && micStream.getTracks().forEach((t) => t.stop()); } catch {}
+  try { audioCtx && audioCtx.close(); } catch {}
+  audioCtx = null;
+  $("talkBtn").disabled = false; $("stopBtn").disabled = true;
+  setStatus("stopped", "");
+  log("session ended");
+}
+</script>
+</body>
+</html>
