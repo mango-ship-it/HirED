@@ -73,18 +73,24 @@ async def build_index() -> None:
         return
     _status = "building"
     try:
+        import numpy as np
         from redisvl.index import AsyncSearchIndex
 
         embed = await asyncio.to_thread(_build_embedder)  # model load is blocking
         index = AsyncSearchIndex.from_dict(_SCHEMA, redis_url=get_settings().redis_url)
-        await index.create(overwrite=True, drop=False)
+        # drop=True: clear old docs so a restart rebuilds clean (no duplicate corpus).
+        await index.create(overwrite=True, drop=True)
         records = [
             {
                 "name": r["name"],
                 "url": r["url"],
                 "description": r["description"],
                 "gap_category": r["gap_category"],
-                "embedding": await asyncio.to_thread(embed, f"{r['name']}. {r['description']}"),
+                # HASH vector fields must be packed float32 BYTES, not a Python list.
+                "embedding": np.asarray(
+                    await asyncio.to_thread(embed, f"{r['name']}. {r['description']}"),
+                    dtype=np.float32,
+                ).tobytes(),
             }
             for r in RESOURCE_CORPUS
         ]
