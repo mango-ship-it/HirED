@@ -24,7 +24,7 @@ python-jobspy>=1.1.0             # multi-site JD scraper (LinkedIn, Indeed, Glas
 redis==5.2.1                     # cache + sorted-set leaderboard + agent-memory lists
 redisvl==0.20.1                  # Redis vector search + SemanticCache (people-like-you, resources, semantic cache)
 fastembed==0.8.0                 # local ONNX embeddings for RedisVL (384-dim BAAI/bge-small, no PyTorch)
-numpy==1.26.3                    # pack float32 vectors into Redis HASH fields
+numpy<3                          # vector packing; let pip pick the right numpy per Python (redisvl needs <3)
 exa-py==2.14.0                   # Exa AI: CORE roadmap data source (courses/events/jobs/etc.)
 fal-client                       # fal.ai — Pika video generation (the "your journey" video)
 httpx==0.28.1
