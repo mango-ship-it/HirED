@@ -57,6 +57,12 @@
   .brand .ed::after{
     content:"";position:absolute;left:-1px;right:-1px;bottom:.08em;
     height:.4em;background:var(--highlight);z-index:-1;border-radius:2px;
+    transform:scaleX(0);transform-origin:left center;
+    animation:brandDraw .7s cubic-bezier(.2,.7,.2,1) .35s both;
+  }
+  @keyframes brandDraw{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+  @media (prefers-reduced-motion:reduce){
+    .brand .ed::after{animation:none;transform:scaleX(1);}
   }
   .nav-right{display:flex;align-items:center;gap:22px;}
   .nav-link{font-size:14px;font-weight:500;color:var(--ink-soft);}
