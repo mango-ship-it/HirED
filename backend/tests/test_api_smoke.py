@@ -45,7 +45,7 @@ def test_score_returns_contract_shape_with_no_api_key():
     assert 0 <= body["score"] <= 100
     # categories keyed by snake_case scoring category, each {score, weight}
     assert "skills_match" in body["categories"]
-    assert set(body["categories"]["skills_match"]) == {"score", "weight"}
+    assert set(body["categories"]["skills_match"]) == {"score", "weight", "explanation"}
     # lessons use the contract field names (heuristic templates populate them)
     assert body["lessons"], "expected at least one lesson"
     assert set(body["lessons"][0]) == {"category", "principle", "example", "action"}

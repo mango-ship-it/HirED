@@ -201,8 +201,8 @@ async def resources_for_gap(gap_category: str, role: str) -> list[dict]:
     query = template.format(role=role or "this role")
     gap_phrase = gap_category.replace("_", " ")
     summary_q = (
-        f"In one brief sentence of about 15 words, plainly say what this resource is and why "
-        f"it helps someone become a {role or 'this role'}."
+        f"In one brief sentence (~20 words), say what this resource is, roughly how long it "
+        f"takes to complete, and why it helps someone become a {role or 'this role'}."
     )
     return await _search(
         query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}",

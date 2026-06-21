@@ -14,6 +14,7 @@ Claude only extracts + teaches; it never invents the number (MASTER.md §7).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -36,13 +37,36 @@ from app.services.jd_context import build_lesson_context
 from app.services.jd_skills import jd_enriched_skills
 from app.services.jobs import load_jobs
 from app.services.scoring_engine import get_scorer
-from app.services.store import save_profile
+from app.services.store import get_store, save_profile
 
 logger = logging.getLogger("hired.routes.score")
 
 router = APIRouter()
 
 _MAX_RESUME_BYTES = 10 * 1024 * 1024  # 10 MB
+_SCORE_TTL = 7 * 24 * 3600  # cache an identical (resume, target) score for a week
+
+
+def _category_explanations(profile) -> dict[str, str]:
+    """Short, deterministic 'why it scored that' note per category (results page 2)."""
+    matched = len(profile.matched_skills)
+    required = len(profile.required_skills) or (matched + len(profile.missing_skills))
+    gaps = ", ".join(profile.missing_skills[:3])
+    return {
+        "skills_match": (
+            f"You show {matched} of ~{required} skills this role looks for"
+            + (f"; key gaps: {gaps}." if gaps else ".")
+        ),
+        "quantified_achievements": (
+            f"{profile.quantified_achievement_count} of "
+            f"{profile.total_achievement_count or 'your'} bullets use concrete numbers or impact."
+        ),
+        "experience": (
+            f"Your resume reflects about {profile.years_experience:g} year(s) of relevant experience."
+        ),
+        "education": f"Detected education level: {profile.education_level}.",
+        "clarity": "Reflects how clearly your resume reads — action verbs, structure, and concision.",
+    }
 
 
 @router.post("/score")
@@ -85,6 +109,16 @@ async def score(
             400,
         )
 
+    # Consistency: identical (resume, target) -> identical score. Cache the full response so
+    # the same input never produces a different number (Claude extraction can vary run to run).
+    cache_key = "score:" + hashlib.sha256(f"{resume}\n{target_obj.value}".encode()).hexdigest()[:24]
+    try:
+        cached = await get_store().get_json(cache_key)
+    except Exception:
+        cached = None
+    if cached is not None:
+        return ScoreResponse.model_validate(cached)
+
     # 3. Extract structured facts (Claude if ANTHROPIC_API_KEY is set, else heuristic
     #    — so this works with zero config), then SCORE via the pluggable scorer.
     profile = await extract_profile(resume, target_obj.value)
@@ -111,8 +145,11 @@ async def score(
         logger.exception("JD-skill enrichment failed; using extracted skills")
 
     outcome = await get_scorer().score(profile=profile, resume=resume, target=target_obj.value)
+    explanations = _category_explanations(profile)
     categories = {
-        key: CategoryBreakdown(score=cat.score, weight=cat.weight)
+        key: CategoryBreakdown(
+            score=cat.score, weight=cat.weight, explanation=explanations.get(key, "")
+        )
         for key, cat in outcome.categories.items()
     }
 
@@ -146,7 +183,7 @@ async def score(
         logger.exception("failed to save profile for %s", user_id)
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
-    return ScoreResponse(
+    response = ScoreResponse(
         score=outcome.score,
         categories=categories,
         lessons=lessons,
@@ -154,3 +191,8 @@ async def score(
         missing_skills=list(profile.missing_skills),
         status=ScoreStatus(scoring="complete", benchmark="pending", resources="pending"),
     )
+    try:
+        await get_store().set_json(cache_key, response.model_dump(), ttl=_SCORE_TTL)
+    except Exception:
+        pass
+    return response

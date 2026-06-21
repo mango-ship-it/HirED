@@ -113,6 +113,7 @@ class ClaudeService:
         response = await self._client.messages.create(
             model=self._model,
             max_tokens=2000,
+            temperature=0,  # deterministic extraction -> consistent score for the same input
             system=_EXTRACTION_SYSTEM,
             messages=[{"role": "user", "content": user_content}],
             output_config={
@@ -156,6 +157,7 @@ class ClaudeService:
         response = await self._client.messages.create(
             model=self._model,
             max_tokens=2000,
+            temperature=0,
             system=_LESSONS_SYSTEM,
             messages=[{"role": "user", "content": user_content}],
             output_config={

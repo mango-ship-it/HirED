@@ -38,10 +38,11 @@ class Lesson(BaseModel):
 
 
 class CategoryBreakdown(BaseModel):
-    """Per-category breakdown: 0-100 score + its weight in the formula (§7)."""
+    """Per-category breakdown: 0-100 score + its weight + a short why-it-scored-that note."""
 
     score: int = Field(ge=0, le=100)
     weight: float
+    explanation: str = Field(default="", description="Short plain-language reason for this score")
 
 
 class ScoreStatus(BaseModel):
