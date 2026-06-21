@@ -668,11 +668,10 @@
       const mark = e.target.closest('mark[data-cat]');
       if(!mark) return;
       clearTimeout(hideTimer);
-      const cat       = mark.dataset.cat;
-      const score     = mark.dataset.score;
-      const s         = score != null ? Number(score) : null;
-      const sentiment = mark.dataset.sentiment || '';
-      const color = sentiment === 'positive' ? '#4ADE80' : sentiment === 'negative' ? '#F87171' : '#FBBF24';
+      const cat   = mark.dataset.cat;
+      const score = mark.dataset.score;
+      const s     = score != null ? Number(score) : null;
+      const color = s != null ? scoreColor(s) : '#fff';
       tt.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:2px;">${cat}</div>`
         + (s != null ? `<div style="color:${color};font-weight:700;font-size:15px;">${s}<span style="font-size:10px;color:rgba(255,255,255,.5)">/100</span></div>` : '');
       tt.style.opacity = '1';
