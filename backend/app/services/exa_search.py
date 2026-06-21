@@ -99,12 +99,18 @@ _COURSE_DOMAINS = ["coursera.org", "edx.org", "udemy.com", "khanacademy.org", "c
 
 async def _search(
     query: str, *, card_type: str, why: str, include_domains: list[str] | None = None,
-    num_results: int = _NUM_RESULTS, category: str | None = None,
+    num_results: int = _NUM_RESULTS, category: str | None = None, highlights: bool = False,
 ) -> list[dict]:
-    """One cached, cost-capped Exa search -> resource cards. [] on no-key/cap/failure."""
+    """One cached, cost-capped Exa search -> resource cards. [] on no-key/cap/failure.
+
+    highlights=True pulls a 1-sentence CONTENT snippet per result (small extra cost) so the
+    cards + Redis embeddings carry real, role-specific content — not generic boilerplate.
+    """
     if not has_exa():
         return []
-    digest = hashlib.sha1(f"{query}|{include_domains}|{num_results}|{category}".encode()).hexdigest()[:16]
+    digest = hashlib.sha1(
+        f"{query}|{include_domains}|{num_results}|{category}|{highlights}".encode()
+    ).hexdigest()[:16]
     cache_key = f"exa:{digest}"
     try:
         cached = await get_store().get_json(cache_key)
@@ -117,9 +123,10 @@ async def _search(
         return []
     try:
         _calls["count"] += 1
+        contents = {"highlights": {"num_sentences": 1, "query": query}} if highlights else False
         resp = await _get_client().search(
             query, type="auto", num_results=num_results,
-            include_domains=include_domains, category=category, contents=False,
+            include_domains=include_domains, category=category, contents=contents,
         )
     except Exception as exc:
         logger.info("Exa search failed (%s) — falling back", exc)
@@ -129,7 +136,12 @@ async def _search(
         url = getattr(r, "url", None)
         if not url:
             continue
-        cards.append({"title": getattr(r, "title", None) or url, "url": url, "type": card_type, "why": why})
+        hl = getattr(r, "highlights", None)
+        snippet = (hl[0] if hl else "") or ""
+        cards.append({
+            "title": getattr(r, "title", None) or url, "url": url,
+            "type": card_type, "why": why, "snippet": snippet.strip(),
+        })
     try:
         await get_store().set_json(cache_key, cards, ttl=_CACHE_TTL)
     except Exception:
@@ -181,7 +193,9 @@ async def resources_for_gap(gap_category: str, role: str) -> list[dict]:
     template = _GAP_QUERY.get(gap_category, "free resources and courses to become a {role}")
     query = template.format(role=role or "this role")
     gap_phrase = gap_category.replace("_", " ")
-    return await _search(query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}")
+    return await _search(
+        query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}", highlights=True
+    )
 
 
 async def people_to_connect(role: str, location: str = "") -> list[dict]:

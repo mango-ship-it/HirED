@@ -127,7 +127,7 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
     # 1. Redis vector index FIRST — a real, GROWING knowledge base. A tight distance
     #    threshold keeps results role-relevant (a golf query never returns a tech resource),
     #    and a later "golf instructor" reuses a prior "golf coach" search for free.
-    indexed = await vector_search(query, k=4, max_distance=0.42)
+    indexed = await vector_search(query, k=4, max_distance=0.35)
     if indexed and len(indexed) >= 3:
         return ResourcesResponse(
             resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
@@ -138,9 +138,12 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
         try:
             hits = await resources_for_gap(request.gap_category, role)
             if hits:
-                await add_resources(hits, gap_category=request.gap_category)  # grow the index
+                await add_resources(hits, gap_category=request.gap_category, role=role)  # grow index
                 return ResourcesResponse(
-                    resources=[Resource(name=h["title"], url=h["url"], description=h["why"]) for h in hits]
+                    resources=[
+                        Resource(name=h["title"], url=h["url"], description=h.get("snippet") or h["why"])
+                        for h in hits
+                    ]
                 )
         except Exception as exc:
             logger.warning("Exa resources failed (%s); falling back", exc)

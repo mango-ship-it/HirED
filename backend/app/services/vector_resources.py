@@ -138,11 +138,13 @@ async def search(query: str, *, k: int = 4, max_distance: float | None = None) -
         return None
 
 
-async def add_resources(resources: list[dict], *, gap_category: str = "") -> int:
+async def add_resources(resources: list[dict], *, gap_category: str = "", role: str = "") -> int:
     """Embed + add REAL resources (from Exa) into the live index so it GROWS per role.
 
-    Keyed by URL, so re-adding the same resource de-duplicates instead of piling up.
-    Best-effort: a no-op when the index isn't ready. Returns how many were indexed.
+    Embeds the title + a real content SNIPPET anchored to the ROLE — NOT the generic
+    "free help with {gap}" boilerplate, which would dilute role focus and cause cross-role
+    matches. Stores the snippet as the description (richer cards too). Keyed by URL so
+    re-adding de-duplicates. Best-effort: a no-op when the index isn't ready.
     """
     if _status != "ready" or _index is None or _embed is None or not resources:
         return 0
@@ -157,13 +159,17 @@ async def add_resources(resources: list[dict], *, gap_category: str = "") -> int
             name = (r.get("title") or r.get("name") or "").strip()
             if not url or not name:
                 continue
-            desc = r.get("description") or r.get("why") or ""
+            snippet = (r.get("snippet") or "").strip()
+            description = snippet or r.get("description") or r.get("why") or ""
+            embed_text = f"{name}. {snippet}".strip(". ").strip()
+            if role:
+                embed_text = f"{embed_text}. For a {role}."  # anchor the role, drop boilerplate
             records.append({
                 "name": name,
                 "url": url,
-                "description": desc,
+                "description": description,
                 "gap_category": gap_category or r.get("type", ""),
-                "embedding": np.asarray(_embed(f"{name}. {desc}"), dtype=np.float32).tobytes(),
+                "embedding": np.asarray(_embed(embed_text), dtype=np.float32).tobytes(),
             })
             keys.append("resource:" + hashlib.sha1(url.encode()).hexdigest()[:16])
         if records:
