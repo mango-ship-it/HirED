@@ -97,6 +97,49 @@
   .rpanel-inner{flex:1;}
   .rstep-count{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:20px;}
 
+  /* ---- breakdown two-panel wide layout ---- */
+  .rpanel--wide{
+    max-width:min(1140px,calc(100vw - 244px));
+    height:calc(100vh - 62px - 56px);
+    min-height:0;
+  }
+  .rpanel--wide .rpanel-inner{
+    overflow:hidden;display:flex;flex-direction:column;min-height:0;
+  }
+  .rpanel--wide .rpanel-inner > .rsec{
+    flex:1;min-height:0;display:flex;flex-direction:column;
+  }
+  .bd-split{
+    flex:1;min-height:0;display:flex;gap:20px;overflow:hidden;
+  }
+  .bd-left{
+    width:45%;flex-shrink:0;overflow-y:auto;padding-right:6px;
+  }
+  .bd-right{
+    flex:1;overflow-y:auto;
+    background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:16px 18px;
+  }
+  .bd-resume-label{
+    font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:10px;
+  }
+  .bd-resume-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .bd-legend-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;
+    background:var(--paper-2);border:1px solid var(--line);color:var(--ink-soft);
+  }
+  .bd-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .bd-resume-body{
+    font-size:12.5px;line-height:1.75;color:var(--ink);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .bd-resume-empty{
+    font-size:13px;color:var(--ink-soft);font-style:italic;
+    text-align:center;padding:48px 0;
+  }
+
   /* ---- motion system ---- */
   @keyframes rsecIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
   @keyframes popIn{0%{opacity:0;transform:scale(.88) translateY(10px);}60%{transform:scale(1.02);}100%{opacity:1;transform:none;}}
@@ -415,12 +458,12 @@
     .rtab{width:auto;flex-shrink:0;white-space:nowrap;}
     .rt-label{max-width:140px;}
     .rpanel{min-height:auto;max-width:100%;}
-    .results-layout--bd{padding-left:clamp(16px,4vw,40px);padding-right:clamp(16px,4vw,40px);}
-    .rpanel--bd{width:100%;height:auto;}
-    .rpanel--bd .rpanel-inner{overflow:visible;}
-    .bd-split{flex-direction:column;overflow:visible;height:auto;min-height:0;}
-    .bd-left{width:100%;overflow-y:visible;padding-right:0;}
-    .bd-right{min-height:240px;}
+    .rpanel--wide{max-width:100%;height:auto;}
+    .rpanel--wide .rpanel-inner{overflow:visible;}
+    .rpanel--wide .rpanel-inner > .rsec{flex:none;}
+    .bd-split{flex-direction:column;overflow:visible;height:auto;}
+    .bd-left{width:100%;overflow-y:visible;}
+    .bd-right{min-height:200px;}
   }
   @media(prefers-reduced-motion:reduce){
     *{transition:none!important;animation:none!important;}
@@ -470,7 +513,7 @@
     const parts = [];
     let cursor = 0;
     for(const ann of valid){
-      if(ann.start < cursor) continue; // skip overlapping
+      if(ann.start < cursor) continue;
       if(ann.start > cursor) parts.push(esc(text.slice(cursor, ann.start)));
       const snippet = text.slice(ann.start, ann.end);
       const s = ann.sentiment || 'neutral';
@@ -581,7 +624,7 @@
           </div>`;
         }).join('');
 
-        const resumeRight = resumeText
+        const resumeBody = resumeText
           ? `<div class="bd-resume-label">Your resume</div>
              <div class="bd-resume-legend">
                <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#16a34a"></span>Strength</span>
@@ -590,17 +633,17 @@
              </div>
              <p style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Hover a highlight to see why</p>
              <div class="bd-resume-body">${buildAnnotatedResume(resumeText)}</div>`
-          : `<div class="bd-resume-empty">Paste your resume on the upload screen to see it highlighted here.</div>`;
+          : `<div class="bd-resume-empty">Resume preview not available.<br>Paste your resume on the upload screen to see it here.</div>`;
 
-        return `<div class="bd-split">
-          <div class="bd-left">
-            <div class="rsec">
-              <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;">Skill Breakdown</h2>
-              <p class="rsec-sub">Five areas scored — fix the lowest one first.</p>
+        return `<div class="rsec">
+          <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;">Skill Breakdown</h2>
+          <p class="rsec-sub">Five areas scored — see how each maps to your resume on the right.</p>
+          <div class="bd-split">
+            <div class="bd-left">
               <div class="res-cats">${rows}</div>
             </div>
+            <div class="bd-right">${resumeBody}</div>
           </div>
-          <div class="bd-right">${resumeRight}</div>
         </div>`;
       },
       onShow(){
@@ -971,10 +1014,8 @@
     inner.innerHTML = sections[i].render();
     if(sections[i].onShow) sections[i].onShow();
 
-    // two-panel wide layout for breakdown step
-    const isBd = !!sections[i]._isBreakdown;
-    document.querySelector('.results-layout').classList.toggle('results-layout--bd', isBd);
-    document.querySelector('.rpanel').classList.toggle('rpanel--bd', isBd);
+    // widen the panel for the breakdown two-column step
+    document.querySelector('.rpanel').classList.toggle('rpanel--wide', !!sections[i]._isBreakdown);
 
     // tab states
     tabBtns.forEach((t, idx) => {
