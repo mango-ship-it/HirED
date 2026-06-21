@@ -27,6 +27,7 @@ from app.routes import profile as profile_routes
 from app.routes import report as report_routes
 from app.routes import score as score_routes
 from app.routes import voice as voice_routes
+from app.services.exa_search import has_exa
 from app.services.store import get_store
 from app.services.vector_resources import status as vector_index_status
 
@@ -115,4 +116,5 @@ async def health() -> dict[str, object]:
         "benchmark_agent_configured": bool(settings.benchmark_agent_address),
         "store": get_store().backend,
         "vector_index": vector_index_status(),
+        "exa_configured": has_exa(),
     }

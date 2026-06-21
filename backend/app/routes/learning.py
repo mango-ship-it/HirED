@@ -13,6 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.errors import ErrorCode, error_response
+from app.services.exa_search import exa_resources_by_skill, full_roadmap, has_exa
 from app.services.jd_skills import top_skills_from_jobs
 from app.services.jobs import load_jobs
 from app.services.leetcode_company import detect_company, fetch_company_problems
@@ -56,9 +57,52 @@ async def learning_plan(body: dict):
                 company, period=(body.get("period") or "thirty-days"), limit=10
             )
 
+    # Real resources via Exa (the core data source) — replace search links per skill.
+    # Falls back to the deterministic search links when Exa is unconfigured/capped/empty.
+    resources_by_skill = await exa_resources_by_skill(skills, target) if has_exa() else None
+
     return build_plan(
-        skills, role=target, location=location, company=company, leetcode_problems=leetcode_problems
+        skills,
+        role=target,
+        location=location,
+        company=company,
+        leetcode_problems=leetcode_problems,
+        resources_by_skill=resources_by_skill,
     )
+
+
+@router.post("/roadmap")
+async def roadmap(body: dict):
+    """Full Exa-powered roadmap: per-skill courses/practice + events, networking,
+    certifications, and scholarships — dynamically queried for this role + missing skills."""
+    target = (body.get("target") or "").strip()
+    location = (body.get("location") or "").strip()
+    skills = [s for s in (body.get("skills") or []) if s]
+    user_id = body.get("user_id")
+
+    if not skills and user_id:
+        record = await load_profile(user_id)
+        if record:
+            skills = list(record.get("missing_skills") or [])
+    if not skills and target:
+        jobs = await load_jobs(target)
+        skills = [r["skill"] for r in top_skills_from_jobs(jobs or [], limit=4)]
+    if not target and not skills:
+        return error_response(
+            "Provide a `target` and/or `skills` (or a `user_id` with a scored profile).",
+            ErrorCode.INVALID_INPUT,
+            400,
+        )
+
+    data = await full_roadmap(target, skills, location)
+    if data is None:
+        return {
+            "exa": False,
+            "role": target,
+            "note": "Exa not configured (set EXA_API_KEY) — use /learning-plan for the search-link roadmap.",
+        }
+    data["exa"] = True
+    return data
 
 
 @router.get("/leetcode/{company}")

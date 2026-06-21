@@ -22,6 +22,7 @@ python-jobspy>=1.1.0             # multi-site JD scraper (LinkedIn, Indeed, Glas
 
 # --- infra ---
 redis==5.2.1                     # cache/queue (optional at MVP; degrades gracefully)
+exa-py==2.14.0                   # Exa AI: CORE roadmap data source (courses/events/jobs/etc.)
 httpx==0.28.1
 
 # --- resume parsing (POST /score file upload; API_CONTRACT.md) ---
