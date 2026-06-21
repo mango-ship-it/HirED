@@ -82,24 +82,40 @@ class CustomScorer:
 Then set `SCORER=custom` in `.env`. No route or contract changes. An unknown or
 broken scorer logs and falls back to deterministic — the page never breaks.
 
-## Live LinkedIn data via Sai (pysimular) — optional
+## Live LinkedIn data via Simulang — optional
 
-Sai (Simular) is a macOS app driven by the `pysimular` client. Because `run()` blocks
-on a Cocoa run loop for minutes, it can't live in the API — instead a small worker
-produces a JSON file the backend reads (`SAI_DATA_PATH`). A demo **seed ships**, so
-jobs/mentors work with zero setup.
+[Simulang](https://github.com/simular-ai/simulang) is a lightweight macOS/Windows/Linux
+browser automation CLI (Node.js, no LLM needed). It drives a real Chrome window via the
+accessibility tree. A standalone TypeScript script fetches live data and writes a JSON
+file the backend reads. A demo **seed ships** (`app/data/sai_seed.json`), so jobs/mentors
+work with zero setup.
 
-To wire real LinkedIn data (macOS only):
+### Jobs + mentors (existing — `sai_fetch.py`)
 
 ```bash
-# 1. Install the app: open simular-mac-agent-*.dmg -> ~/Applications, launch, sign in to LinkedIn
-# 2. Install the optional client (kept out of core requirements.txt):
+# Requires SimularBrowser.app (Simular closed app); ask sponsor for access.
 pip install -r requirements-sai.txt
-# 3. Fetch jobs + mentors for a target:
 python scripts/sai_fetch.py "Marketing Coordinator" --out app/data/sai_live.json
-# 4. Point the backend at it in backend/.env:
-#    SAI_DATA_PATH=app/data/sai_live.json
+# SAI_DATA_PATH=app/data/sai_live.json in backend/.env
 ```
+
+### Full JD text for benchmark 2AFC (new — `fetch_jds.py` via JobSpy)
+
+[python-jobspy](https://pypi.org/project/python-jobspy/) scrapes LinkedIn, Indeed,
+Glassdoor, and ZipRecruiter directly — no browser automation, no GUI app.
+
+```bash
+pip install -r requirements.txt          # python-jobspy is now in the core deps
+
+python scripts/fetch_jds.py "ML Engineer Intern" --location "San Francisco, CA" --count 10
+# optional flags:  --sites linkedin indeed   --hours-old 72   --out app/data/jds_live.json
+
+# Then set in backend/.env:
+# JD_DATA_PATH=app/data/jds_live.json
+```
+
+If `JD_DATA_PATH` is not set, `benchmark_agent.py` falls back to a built-in generic JD
+so the demo never hard-fails.
 
 ## Run (MASTER.md §8)
 
