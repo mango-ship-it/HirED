@@ -32,6 +32,7 @@ from app.models.schemas import (
     ResourcesResponse,
 )
 from app.services.exa_search import find_candidates, has_exa, resources_for_gap
+from app.services.leaderboard import add_score as leaderboard_add, cohort_size, percentile as leaderboard_percentile
 from app.services.profile_vectors import people_like_you
 from app.services.fetch_bridge import (
     AgentUnavailableError,
@@ -148,17 +149,29 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
                 )
     except Exception:
         logger.exception("peer cohort blend failed")
+
+    # Live population percentile via the Redis sorted-set leaderboard — a REAL rank among everyone
+    # targeting this role (grows with every user). Overrides the candidate-derived estimate.
+    sample_size = len(candidates) or _FALLBACK_SAMPLE_SIZE
+    try:
+        await leaderboard_add(role, request.user_id, request.score)
+        lb_pct = await leaderboard_percentile(role, request.score)
+        if lb_pct is not None:
+            percentile = lb_pct
+            sample_size = await cohort_size(role) or sample_size
+    except Exception:
+        logger.exception("leaderboard percentile failed")
+
     transparency = (
         f"Your readiness score ({request.score}/100) comes from 5 weighted factors — skills "
-        f"match 35%, quantified impact 25%, experience 20%, education 10%, clarity 10%. The "
-        f"professionals shown are real people in this field (scored on experience, seniority, and "
-        f"credentials); the 'learners on this path' are real, anonymized HirED users at a similar "
-        f"stage, scored on the SAME readiness scale as you — so you see both where you stand among "
-        f"peers and what the top of the field looks like."
+        f"match 35%, quantified impact 25%, experience 20%, education 10%, clarity 10%. Your "
+        f"percentile is your live rank among everyone on HirED targeting this role (a Redis "
+        f"leaderboard that grows as more people join). The professionals shown are real people in "
+        f"this field; the 'learners on this path' are real, anonymized HirED users at a similar stage."
     )
     return BenchmarkResponse(
         percentile=percentile,
-        sample_size=len(candidates) or _FALLBACK_SAMPLE_SIZE,
+        sample_size=sample_size,
         message=_benchmark_message(percentile, role),
         matches=[],
         candidates=candidates,

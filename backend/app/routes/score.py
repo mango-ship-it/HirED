@@ -38,6 +38,7 @@ from app.services.extractor import extract_profile, generate_lessons
 from app.services.jd_context import build_lesson_context
 from app.services.jd_skills import jd_enriched_skills
 from app.services.jobs import load_jobs
+from app.services.leaderboard import add_score as leaderboard_add
 from app.services.profile_vectors import add_profile
 from app.services.resume_guard import has_usable_resume
 from app.services.scoring_engine import get_scorer
@@ -251,6 +252,12 @@ async def score(
         await add_profile(user_id, target_obj.value, outcome.score, ", ".join(profile.missing_skills[:6]))
     except Exception:
         logger.exception("profile vector indexing failed for %s", user_id)
+
+    # Record the readiness in the role's Redis sorted-set leaderboard (live percentile).
+    try:
+        await leaderboard_add(target_obj.value, user_id, outcome.score)
+    except Exception:
+        logger.exception("leaderboard add failed for %s", user_id)
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     response = ScoreResponse(

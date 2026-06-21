@@ -66,8 +66,8 @@ Body: `{ "gap_category": "education", "context": "Bus Driver", "user_id": "…" 
 Body: `{ "user_id": "…", "score": 84, "target": { "type":"role", "value":"Bus Driver" } }`
 ```jsonc
 {
-  "percentile": 79,
-  "sample_size": 4,
+  "percentile": 79,                    // LIVE rank among all HirED users targeting this role (Redis sorted set, grows over time)
+  "sample_size": 42,                   // size of that role's leaderboard cohort
   "message": "You're ahead of 79% of candidates…",
   "transparency": "Your readiness score (84/100)… each candidate is scored 0–100 the same way…",  // page-6 explanation
   "candidates": [                      // plot each on a red→yellow→green scale by `score`

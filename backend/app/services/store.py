@@ -70,6 +70,11 @@ class Store:
     def backend(self) -> str:
         return "redis" if self._redis is not None else "memory"
 
+    def raw(self):
+        """The underlying redis client (or None in memory mode) — for ops the KV API doesn't
+        wrap (e.g. sorted sets). Callers MUST guard for None and degrade gracefully."""
+        return self._redis
+
     async def set_json(self, key: str, value: Any, ttl: int | None = _DEFAULT_TTL) -> None:
         """ttl=None stores permanently (no expiry)."""
         data = json.dumps(value)
