@@ -122,15 +122,27 @@ def _agent_prompt(record: dict | None, memory_recap: str = "") -> str:
             "short and conversational for voice." + memory_block
         )
     target = (record.get("target") or {}).get("value") or "their target role"
+    resume = (record.get("resume_text") or "").strip()[:1200]
+    lessons = record.get("lessons") or []
+    gaps = "\n".join(
+        f"    - {(lesson.get('category') or '').replace('_', ' ')}: "
+        f"{lesson.get('action') or lesson.get('principle') or ''}"
+        for lesson in lessons[:3]
+        if isinstance(lesson, dict)
+    )
     return (
         "You are HirED's warm, encouraging career coach talking with a job seeker by voice. "
-        "Use THEIR data to give specific, personal advice:\n"
+        "You have READ THEIR RESUME and scored it — use these specifics so it's clear you know "
+        "them personally, and reference their actual experience by name:\n"
         f"- Target role: {target}\n"
         f"- Readiness score: {record.get('score')}/100\n"
-        f"- Skills they have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
-        f"- Skills they're missing: {', '.join(record.get('missing_skills') or []) or '—'}\n"
-        "Help them understand the score, prioritize the gaps that matter most, and suggest "
-        "concrete free next steps. Be concise, jargon-free, and never shaming." + memory_block
+        f"- Skills they already have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
+        f"- Skills they still need: {', '.join(record.get('missing_skills') or []) or '—'}\n"
+        + (f'- Their resume, in their own words:\n"""\n{resume}\n"""\n' if resume else "")
+        + (f"- The top gaps to coach them through:\n{gaps}\n" if gaps else "")
+        + "Help them understand the score, prioritize the gap that matters most, and suggest one "
+        "concrete free next step at a time. Be concise, warm, jargon-free, and never shaming."
+        + memory_block
     )
 
 

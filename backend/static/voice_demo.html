@@ -90,7 +90,7 @@ function addTurn(role, text) {
   t.appendChild(d); t.scrollTop = 1e9;
 }
 
-let ws, audioCtx, micStream, micNode, playHead = 0, running = false;
+let ws, audioCtx, micStream, micNode, playHead = 0, running = false, audioChunks = 0;
 
 // ---- Create a sample profile so the coach has something to talk about -------
 $("seedBtn").onclick = async () => {
@@ -129,6 +129,11 @@ async function startAgent() {
   const uid = $("userId").value.trim() || "demo-voice-user";
   $("talkBtn").disabled = true;
   setStatus("connecting…", "live");
+  // CRITICAL: create + unlock the AudioContext synchronously inside the click gesture, or the
+  // browser keeps it suspended and the agent's audio plays silently.
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume();
+  log("audio context: " + audioCtx.state + " @ " + audioCtx.sampleRate + "Hz");
   let cfg;
   try {
     const r = await fetch(API + "/voice-agent/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: uid }) });
@@ -154,6 +159,7 @@ async function startAgent() {
     if (typeof ev.data === "string") {
       let msg; try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === "Welcome") {
+        log("Welcome ✓ — sending personalized Settings");
         ws.send(JSON.stringify(cfg.settings));   // backend's personalized Settings, verbatim
         startMic();
         running = true;
@@ -161,6 +167,8 @@ async function startAgent() {
         setStatus("listening — start talking", "live");
         if (cfg.greeting) addTurn("assistant", cfg.greeting);
         setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "KeepAlive" })); }, 5000);
+      } else if (msg.type === "SettingsApplied") {
+        log("SettingsApplied ✓ (agent configured)");
       } else if (msg.type === "ConversationText") {
         addTurn(msg.role, msg.content);
         // Persist the turn -> the coach REMEMBERS it next session (agent memory).
@@ -168,8 +176,10 @@ async function startAgent() {
           body: JSON.stringify({ user_id: uid, role: msg.role, content: msg.content }) }).catch(() => {});
       } else if (msg.type === "UserStartedSpeaking") {
         playHead = audioCtx ? audioCtx.currentTime : 0;   // barge-in: drop queued agent audio
-      } else if (msg.type === "Error") {
-        log("agent error: " + (msg.description || JSON.stringify(msg)));
+      } else if (msg.type === "Error" || msg.type === "Warning") {
+        log("agent " + msg.type.toLowerCase() + ": " + (msg.description || msg.message || JSON.stringify(msg)));
+      } else {
+        log("msg: " + msg.type);   // AgentThinking / AgentStartedSpeaking / AgentAudioDone / etc.
       }
     } else {
       playPCM(ev.data);   // binary = agent audio (linear16 @ 24k)
@@ -180,7 +190,7 @@ async function startAgent() {
 }
 
 function startMic() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // audioCtx was created + unlocked on the click in startAgent().
   const src = audioCtx.createMediaStreamSource(micStream);
   micNode = audioCtx.createScriptProcessor(4096, 1, 1);
   const ratio = audioCtx.sampleRate / MIC_RATE;
@@ -201,6 +211,8 @@ function startMic() {
 
 function playPCM(buf) {
   if (!audioCtx) return;
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  if (audioChunks++ === 0) log("receiving agent audio ✓ (you should hear the coach)");
   const pcm = new Int16Array(buf);
   const f32 = new Float32Array(pcm.length);
   for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 0x8000;
