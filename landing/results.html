@@ -548,15 +548,40 @@
     });
   }
 
-  lessons.slice(0,3).forEach((l, i) => {
+  // Build up to 3 gaps. Start with the AI lessons, then top up from the
+  // lowest-scoring categories not already covered, so a third gap always
+  // shows even when the backend returns fewer than 3 lessons.
+  const coveredCats = new Set(lessons.map(l => l && l.category).filter(Boolean));
+  const fillerCats = Object.entries(cats)
+    .sort((a, b) => (a[1].score ?? 100) - (b[1].score ?? 100))
+    .map(([k]) => k)
+    .filter(k => !coveredCats.has(k));
+
+  const gapList = lessons.slice(0, 3).map(l => ({
+    category: l.category,
+    principle: l.principle || CAT_DEFS[l.category] || '',
+    example: l.example || '',
+    action: l.action || ''
+  }));
+  for(let fi = 0; gapList.length < 3 && fi < fillerCats.length; fi++){
+    const cat = fillerCats[fi];
+    gapList.push({
+      category: cat,
+      principle: CAT_DEFS[cat] || '',
+      example: '',
+      action: `Strengthen your ${(CAT_LABELS[cat]||cat).toLowerCase()} — it's one of your lower-scoring areas, so improving it will lift your readiness the most.`
+    });
+  }
+
+  gapList.forEach((l, i) => {
     sections.push({
       label: `Gap ${i+1} · ${CAT_LABELS[l.category]||l.category}`,
       render(){
-        const shortExample = esc((l.example||'').split(/[.!?]/)[0].trim() + '.');
+        const shortExample = l.example ? esc((l.example||'').split(/[.!?]/)[0].trim() + '.') : '';
         return `<div class="rsec">
           <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;text-align:center;">Gap ${i+1}</h2>
-          <p class="rsec-sub" style="margin-bottom:12px;">${esc(l.principle)} ${shortExample}</p>
-          <div class="action">${esc(l.action)}</div>
+          <p class="rsec-sub" style="margin-bottom:12px;">${esc(l.principle)}${shortExample ? ' ' + shortExample : ''}</p>
+          ${l.action ? `<div class="action">${esc(l.action)}</div>` : ''}
           <div class="res-resblock">
             <div class="rsec-reslabel">Top resources for this gap</div>
             <div class="res-resources" id="resbox-${i}">
