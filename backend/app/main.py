@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.routes import agents as agents_routes
 from app.routes import jobs as jobs_routes
+from app.routes import learning as learning_routes
 from app.routes import profile as profile_routes
 from app.routes import report as report_routes
 from app.routes import score as score_routes
@@ -89,6 +90,7 @@ app.include_router(voice_routes.router, tags=["voice"])
 app.include_router(report_routes.router, tags=["report"])
 app.include_router(profile_routes.router, tags=["profile"])
 app.include_router(jobs_routes.router, tags=["jobs"])
+app.include_router(learning_routes.router, tags=["learning"])
 
 
 @app.get("/", tags=["meta"])

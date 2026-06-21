@@ -32,6 +32,8 @@ from app.services.document_parser import (
     extract_text,
 )
 from app.services.extractor import extract_profile, generate_lessons
+from app.services.jd_skills import jd_enriched_skills
+from app.services.jobs import load_jobs
 from app.services.scoring_engine import get_scorer
 from app.services.store import save_profile
 
@@ -85,6 +87,25 @@ async def score(
     # 3. Extract structured facts (Claude if ANTHROPIC_API_KEY is set, else heuristic
     #    — so this works with zero config), then SCORE via the pluggable scorer.
     profile = await extract_profile(resume, target_obj.value)
+
+    # Accuracy bridge: if we've cached real postings for this target, measure skills
+    # against what employers ACTUALLY require (JobSpy JDs) rather than a guess. Additive
+    # + graceful — falls back to the extracted skills when no jobs are cached.
+    try:
+        cached_jobs = await load_jobs(target_obj.value)
+        if cached_jobs:
+            required, matched, missing = jd_enriched_skills(resume, cached_jobs)
+            if required:
+                profile = profile.model_copy(
+                    update={
+                        "required_skills": required,
+                        "matched_skills": matched,
+                        "missing_skills": missing,
+                    }
+                )
+    except Exception:
+        logger.exception("JD-skill enrichment failed; using extracted skills")
+
     outcome = await get_scorer().score(profile=profile, resume=resume, target=target_obj.value)
     categories = {
         key: CategoryBreakdown(score=cat.score, weight=cat.weight)

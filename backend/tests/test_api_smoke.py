@@ -55,6 +55,38 @@ def test_score_returns_contract_shape_with_no_api_key():
     assert body["status"] == {"scoring": "complete", "benchmark": "pending", "resources": "pending"}
 
 
+def test_score_uses_real_jd_skills_when_jobs_cached():
+    """Accuracy bridge: cached real postings override the guessed required-skills."""
+    import asyncio
+
+    from app.services.jobs import jobs_key
+    from app.services.store import get_store
+
+    target_value = "swe-jd-bridge-test"
+    asyncio.run(
+        get_store().set_json(
+            jobs_key(target_value),
+            [
+                {"title": "SWE", "description": "We need Python, AWS, and Docker experience."},
+                {"title": "SWE", "description": "Python and AWS required; Kubernetes a plus."},
+            ],
+        )
+    )
+    response = client.post(
+        "/score",
+        data={
+            "user_id": "jd-user",
+            "target": json.dumps({"type": "role", "value": target_value}),
+            "resume_text": "Experienced developer skilled in Python and SQL. Built web apps.",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    # required skills now come from the REAL postings: Python matched, AWS missing
+    assert "Python" in body["matched_skills"]
+    assert "AWS" in body["missing_skills"]
+
+
 def test_score_accepts_file_upload():
     response = client.post(
         "/score",
