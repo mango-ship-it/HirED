@@ -31,7 +31,13 @@ class Settings(BaseSettings):
     fal_api_key: str = Field(default="", alias="FAL_KEY")  # fal.ai — Pika video generation
 
     # --- Fetch.ai uAgent addresses (filled after agents start) ---
-    resource_agent_address: str = Field(default="", alias="RESOURCE_AGENT_ADDRESS")
+    resource_agent_address: str = Field(default="", alias="RESOURCE_AGENT_ADDRESS")  # deprecated, use coordinator
+    resource_coordinator_address: str = Field(default="", alias="RESOURCE_COORDINATOR_ADDRESS")
+    skills_resource_agent_address: str = Field(default="", alias="SKILLS_RESOURCE_AGENT_ADDRESS")
+    experience_resource_agent_address: str = Field(default="", alias="EXPERIENCE_RESOURCE_AGENT_ADDRESS")
+    education_resource_agent_address: str = Field(default="", alias="EDUCATION_RESOURCE_AGENT_ADDRESS")
+    clarity_resource_agent_address: str = Field(default="", alias="CLARITY_RESOURCE_AGENT_ADDRESS")
+    quantified_resource_agent_address: str = Field(default="", alias="QUANTIFIED_RESOURCE_AGENT_ADDRESS")
     benchmark_agent_address: str = Field(default="", alias="BENCHMARK_AGENT_ADDRESS")
 
     # --- Infra ---

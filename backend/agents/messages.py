@@ -19,6 +19,20 @@ class ResourceItem(Model):
 class ResourceRequest(Model):
     gap_category: str
     context: str = ""
+    missing_skills: list[str] = []  # specific skill names from the score pipeline
+
+
+class SkillResourceRequest(Model):
+    """Internal agent-to-agent only: coordinator → specialist."""
+    skill: str
+    request_id: str
+
+
+class SkillResourceResponse(Model):
+    """Internal agent-to-agent only: specialist → coordinator."""
+    resources: list[ResourceItem]
+    request_id: str
+    skill: str
 
 
 class ResourceResponse(Model):
