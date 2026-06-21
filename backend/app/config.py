@@ -49,8 +49,14 @@ class Settings(BaseSettings):
     # app/services/scoring_engine.py for how to add one.
     scorer: str = Field(default="deterministic", alias="SCORER")
 
+    # --- TokenRouter — lightweight model gateway for 2AFC judging (OpenAI-compatible) ---
+    token_router_api_key: str = Field(default="", alias="TOKEN_ROUTER_API_KEY")
+    token_router_base_url: str = Field(default="https://api.tokenrouter.com/v1", alias="TOKEN_ROUTER_BASE_URL")
+    token_router_model: str = Field(default="auto", alias="TOKEN_ROUTER_MODEL")
+
     # --- Sai data ingestion (Sai has no public API — we ingest its exported file) ---
     sai_data_path: str = Field(default="", alias="SAI_DATA_PATH")
+    jd_data_path: str = Field(default="", alias="JD_DATA_PATH")
 
     @property
     def cors_origin_list(self) -> list[str]:
