@@ -117,7 +117,7 @@ async def _search(
     if not has_exa():
         return []
     digest = hashlib.sha1(
-        f"{query}|{include_domains}|{num_results}|{category}|{bool(summary_query)}".encode()
+        f"{query}|{include_domains}|{num_results}|{category}|{summary_query}".encode()
     ).hexdigest()[:16]
     cache_key = f"exa:{digest}"
     try:
@@ -213,14 +213,19 @@ _GAP_QUERY = {
 }
 
 
-async def resources_for_gap(gap_category: str, role: str) -> list[dict]:
-    """Real, ROLE-SPECIFIC free resources to close a scoring gap (via Exa web search)."""
+async def resources_for_gap(gap_category: str, role: str, *, user_context: str = "") -> list[dict]:
+    """Real, ROLE-SPECIFIC free resources to close a scoring gap (via Exa web search).
+
+    `user_context` personalizes the 'why it helps' to THIS user's resume (e.g. their actual
+    skill gaps), so the description speaks to their situation, not just the generic role.
+    """
     template = _GAP_QUERY.get(gap_category, "free resources and courses to become a {role}")
     query = template.format(role=role or "this role")
     gap_phrase = gap_category.replace("_", " ")
+    who = f"a {role or 'this role'}" + (f" who {user_context}" if user_context else "")
     summary_q = (
         f"In one brief sentence (~20 words), say what this resource is, roughly how long it "
-        f"takes to complete, and why it helps someone become a {role or 'this role'}."
+        f"takes to complete, and why it specifically helps {who}."
     )
     return await _search(
         query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}",

@@ -38,6 +38,7 @@ from app.services.fetch_bridge import (
     benchmark_agent_address,
     resource_agent_address,
 )
+from app.services.store import load_profile
 from app.services.vector_resources import add_resources, search as vector_search
 
 logger = logging.getLogger("hired.routes.agents")
@@ -149,11 +150,20 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
     the fallback once it's rich. Order: Exa -> Redis index -> agent -> static."""
     role = _role(request.context)
 
+    # Personalize the 'why it helps' to THIS user's resume (their actual skill gaps), when known.
+    user_context = ""
+    if request.user_id:
+        record = await load_profile(request.user_id)
+        if record:
+            gaps = [g for g in (record.get("missing_skills") or []) if g][:3]
+            if gaps:
+                user_context = "still needs to build " + ", ".join(gaps)
+
     # 1. Exa FIRST — real, exact, role-specific resources for ANY job. Index the results
     #    (best-effort) so the Redis vector index keeps growing for the fallback below.
     if has_exa() and role:
         try:
-            hits = await resources_for_gap(request.gap_category, role)
+            hits = await resources_for_gap(request.gap_category, role, user_context=user_context)
             if hits:
                 await add_resources(hits, gap_category=request.gap_category, role=role)  # grow index
                 return ResourcesResponse(
