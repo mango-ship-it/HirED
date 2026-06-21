@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore", message="on_query is deprecated.*")
 
 from uagents import Agent, Context  # noqa: E402
 
-from agents.messages import BenchmarkRequest, BenchmarkResponse  # noqa: E402
+from agents.messages import BenchmarkRequest, BenchmarkResponse, Match  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.services.elo import elo_update, rating_to_percentile  # noqa: E402
 from app.services.resume_synthesizer import synthesize_cohort  # noqa: E402
@@ -126,8 +126,8 @@ def _load_jd(target: str) -> str:
         return _FALLBACK_JD
 
 
-async def _run_2afc_pipeline(user_resume_proxy: str, target: str) -> tuple[int, int]:
-    """Run 2AFC vs. a JD-synthesized cohort; return (percentile, n_competitors).
+async def _run_2afc_pipeline(user_resume_proxy: str, target: str) -> tuple[int, int, list[Match]]:
+    """Run 2AFC vs. a JD-synthesized cohort; return (percentile, n_competitors, matches).
 
     Synthesis and judging both run in parallel. Falls back to _SEED_COMPETITORS
     if synthesis times out or raises.
@@ -154,13 +154,31 @@ async def _run_2afc_pipeline(user_resume_proxy: str, target: str) -> tuple[int, 
     # ELO: user starts at 1000; each competitor also starts at 1000 (no prior history).
     user_rating = 1000.0
     competitor_ratings: list[float] = []
-    for winner in winners:
+    matches: list[Match] = []
+    for competitor_text, winner in zip(competitors, winners):
         comp_rating = 1000.0
         user_rating, final_comp = elo_update(user_rating, comp_rating, winner)
         competitor_ratings.append(final_comp)
+        matches.append(
+            Match(
+                competitor_headline=_headline(competitor_text),
+                competitor_resume=competitor_text,
+                user_won=(winner == "A"),
+            )
+        )
 
     percentile = rating_to_percentile(user_rating, competitor_ratings)
-    return percentile, len(competitors)
+    return percentile, len(competitors), matches
+
+
+def _headline(resume_text: str) -> str:
+    """Extract the first line of a synthesized resume as a one-line headline.
+
+    Synthesizer contract (app/services/resume_synthesizer.py): first line is
+    'Full Name | Target Role'. Falls back to the first 80 chars if no newline.
+    """
+    first_line = resume_text.splitlines()[0] if "\n" in resume_text else resume_text[:80]
+    return first_line.strip()
 
 
 agent = Agent(
@@ -189,7 +207,7 @@ async def handle_query(ctx: Context, sender: str, msg: BenchmarkRequest) -> None
     )
 
     try:
-        percentile, sample_size = await asyncio.wait_for(
+        percentile, sample_size, matches = await asyncio.wait_for(
             _run_2afc_pipeline(user_proxy, msg.target),
             timeout=120,
         )
@@ -197,10 +215,11 @@ async def handle_query(ctx: Context, sender: str, msg: BenchmarkRequest) -> None
         ctx.logger.warning("2AFC pipeline timed out; falling back to score-based percentile")
         percentile = max(0, min(100, msg.score - 5))
         sample_size = len(_SEED_COMPETITORS)
+        matches = []
 
     await ctx.send(
         sender,
-        BenchmarkResponse(percentile=percentile, sample_size=sample_size),
+        BenchmarkResponse(percentile=percentile, sample_size=sample_size, matches=matches),
     )
 
 
