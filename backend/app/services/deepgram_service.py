@@ -124,6 +124,7 @@ class DeepgramService:
         def _analyze():
             return self._client.read.v1.text.analyze(
                 request={"text": text[:90000]},  # Deepgram read text cap
+                language="en",  # required by the /read API
                 summarize="v2",
                 topics=True,
                 intents=True,
