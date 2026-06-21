@@ -47,13 +47,16 @@ def parse_csv(text: str, *, limit: int | None = None) -> list[dict]:
         url = (row.get("URL") or "").strip()
         if not title or not url:
             continue
+        diff = (row.get("Difficulty") or "").strip()
+        acc = (row.get("Acceptance %") or "").strip()
         problems.append({
             "id": (row.get("ID") or "").strip(),
             "title": title,
             "url": url,
-            "difficulty": (row.get("Difficulty") or "").strip(),
-            "acceptance": (row.get("Acceptance %") or "").strip(),
+            "difficulty": diff,
+            "acceptance": acc,
             "frequency": (row.get("Frequency %") or "").strip(),
+            "description": f"{diff} difficulty" + (f" · {acc} acceptance" if acc else ""),
         })
     return problems[:limit] if limit else problems
 

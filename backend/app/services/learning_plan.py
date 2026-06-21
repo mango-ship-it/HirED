@@ -67,6 +67,20 @@ _CREDENTIAL_NOTE = (
 )
 
 
+def _norm(card: dict) -> dict:
+    """Normalize any resource card (Exa or deterministic) to {name, url, type, why, description}."""
+    out = {
+        "name": card.get("name") or card.get("title") or card.get("url"),
+        "url": card.get("url"),
+        "type": card.get("type"),
+        "why": card.get("why"),
+        "description": card.get("description") or card.get("snippet") or "",
+    }
+    if card.get("near_you"):
+        out["near_you"] = True
+    return out
+
+
 def build_plan(
     skills: list[str],
     *,
@@ -92,9 +106,10 @@ def build_plan(
     items = []
     for skill in skills[:limit_skills]:
         real = provided.get(skill) or provided.get(skill.lower())
+        cards = real if real else resources_for_skill(skill, location=location, coding=coding)
         items.append({
             "skill": skill,
-            "resources": real if real else resources_for_skill(skill, location=location, coding=coding),
+            "resources": [_norm(c) for c in cards],
             "credential_note": _CREDENTIAL_NOTE,
         })
     plan = {"role": role, "location": location, "is_coding": coding, "items": items}
@@ -121,4 +136,5 @@ def build_plan(
                 "why": "Local, often low-cost training programs.",
                 "near_you": True,
             })
+        plan["role_resources"] = [_norm(c) for c in plan["role_resources"]]
     return plan

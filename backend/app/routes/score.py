@@ -64,7 +64,11 @@ def _category_explanations(profile) -> dict[str, str]:
         "experience": (
             f"Your resume reflects about {profile.years_experience:g} year(s) of relevant experience."
         ),
-        "education": f"Detected education level: {profile.education_level}.",
+        "education": "Detected education: " + {
+            "none": "no degree listed", "some": "some college", "certificate": "a certificate",
+            "associate": "an associate degree", "bachelor": "a bachelor's degree",
+            "master": "a master's degree", "doctorate": "a doctorate",
+        }.get(profile.education_level, profile.education_level) + ".",
         "clarity": "Reflects how clearly your resume reads — action verbs, structure, and concision.",
     }
 
@@ -109,9 +113,18 @@ async def score(
             400,
         )
 
-    # Consistency: identical (resume, target) -> identical score. Cache the full response so
-    # the same input never produces a different number (Claude extraction can vary run to run).
-    cache_key = "score:" + hashlib.sha256(f"{resume}\n{target_obj.value}".encode()).hexdigest()[:24]
+    # 3. Load cached JD postings UP FRONT so the score cache key reflects them — a later
+    #    /jobs/refresh changes the key and forces a re-score (never serves stale skills).
+    try:
+        cached_jobs = await load_jobs(target_obj.value)
+    except Exception:
+        cached_jobs = None
+
+    # Consistency: identical (resume, target, JD-state) -> identical score, served from cache,
+    # so the same input never yields a different number (Claude extraction can vary per run).
+    cache_key = "score:" + hashlib.sha256(
+        f"{resume}\n{target_obj.value}\n{len(cached_jobs or [])}".encode()
+    ).hexdigest()[:24]
     try:
         cached = await get_store().get_json(cache_key)
     except Exception:
@@ -119,18 +132,13 @@ async def score(
     if cached is not None:
         return ScoreResponse.model_validate(cached)
 
-    # 3. Extract structured facts (Claude if ANTHROPIC_API_KEY is set, else heuristic
-    #    — so this works with zero config), then SCORE via the pluggable scorer.
     profile = await extract_profile(resume, target_obj.value)
 
-    # Accuracy bridge: if we've cached real postings for this target, measure skills
-    # against what employers ACTUALLY require (JobSpy JDs) rather than a guess, and build
-    # a grounded digest so the lessons cite real market language. Additive + graceful —
-    # falls back to the extracted skills / un-grounded lessons when no jobs are cached.
+    # Accuracy bridge: enrich skills against the REAL postings + build a grounded lesson
+    # digest. Additive + graceful — falls back to extracted skills when no jobs are cached.
     jd_context = ""
-    try:
-        cached_jobs = await load_jobs(target_obj.value)
-        if cached_jobs:
+    if cached_jobs:
+        try:
             required, matched, missing = jd_enriched_skills(resume, cached_jobs)
             if required:
                 profile = profile.model_copy(
@@ -141,8 +149,8 @@ async def score(
                     }
                 )
             jd_context = build_lesson_context(cached_jobs, profile.missing_skills)
-    except Exception:
-        logger.exception("JD-skill enrichment failed; using extracted skills")
+        except Exception:
+            logger.exception("JD-skill enrichment failed; using extracted skills")
 
     outcome = await get_scorer().score(profile=profile, resume=resume, target=target_obj.value)
     explanations = _category_explanations(profile)
