@@ -24,6 +24,17 @@ def test_build_plan_detects_coding_and_adds_leetcode():
     assert "credential_note" in plan["items"][0]
 
 
+def test_build_plan_uses_real_resources_when_provided():
+    # Integration seam for Exa: real resources replace search-links per skill; others fall back.
+    real = {"Python": [{"title": "Best Python Course", "url": "https://youtu.be/abc",
+                        "type": "video", "why": "top-ranked"}]}
+    plan = build_plan(["Python", "SQL"], role="Software Engineer", resources_by_skill=real)
+    python_item = next(i for i in plan["items"] if i["skill"] == "Python")
+    assert python_item["resources"][0]["url"] == "https://youtu.be/abc"  # real resource used
+    sql_item = next(i for i in plan["items"] if i["skill"] == "SQL")
+    assert any("youtube.com/results" in r["url"] for r in sql_item["resources"])  # fallback
+
+
 def test_build_plan_chef_is_not_coding_and_has_no_leetcode():
     plan = build_plan(["Food Safety", "Plating"], role="Chef", location="Oakland")
     assert plan["is_coding"] is False

@@ -75,21 +75,28 @@ def build_plan(
     limit_skills: int = 6,
     company: str | None = None,
     leetcode_problems: list[dict] | None = None,
+    resources_by_skill: dict[str, list[dict]] | None = None,
 ) -> dict:
     """A per-skill resource breakdown + role-level credentials/local options.
 
     When `leetcode_problems` are supplied (a coding role at a known company), the plan
     also includes a `company_practice` section of the exact problems that company asks.
+
+    `resources_by_skill` is the integration seam for a real-resource provider (e.g. Exa
+    search): if it has entries for a skill, those REAL ranked resources replace the
+    deterministic search-link cards; otherwise we fall back to the search links. Each
+    provided resource should be a card dict ({title, url, type, why}).
     """
     coding = is_coding_role(role, skills)
-    items = [
-        {
+    provided = resources_by_skill or {}
+    items = []
+    for skill in skills[:limit_skills]:
+        real = provided.get(skill) or provided.get(skill.lower())
+        items.append({
             "skill": skill,
-            "resources": resources_for_skill(skill, location=location, coding=coding),
+            "resources": real if real else resources_for_skill(skill, location=location, coding=coding),
             "credential_note": _CREDENTIAL_NOTE,
-        }
-        for skill in skills[:limit_skills]
-    ]
+        })
     plan = {"role": role, "location": location, "is_coding": coding, "items": items}
     if leetcode_problems:
         plan["company_practice"] = {
