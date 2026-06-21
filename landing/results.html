@@ -607,11 +607,12 @@
 
     const makeMarkEl = (content, bg, col, catKey, score, reason, sentiment) => {
       const catLabel = catKey ? (CAT_LABELS[catKey] || catKey) : null;
-      const catAttr  = catLabel ? ` data-cat="${catLabel.replace(/"/g,'&quot;')}"` : '';
-      const scoreAttr = (score != null) ? ` data-score="${score}"` : '';
-      const sentAttr  = sentiment ? ` data-sentiment="${sentiment}"` : '';
+      const catAttr    = catLabel ? ` data-cat="${catLabel.replace(/"/g,'&quot;')}"` : '';
+      const catkeyAttr = catKey   ? ` data-catkey="${catKey}"` : '';
+      const scoreAttr  = (score != null) ? ` data-score="${score}"` : '';
+      const sentAttr   = sentiment ? ` data-sentiment="${sentiment}"` : '';
       const tip = reason ? ` title="${reason.replace(/"/g,'&quot;')}"` : '';
-      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${scoreAttr}${sentAttr}${tip}>${content}</mark>`;
+      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${catkeyAttr}${scoreAttr}${sentAttr}${tip}>${content}</mark>`;
     };
 
     // Fallback: backend didn't send char-offset annotations, so highlight by
@@ -668,11 +669,17 @@
       const mark = e.target.closest('mark[data-cat]');
       if(!mark) return;
       clearTimeout(hideTimer);
-      const cat       = mark.dataset.cat;
-      const score     = mark.dataset.score;
-      const s         = score != null ? Number(score) : null;
+      const cat     = mark.dataset.cat;
+      const catkey  = mark.dataset.catkey || '';
+      const catData = cats[catkey];
+      const resolvedScore = catData ? catData.score : (mark.dataset.score != null ? Number(mark.dataset.score) : null);
+      const s = resolvedScore;
+      // If category found on left panel, use its score color (matches left side exactly)
+      // Otherwise fall back to the highlight's sentiment color
       const sentiment = mark.dataset.sentiment || 'neutral';
-      const color = sentiment === 'positive' ? '#4ADE80' : sentiment === 'negative' ? '#F87171' : '#FBBF24';
+      const color = catData
+        ? scoreColor(catData.score)
+        : (sentiment === 'positive' ? '#4ADE80' : sentiment === 'negative' ? '#F87171' : '#FBBF24');
       tt.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:2px;">${cat}</div>`
         + (s != null ? `<div style="color:${color};font-weight:700;font-size:15px;">${s}<span style="font-size:10px;color:rgba(255,255,255,.5)">/100</span></div>` : '');
       tt.style.opacity = '1';
