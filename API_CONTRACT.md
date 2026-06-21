@@ -54,6 +54,8 @@ target: {
 
 ## 2. `POST /benchmark`
 
+**Frontend story (one sentence):** the FE shows a "how prepared are you?" view with a percentile gauge and a head-to-head reveal of the synthetic candidates the user beat or lost to.
+
 **Request:**
 ```json
 {
@@ -67,10 +69,28 @@ target: {
 ```json
 {
   "percentile": 65,
-  "sample_size": 87,
-  "message": "Top 35% of users targeting this role. Users who moved into the top 20% most often fixed quantified_achievements first."
+  "sample_size": 8,
+  "message": "You're ahead of 65% of candidates targeting Software Engineering Internship. Candidates who broke into the top tier most often strengthened their lowest-scoring category first — that's the fastest way to move your number.",
+  "matches": [
+    {
+      "competitor_headline": "Alex Chen | Software Engineering Intern",
+      "competitor_resume": "Alex Chen | Software Engineering Intern\nEducation: BS CS, MIT, GPA 3.95 (2024)\nExperience:\n  - SWE Intern @ Stripe (Summer 2023, 3 mo)\n    * Built real-time fraud detection feature; blocked $2.1M/mo in fraud\n...",
+      "user_won": false
+    },
+    {
+      "competitor_headline": "Jamie Wilson | Career Changer",
+      "competitor_resume": "Jamie Wilson | Career Changer\nEducation: BA English Literature, State University (2020)\nExperience:\n  - Barista @ Local Coffee Shop (2020–2023, 3 yr)\n...",
+      "user_won": true
+    }
+  ]
 }
 ```
+
+**Field notes:**
+- `sample_size` is the number of synthetic competitors the user was compared against this request (the 2AFC cohort: typically 5–8 synthesized + tier-stratified, or 30 on agent fallback). It is **not** a historical user count.
+- `matches[]` carries one entry per 2AFC comparison: the competitor headline (first line of the synthesized resume), the full synthesized resume text, and whether the user won the head-to-head. **Synthesized competitors are LLM-generated** — the FE must label them as such (e.g. "AI-generated peer profile") rather than implying they are real people.
+- On agent-unavailable fallback the field is always present but empty (`"matches": []`).
+- `message` is a plain-language framing of `percentile` produced server-side; the exact copy may evolve — treat it as opaque display text.
 
 ---
 
@@ -145,7 +165,7 @@ a narratable slide deck and adds Sai-sourced jobs/mentors. **Templated — no AP
   "code": "INVALID_INPUT" | "PARSE_FAILED" | "AGENT_TIMEOUT" | "SERVER_ERROR"
 }
 ```
-HTTP status: `400` for bad input, `500` for anything that breaks server-side, `504` if a Fetch.ai agent query times out.
+HTTP status: `400` for bad input, `500` for anything that breaks server-side. Fetch.ai agent timeouts do **not** return 504 — `/benchmark` and `/resources` fall back to a deterministic local result and still return 200 with the contract shape (e.g. `/benchmark` returns `matches: []` and a `percentile` derived from the score). Frontend should not write 504-handling for these endpoints.
 
 ---
 

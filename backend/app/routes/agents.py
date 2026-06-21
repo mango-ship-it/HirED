@@ -24,6 +24,7 @@ from agents.messages import (
 from app.models.schemas import (
     BenchmarkRequest,
     BenchmarkResponse,
+    Match,
     Resource,
     ResourcesRequest,
     ResourcesResponse,
@@ -75,6 +76,7 @@ def _benchmark_message(percentile: int, target_value: str) -> str:
 @router.post("/benchmark", response_model=BenchmarkResponse)
 async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
     """Peer-readiness percentile from the Fetch.ai benchmark uAgent."""
+    matches: list[Match] = []
     try:
         reply = await ask_agent(
             benchmark_agent_address(),
@@ -82,15 +84,25 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
             AgentBenchmarkResponse,
         )
         percentile, sample_size = int(reply.percentile), int(reply.sample_size)
+        matches = [
+            Match(
+                competitor_headline=m.competitor_headline,
+                competitor_resume=m.competitor_resume,
+                user_won=m.user_won,
+            )
+            for m in getattr(reply, "matches", [])
+        ]
     except (AgentUnavailableError, ValueError, AttributeError) as exc:
         # Deterministic local fallback so a cold agent never breaks the demo.
         logger.warning("benchmark agent unavailable, using fallback: %s", exc)
         percentile = max(0, min(100, request.score - 5))
         sample_size = _FALLBACK_SAMPLE_SIZE
+        matches = []  # explicit — contract guarantees this field is always present
     return BenchmarkResponse(
         percentile=percentile,
         sample_size=sample_size,
         message=_benchmark_message(percentile, request.target.value),
+        matches=matches,
     )
 
 

@@ -21,7 +21,7 @@ async def test_run_2afc_pipeline_returns_int_percentile():
     with patch("agents.benchmark_agent.synthesize_cohort", new=AsyncMock(return_value=fake_competitors)), \
          patch("agents.benchmark_agent.judge_pair", new=AsyncMock(return_value="A")), \
          patch("agents.benchmark_agent._load_jd", return_value="Software Engineer JD"):
-        percentile, sample_size = await _run_2afc_pipeline("User resume proxy", "SWE Intern")
+        percentile, sample_size, _matches = await _run_2afc_pipeline("User resume proxy", "SWE Intern")
 
     assert isinstance(percentile, int)
     assert 0 <= percentile <= 100
@@ -42,7 +42,7 @@ async def test_run_2afc_pipeline_user_wins_all_gives_high_percentile():
     with patch("agents.benchmark_agent.synthesize_cohort", new=AsyncMock(return_value=fake_competitors)), \
          patch("agents.benchmark_agent.judge_pair", new=AsyncMock(return_value="A")), \
          patch("agents.benchmark_agent._load_jd", return_value="JD text"):
-        percentile, _ = await _run_2afc_pipeline("User proxy", "ML Intern")
+        percentile, _, _matches = await _run_2afc_pipeline("User proxy", "ML Intern")
 
     assert percentile == 100
 
@@ -61,7 +61,7 @@ async def test_run_2afc_pipeline_user_loses_all_gives_low_percentile():
     with patch("agents.benchmark_agent.synthesize_cohort", new=AsyncMock(return_value=fake_competitors)), \
          patch("agents.benchmark_agent.judge_pair", new=AsyncMock(return_value="B")), \
          patch("agents.benchmark_agent._load_jd", return_value="JD text"):
-        percentile, _ = await _run_2afc_pipeline("User proxy", "ML Intern")
+        percentile, _, _matches = await _run_2afc_pipeline("User proxy", "ML Intern")
 
     assert percentile == 0
 
@@ -83,7 +83,39 @@ async def test_run_2afc_pipeline_falls_back_on_synthesis_timeout():
          patch("agents.benchmark_agent.judge_pair", new=AsyncMock(return_value="A")), \
          patch("agents.benchmark_agent._load_jd", return_value="JD text"), \
          patch("agents.benchmark_agent._SYNTHESIS_TIMEOUT", 0.01):
-        percentile, sample_size = await _run_2afc_pipeline("User proxy", "SWE Intern")
+        percentile, sample_size, _matches = await _run_2afc_pipeline("User proxy", "SWE Intern")
 
     assert isinstance(percentile, int)
     assert sample_size == len(_SEED_COMPETITORS)
+
+
+@pytest.mark.asyncio
+async def test_run_2afc_pipeline_returns_matches_list():
+    """Pipeline should return a Match per competitor with headline, full resume, and user_won."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+    from agents.benchmark_agent import _run_2afc_pipeline
+
+    fake_competitors = [
+        "Alex Chen | SWE Intern\nEducation: MIT, GPA 3.9\n...rest of resume...",
+        "Jordan Lee | CS Student\nEducation: UCLA, GPA 3.5\n...rest...",
+    ]
+
+    with patch("agents.benchmark_agent.synthesize_cohort", new=AsyncMock(return_value=fake_competitors)), \
+         patch("agents.benchmark_agent.judge_pair", new=AsyncMock(side_effect=["A", "B"])), \
+         patch("agents.benchmark_agent._load_jd", return_value="JD text"):
+        percentile, sample_size, matches = await _run_2afc_pipeline("User proxy", "SWE Intern")
+
+    assert sample_size == 2
+    assert len(matches) == 2
+    # headlines extracted from the first line of each synthesized resume
+    assert matches[0].competitor_headline == "Alex Chen | SWE Intern"
+    assert matches[1].competitor_headline == "Jordan Lee | CS Student"
+    # full resume text preserved
+    assert matches[0].competitor_resume == fake_competitors[0]
+    # judge said "A" (user) won match 0, "B" (competitor) won match 1
+    assert matches[0].user_won is True
+    assert matches[1].user_won is False
+    assert isinstance(percentile, int)

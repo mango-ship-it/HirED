@@ -30,6 +30,14 @@ class BenchmarkRequest(Model):
     target: str
 
 
+class Match(Model):
+    """One 2AFC head-to-head between the user and a synthesized competitor."""
+    competitor_headline: str
+    competitor_resume: str
+    user_won: bool
+
+
 class BenchmarkResponse(Model):
     percentile: int
     sample_size: int
+    matches: list[Match] = []
