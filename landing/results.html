@@ -295,7 +295,7 @@
     display:inline-block;font-size:13px;font-weight:700;
     padding:5px 14px;border-radius:99px;margin-bottom:10px;
   }
-  .res-bench-sub{font-size:14px;color:#9fb0c9;margin-top:6px;}
+  .res-bench-sub{font-size:13px;color:#9fb0c9;margin-bottom:16px;}
 
   /* ---- roadmap ---- */
   .rm-progress-bar{height:3px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden;}
@@ -456,7 +456,34 @@
     return id;
   })();
 
-  const resumeText = sessionStorage.getItem('hired_resume') || '';
+  const resumeText = sessionStorage.getItem('hired_resume') || localStorage.getItem('hired_resume') || (data && data.resume_text) || '';
+
+  // highlight matched/missing skills in the resume body
+  function buildAnnotatedResume(text){
+    const matched = Array.isArray(data.matched_skills) ? data.matched_skills : [];
+    const missing  = Array.isArray(data.missing_skills)  ? data.missing_skills  : [];
+    if(!matched.length && !missing.length) return `<span>${esc(text)}</span>`;
+
+    // longest terms first so "machine learning" beats "learning"
+    const terms = [
+      ...matched.map(s => ({s, type:'match'})),
+      ...missing.map(s  => ({s, type:'miss'}))
+    ].sort((a,b) => b.s.length - a.s.length);
+
+    const re = new RegExp(
+      '(' + terms.map(t => t.s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + ')',
+      'gi'
+    );
+
+    return text.split(re).map(part => {
+      const hit = terms.find(t => t.s.toLowerCase() === part.toLowerCase());
+      if(!hit) return esc(part);
+      const isMatch = hit.type === 'match';
+      const bg  = isMatch ? 'rgba(34,197,94,.18)'  : 'rgba(229,72,77,.18)';
+      const col = isMatch ? '#16a34a' : '#dc2626';
+      return `<mark style="background:${bg};color:${col};border-radius:3px;padding:0 2px;font-weight:600;font-style:normal;">${esc(part)}</mark>`;
+    }).join('');
+  }
 
   const root = document.getElementById('root');
 
@@ -495,8 +522,10 @@
   let benchState = null; // null | 'loading' | {percentile}
 
   // ---- build sections from the data ----
-  const lessons = Array.isArray(data.lessons) ? data.lessons : [];
   const cats = data.categories || {};
+  const allLessons = Array.isArray(data.lessons) ? data.lessons : [];
+  const GAP_ORDER = ['education','skills_match','clarity'];
+  const lessons = GAP_ORDER.map(cat => allLessons.find(l => l.category === cat)).filter(Boolean);
   const sections = [];
 
   sections.push({
@@ -553,15 +582,14 @@
           </div>`;
         }).join('');
 
-        const legend = Object.entries(cats).map(([k,cat]) => `
-          <span class="bd-legend-chip">
-            <span class="bd-chip-dot" style="background:${scoreColor(cat.score)}"></span>
-            ${esc(CAT_LABELS[k]||k)} · ${cat.score}
-          </span>`).join('');
-
-        const resumeBody = resumeText
-          ? `<div class="bd-resume-body">${esc(resumeText)}</div>`
-          : `<div class="bd-resume-empty">Paste your resume on the upload screen to preview it here alongside your scores.</div>`;
+        const resumeRight = resumeText
+          ? `<div class="bd-resume-label">Your resume</div>
+             <div class="bd-resume-legend">
+               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#16a34a"></span>Matched skill</span>
+               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#dc2626"></span>Missing skill</span>
+             </div>
+             <div class="bd-resume-body">${buildAnnotatedResume(resumeText)}</div>`
+          : `<div class="bd-resume-empty">Paste your resume on the upload screen to see it highlighted here.</div>`;
 
         return `<div class="bd-split">
           <div class="bd-left">
@@ -571,11 +599,7 @@
               <div class="res-cats">${rows}</div>
             </div>
           </div>
-          <div class="bd-right">
-            <div class="bd-resume-label">Your resume</div>
-            <div class="bd-resume-legend">${legend}</div>
-            ${resumeBody}
-          </div>
+          <div class="bd-right">${resumeRight}</div>
         </div>`;
       },
       onShow(){
@@ -663,6 +687,7 @@
             <div class="res-bench-content" id="benchContent">
               <div class="res-bench-label">Your standing</div>
               <div class="res-bench-big">Ahead of <span id="benchPct">—</span>% <span>of candidates</span></div>
+              <div class="res-bench-sub" id="benchSub"></div>
               <div class="res-bench-zone-wrap">
                 <div class="res-bench-zone-bar">
                   <div class="res-bench-peer res-bench-peer-a" id="benchPeerA">
@@ -685,7 +710,6 @@
                 </div>
               </div>
               <div class="res-bench-verdict" id="benchVerdict"></div>
-              <div class="res-bench-sub" id="benchSub"></div>
             </div>
           </div>
         </div>`;

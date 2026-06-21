@@ -1086,6 +1086,13 @@
       sessionStorage.setItem('hired_result', JSON.stringify(d));
       sessionStorage.setItem('hired_target', JSON.stringify(currentTarget));
       sessionStorage.setItem('hired_api', API_BASE);
+      if(!attachedFile){
+        sessionStorage.setItem('hired_resume', text);
+        localStorage.setItem('hired_resume', text);
+      } else {
+        sessionStorage.removeItem('hired_resume');
+        localStorage.removeItem('hired_resume');
+      }
       window.location.href = 'results.html';
     }catch(err){
       showError(err.message);
