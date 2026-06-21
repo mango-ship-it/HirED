@@ -1,7 +1,7 @@
 """Unit tests for scripts/fetch_jds.py mapping helpers."""
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pandas as pd
 import pytest
 
