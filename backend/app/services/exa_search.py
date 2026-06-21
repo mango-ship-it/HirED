@@ -165,6 +165,25 @@ async def scholarships(role: str) -> list[dict]:
     return await _search(_scholarships_query(role), card_type="scholarship", why="Funding to learn for free")
 
 
+# Per-gap query templates — turn a scoring gap + the user's ROLE into a real,
+# role-specific Exa search (so a golf coach gets golf resources, not freeCodeCamp).
+_GAP_QUERY = {
+    "skills_match": "free online courses and tutorials to learn the core skills needed to become a {role}",
+    "quantified_achievements": "how to add numbers and measurable results to a {role} resume, with concrete examples",
+    "experience": "free ways to gain real experience as a {role} — volunteering, apprenticeships, hands-on practice",
+    "education": "free or low-cost certifications, licenses, and training to become a {role}",
+    "clarity": "how to write a clear, strong {role} resume — free guides, templates, and examples",
+}
+
+
+async def resources_for_gap(gap_category: str, role: str) -> list[dict]:
+    """Real, ROLE-SPECIFIC free resources to close a scoring gap (via Exa web search)."""
+    template = _GAP_QUERY.get(gap_category, "free resources and courses to become a {role}")
+    query = template.format(role=role or "this role")
+    gap_phrase = gap_category.replace("_", " ")
+    return await _search(query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}")
+
+
 async def people_to_connect(role: str, location: str = "") -> list[dict]:
     """Real people/mentors to connect with for the role (Exa 'people' category)."""
     where = f" in {location}" if location else ""

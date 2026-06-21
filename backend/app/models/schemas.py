@@ -118,9 +118,11 @@ class ResourceContext(BaseModel):
 
 
 class ResourcesRequest(BaseModel):
-    user_id: str = Field(min_length=1, description="Same client-generated UUID sent to /score")
+    # user_id is optional; `context` accepts the target ROLE as a plain string
+    # (what the frontend sends, e.g. "PGA golf coach") OR the structured object form.
+    user_id: str = ""
     gap_category: str = Field(min_length=1)
-    context: ResourceContext = Field(default_factory=ResourceContext)
+    context: ResourceContext | str | None = None
 
 
 class Resource(BaseModel):

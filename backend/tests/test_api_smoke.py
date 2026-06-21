@@ -197,3 +197,17 @@ def test_progress_requires_user_id_and_progress():
 
 def test_progress_empty_for_unseen_user():
     assert client.get("/progress/never-seen-xyz").json()["progress"] == {}
+
+
+def test_resources_accepts_role_string_context_no_422():
+    # Frontend sends `context` as the ROLE string ("PGA golf coach"), no user_id — must not 422.
+    response = client.post("/resources", json={"gap_category": "skills_match", "context": "PGA golf coach"})
+    assert response.status_code == 200
+    assert response.json()["resources"]  # falls back to static in tests (no Exa key); never errors
+
+
+def test_resource_gap_query_is_role_specific():
+    from app.services.exa_search import _GAP_QUERY
+
+    query = _GAP_QUERY["skills_match"].format(role="PGA golf coach")
+    assert "PGA golf coach" in query  # the Exa query is built around the actual role
