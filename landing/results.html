@@ -58,7 +58,7 @@
 
   /* ---- layout ---- */
   .results-layout{
-    max-width:1080px;margin:0 auto;padding:32px clamp(16px,4vw,40px) 80px;
+    max-width:1080px;margin:0 auto 0 clamp(16px,4vw,48px);padding:32px clamp(16px,4vw,40px) 80px 0;
     display:flex;gap:28px;align-items:flex-start;
   }
 
@@ -173,6 +173,13 @@
   .rm-card-done .rm-title{text-decoration:line-through;color:var(--ink-soft);}
   .rm-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;}
   .rm-hint{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:6px;opacity:.6;}
+  .rm-skeleton{display:flex;flex-direction:column;gap:14px;}
+  .rm-skel-row{display:flex;align-items:center;gap:14px;}
+  .rm-skel-circle{width:44px;height:44px;border-radius:50%;background:var(--line);flex-shrink:0;animation:skelPulse 1.4s ease-in-out infinite;}
+  .rm-skel-card{flex:1;height:62px;border-radius:12px;background:var(--line);animation:skelPulse 1.4s ease-in-out infinite;}
+  .rm-skel-row:nth-child(2) .rm-skel-circle,.rm-skel-row:nth-child(2) .rm-skel-card{animation-delay:.18s;}
+  .rm-skel-row:nth-child(3) .rm-skel-circle,.rm-skel-row:nth-child(3) .rm-skel-card{animation-delay:.36s;}
+  @keyframes skelPulse{0%,100%{opacity:.5;}50%{opacity:1;}}
 
   /* ---- bottom nav ---- */
   .rnav{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -229,9 +236,19 @@
 
   // ---- pull the data handed over by the landing page ----
   const API_BASE = sessionStorage.getItem('hired_api') || 'https://optimum-write-entertainment-agenda.trycloudflare.com';
-  let data, target;
+  let data, target, targetObj;
   try { data = JSON.parse(sessionStorage.getItem('hired_result') || 'null'); } catch { data = null; }
-  try { target = (JSON.parse(sessionStorage.getItem('hired_target') || 'null') || {}).value || 'your target'; } catch { target = 'your target'; }
+  try {
+    targetObj = JSON.parse(sessionStorage.getItem('hired_target') || 'null') || {};
+    target = targetObj.value || 'your target';
+  } catch { targetObj = {}; target = 'your target'; }
+
+  // stable session id so /resources calls are consistent within a session
+  const USER_ID = sessionStorage.getItem('hired_uid') || (() => {
+    const id = Math.random().toString(36).slice(2,10);
+    sessionStorage.setItem('hired_uid', id);
+    return id;
+  })();
 
   const root = document.getElementById('root');
 
@@ -359,7 +376,7 @@
     });
   }
 
-  // ---- roadmap section — built from the same lessons/gaps the API returns ----
+  // ---- roadmap section — fetches POST /roadmap, falls back to lessons ----
   const CAT_ICONS = {
     skills_match: 'ti-tool',
     quantified_achievements: 'ti-chart-bar',
@@ -369,72 +386,91 @@
   };
   const rmIconFor = cat => CAT_ICONS[cat] || 'ti-arrow-right';
 
+  let roadmapState = null; // null | 'loading' | { steps: [...] }
+
   sections.push({
     label: 'Your roadmap',
     render(){
-      const steps = lessons.length ? lessons.map((l, i) => {
-        const catLabel = CAT_LABELS[l.category] || l.category || 'Gap';
-        const icon = rmIconFor(l.category);
-        return `
-          <div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
-            <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
-              <i class="ti ${icon}" aria-hidden="true"></i>
-            </div>
-            <div class="rm-card" onclick="rmToggle(${i})">
-              <div class="rm-glow"></div>
-              <div class="rm-glow-done"></div>
-              <div class="rm-tag"><span class="rm-dot"></span><span>${esc(catLabel)}</span></div>
-              <div class="rm-title">${esc(l.action || l.principle || 'Next step')}</div>
-              <div class="rm-desc">${esc(l.principle || l.example || '')}</div>
-            </div>
-          </div>`;
-      }).join('') : `
-        <div class="rm-step" id="rms0" style="transition-delay:0ms">
-          <div class="rm-icon" onclick="rmToggle(0)"><i class="ti ti-pencil" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(0)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Resume</span></div>
-            <div class="rm-title">Rewrite 1 bullet point</div>
-            <div class="rm-desc">Change "responsible for X" to "delivered X by doing Y."</div>
-          </div>
-        </div>
-        <div class="rm-step" id="rms1" style="transition-delay:110ms">
-          <div class="rm-icon" onclick="rmToggle(1)"><i class="ti ti-message" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(1)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Interview</span></div>
-            <div class="rm-title">Answer 1 behavioral question</div>
-            <div class="rm-desc">Use STAR format on a question common for your role.</div>
-          </div>
-        </div>
-        <div class="rm-step" id="rms2" style="transition-delay:220ms">
-          <div class="rm-icon" onclick="rmToggle(2)"><i class="ti ti-send" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(2)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Network</span></div>
-            <div class="rm-title">Send 1 cold message</div>
-            <div class="rm-desc">Find one alum or recruiter. Use a short template and send it.</div>
-          </div>
-        </div>`;
-      const total = lessons.length || 3;
       return `<div class="rsec">
         <h2 class="rsec-title">Your roadmap</h2>
-        <p class="rsec-sub">Personalized to your top ${total} gap${total !== 1 ? 's' : ''}. Click each step when done.</p>
+        <p class="rsec-sub">Personalized steps to close your top gaps. Click each one when done.</p>
         <div class="rm-progress-bar"><div class="rm-progress-fill" id="rmPbar" style="width:0%"></div></div>
-        <div class="rm-steps" id="rmSteps" data-total="${total}">
-          <div class="rm-connector"></div>
-          ${steps}
+        <div id="rmStepsContainer">
+          <div class="rm-skeleton">
+            <div class="rm-skel-row"><div class="rm-skel-circle"></div><div class="rm-skel-card"></div></div>
+            <div class="rm-skel-row"><div class="rm-skel-circle"></div><div class="rm-skel-card"></div></div>
+            <div class="rm-skel-row"><div class="rm-skel-circle"></div><div class="rm-skel-card"></div></div>
+          </div>
         </div>
         <p class="rm-hint">Click any step to mark it complete</p>
       </div>`;
     },
     onShow(){
-      requestAnimationFrame(()=>{
-        document.querySelectorAll('.rm-step').forEach(el => el.classList.add('rm-visible'));
-      });
       window._rmDone = window._rmDone || new Set();
+      loadRoadmap();
     }
   });
+
+  function buildRmStepsHtml(steps){
+    return `<div class="rm-steps" id="rmSteps" data-total="${steps.length}">
+      <div class="rm-connector"></div>
+      ${steps.map((s, i) => {
+        const catLabel = CAT_LABELS[s.category] || s.category || 'Gap';
+        const icon = rmIconFor(s.category);
+        return `<div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
+          <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
+            <i class="ti ${icon}" aria-hidden="true"></i>
+          </div>
+          <div class="rm-card" onclick="rmToggle(${i})">
+            <div class="rm-glow"></div><div class="rm-glow-done"></div>
+            <div class="rm-tag"><span class="rm-dot"></span><span>${esc(catLabel)}</span></div>
+            <div class="rm-title">${esc(s.action || s.title || 'Next step')}</div>
+            <div class="rm-desc">${esc(s.micro_step || s.description || '')}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function paintRoadmap(steps){
+    const container = document.getElementById('rmStepsContainer');
+    if(!container) return;
+    container.innerHTML = buildRmStepsHtml(steps);
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('.rm-step').forEach(el => el.classList.add('rm-visible'));
+    });
+  }
+
+  async function loadRoadmap(){
+    if(roadmapState && roadmapState !== 'loading'){ paintRoadmap(roadmapState.steps); return; }
+    if(roadmapState === 'loading') return;
+    roadmapState = 'loading';
+    try{
+      const r = await fetch(`${API_BASE}/roadmap`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score: data.score, categories: cats, lessons, target })
+      });
+      if(!r.ok) throw 0;
+      const d = await r.json();
+      const steps = Array.isArray(d.steps) && d.steps.length ? d.steps : null;
+      if(!steps) throw 0;
+      roadmapState = { steps };
+      paintRoadmap(steps);
+    } catch {
+      // fallback: build steps from the lessons the /score call already returned
+      roadmapState = null;
+      const fallback = lessons.length ? lessons.map(l => ({
+        category: l.category,
+        action: l.action || l.principle,
+        micro_step: l.principle || l.example
+      })) : [
+        { category: 'clarity',   action: 'Rewrite 1 bullet point',         micro_step: 'Change "responsible for X" to "delivered X by doing Y."' },
+        { category: 'experience', action: 'Answer 1 behavioral question',   micro_step: 'Use STAR format on a question common for your role.' },
+        { category: 'skills_match', action: 'Send 1 cold message',          micro_step: 'Find one alum or recruiter. Use a short template and send it.' }
+      ];
+      paintRoadmap(fallback);
+    }
+  }
 
   window.rmToggle = function(i){
     const step = document.getElementById('rms'+i);
@@ -442,8 +478,8 @@
     const icon = step.querySelector('.rm-icon');
     const card = step.querySelector('.rm-card');
     const done = window._rmDone || (window._rmDone = new Set());
-    const cat = lessons[i] ? lessons[i].category : null;
-    const origIcon = cat ? rmIconFor(cat) : ['ti-pencil','ti-message','ti-send'][i] || 'ti-arrow-right';
+    const steps = roadmapState && roadmapState.steps ? roadmapState.steps : [];
+    const origIcon = steps[i] ? rmIconFor(steps[i].category) : 'ti-arrow-right';
     if(done.has(i)){
       done.delete(i);
       icon.innerHTML = `<i class="ti ${origIcon}" aria-hidden="true"></i>`;
@@ -464,18 +500,18 @@
   // ---- lazy secondary fetches ----
   async function loadResources(category, boxId){
     const box = document.getElementById(boxId);
-    if(resCache[category]){ paintResources(box, resCache[category]); return; }
+    const cacheKey = `${category}::${target}`;
+    if(resCache[cacheKey]){ paintResources(box, resCache[cacheKey]); return; }
     try{
       const r = await fetch(`${API_BASE}/resources`,{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ gap_category: category, context: target })
+        body: JSON.stringify({ gap_category: category, user_id: USER_ID, context: { target_type: target } })
       });
       if(!r.ok) throw 0;
       const d = await r.json();
-      resCache[category] = d.resources || [];
-      // only paint if this box is still on screen
+      resCache[cacheKey] = d.resources || [];
       const live = document.getElementById(boxId);
-      if(live) paintResources(live, resCache[category]);
+      if(live) paintResources(live, resCache[cacheKey]);
     }catch{
       const live = document.getElementById(boxId);
       if(live) live.innerHTML = '<div class="res-resource res-loading">Resources unavailable right now.</div>';
@@ -485,7 +521,18 @@
     if(!list.length){ box.innerHTML = '<div class="res-resource res-loading">No resources found for this gap.</div>'; return; }
     box.innerHTML = '';
     list.forEach(res => {
-      const el = document.createElement('div'); el.className = 'res-resource'; el.textContent = res;
+      const el = document.createElement('div');
+      el.className = 'res-resource';
+      if(res && typeof res === 'object'){
+        const name = esc(res.name || '');
+        const desc = esc(res.description || '');
+        const url  = res.url || '';
+        el.innerHTML = url
+          ? `<span><a href="${esc(url)}" target="_blank" rel="noopener" style="color:var(--rise);font-weight:600;">${name}</a>${desc ? ' — ' + desc : ''}</span>`
+          : `<span><strong>${name}</strong>${desc ? ' — ' + desc : ''}</span>`;
+      } else {
+        el.textContent = res;
+      }
       box.appendChild(el);
     });
   }
@@ -497,11 +544,15 @@
     try{
       const r = await fetch(`${API_BASE}/benchmark`,{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ score: data.score, target })
+        body: JSON.stringify({
+          score: data.score,
+          user_id: USER_ID,
+          target: { value: target, type: targetObj.type || 'role' }
+        })
       });
       if(!r.ok) throw 0;
       const d = await r.json();
-      benchState = { percentile: d.percentile };
+      benchState = { percentile: d.percentile, sample_size: d.sample_size, message: d.message };
       paintBenchmark(benchState);
     }catch{
       benchState = null;
@@ -517,14 +568,21 @@
     content.style.display = 'block';
     document.getElementById('benchPct').textContent = b.percentile;
     document.getElementById('benchFill').style.width = b.percentile + '%';
-    document.getElementById('benchSub').textContent = `You're ahead of ${b.percentile}% of candidates targeting this role.`;
+    const sub = document.getElementById('benchSub');
+    sub.textContent = b.message || `You're ahead of ${b.percentile}% of candidates targeting this role.`;
+    if(b.sample_size){
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:12px;color:#9fb0c9;margin-top:6px;opacity:.7;';
+      note.textContent = `Based on ${b.sample_size} candidates`;
+      sub.after(note);
+    }
   }
 
   // ---- render shell ----
   root.innerHTML = `
     <div class="results-layout">
       <aside class="rtabs" id="rtabs">
-        <div class="rtabs-head">Your results</div>
+        <div class="rtabs-head">Career Prep Plan</div>
       </aside>
       <section class="rpanel">
         <div class="rstep-count" id="stepCount"></div>
