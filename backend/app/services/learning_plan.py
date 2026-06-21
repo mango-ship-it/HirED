@@ -20,7 +20,7 @@ _CODING_SKILLS = {
 _CODING_ROLE_WORDS = ("engineer", "developer", "programmer", "software", "data scientist", "ml ")
 
 
-def _is_coding(role: str, skills: list[str]) -> bool:
+def is_coding_role(role: str, skills: list[str]) -> bool:
     text = (role + " " + " ".join(skills)).lower()
     if any(w in text for w in _CODING_ROLE_WORDS):
         return True
@@ -67,9 +67,21 @@ _CREDENTIAL_NOTE = (
 )
 
 
-def build_plan(skills: list[str], *, role: str = "", location: str = "", limit_skills: int = 6) -> dict:
-    """A per-skill resource breakdown + role-level credentials/local options."""
-    coding = _is_coding(role, skills)
+def build_plan(
+    skills: list[str],
+    *,
+    role: str = "",
+    location: str = "",
+    limit_skills: int = 6,
+    company: str | None = None,
+    leetcode_problems: list[dict] | None = None,
+) -> dict:
+    """A per-skill resource breakdown + role-level credentials/local options.
+
+    When `leetcode_problems` are supplied (a coding role at a known company), the plan
+    also includes a `company_practice` section of the exact problems that company asks.
+    """
+    coding = is_coding_role(role, skills)
     items = [
         {
             "skill": skill,
@@ -79,6 +91,12 @@ def build_plan(skills: list[str], *, role: str = "", location: str = "", limit_s
         for skill in skills[:limit_skills]
     ]
     plan = {"role": role, "location": location, "is_coding": coding, "items": items}
+    if leetcode_problems:
+        plan["company_practice"] = {
+            "company": company,
+            "note": f"Most-asked LeetCode problems at {company} — start at the top (highest frequency).",
+            "problems": leetcode_problems,
+        }
     if role:
         plan["role_resources"] = [
             {

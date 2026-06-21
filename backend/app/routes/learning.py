@@ -15,7 +15,8 @@ from fastapi import APIRouter
 from app.errors import ErrorCode, error_response
 from app.services.jd_skills import top_skills_from_jobs
 from app.services.jobs import load_jobs
-from app.services.learning_plan import build_plan
+from app.services.leetcode_company import detect_company, fetch_company_problems
+from app.services.learning_plan import build_plan, is_coding_role
 from app.services.store import load_profile
 
 router = APIRouter()
@@ -43,4 +44,33 @@ async def learning_plan(body: dict):
             ErrorCode.INVALID_INPUT,
             400,
         )
-    return build_plan(skills, role=target, location=location)
+
+    # Coding role at a known company -> surface that company's real LeetCode problems.
+    company = (body.get("company") or "").strip() or None
+    leetcode_problems = None
+    if is_coding_role(target, skills):
+        if not company and target:
+            company = await detect_company(target)
+        if company:
+            leetcode_problems = await fetch_company_problems(
+                company, period=(body.get("period") or "thirty-days"), limit=10
+            )
+
+    return build_plan(
+        skills, role=target, location=location, company=company, leetcode_problems=leetcode_problems
+    )
+
+
+@router.get("/leetcode/{company}")
+async def leetcode(company: str, period: str = "thirty-days", limit: int = 15):
+    """Top LeetCode problems a company asks (most-frequent first), from the public dataset."""
+    problems = await fetch_company_problems(company, period=period, limit=limit)
+    if problems is None:
+        return {
+            "company": company,
+            "period": period,
+            "count": 0,
+            "problems": [],
+            "note": "No company-wise list found — check the company name (e.g. 'google', 'goldman sachs').",
+        }
+    return {"company": company, "period": period, "count": len(problems), "problems": problems}
