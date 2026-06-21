@@ -158,30 +158,48 @@ async def _search(
 
 # --- per-skill (closes a specific gap) ---
 async def courses_for_skill(skill: str, role: str) -> list[dict]:
-    return await _search(_course_query(skill, role), card_type="course",
-                         why=f"Learn {skill}", include_domains=_COURSE_DOMAINS)
+    return await _search(
+        _course_query(skill, role), card_type="course", why=f"Learn {skill}",
+        include_domains=_COURSE_DOMAINS,
+        summary_query=f"In one short sentence, what is this course and roughly how long it takes to learn {skill}.",
+    )
 
 
 async def practice_for_skill(skill: str, role: str) -> list[dict]:
-    return await _search(_practice_query(skill, role), card_type="practice", why=f"Practice {skill}")
+    return await _search(
+        _practice_query(skill, role), card_type="practice", why=f"Practice {skill}",
+        summary_query=f"In one short sentence, what is this and how it helps you practice {skill}.",
+    )
 
 
 # --- per-role (the broader roadmap) — no domain filter (neural search avoids empties) ---
 async def events(role: str, location: str) -> list[dict]:
     year = datetime.now(timezone.utc).year
-    return await _search(_events_query(role, location, year), card_type="event", why="Network in person")
+    return await _search(
+        _events_query(role, location, year), card_type="event", why="Network in person",
+        summary_query=f"In one short sentence, what is this event and why is it useful for a {role or 'this role'}?",
+    )
 
 
 async def networking(role: str) -> list[dict]:
-    return await _search(_networking_query(role), card_type="community", why="Community & mentorship")
+    return await _search(
+        _networking_query(role), card_type="community", why="Community & mentorship",
+        summary_query=f"In one short sentence, what is this community or group and why should a {role or 'professional'} join it?",
+    )
 
 
 async def certifications(role: str) -> list[dict]:
-    return await _search(_certifications_query(role), card_type="certification", why="Credential to earn")
+    return await _search(
+        _certifications_query(role), card_type="certification", why="Credential to earn",
+        summary_query=f"In one short sentence, what is this certification and why does it help a {role or 'professional'}?",
+    )
 
 
 async def scholarships(role: str) -> list[dict]:
-    return await _search(_scholarships_query(role), card_type="scholarship", why="Funding to learn for free")
+    return await _search(
+        _scholarships_query(role), card_type="scholarship", why="Funding to learn for free",
+        summary_query="In one short sentence, what is this funding or scholarship and who is eligible for it?",
+    )
 
 
 # Per-gap query templates — turn a scoring gap + the user's ROLE into a real,
@@ -216,6 +234,7 @@ async def people_to_connect(role: str, location: str = "") -> list[dict]:
     return await _search(
         f"Profiles of {role} professionals, mentors, and industry leaders to learn from and connect with{where}:",
         card_type="person", why="Person to connect with", category="people",
+        summary_query=f"In one short sentence, who is this person and why is connecting with them useful for a {role or 'professional'}?",
     )
 
 
@@ -270,6 +289,17 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-") or "step"
 
 
+def _card(r: dict) -> dict:
+    """Normalize an Exa card to the frontend shape {name, url, type, why, description}."""
+    return {
+        "name": r.get("title") or r.get("name") or r.get("url"),
+        "url": r.get("url"),
+        "type": r.get("type"),
+        "why": r.get("why"),
+        "description": r.get("snippet") or r.get("description") or "",
+    }
+
+
 def to_steps(data: dict) -> list[dict]:
     """Flatten the category-grouped roadmap into an ORDERED, reveal-friendly step list.
 
@@ -280,12 +310,13 @@ def to_steps(data: dict) -> list[dict]:
     """
     steps: list[dict] = []
     for skill, res in (data.get("skills") or {}).items():
-        resources = list(res.get("courses") or []) + list(res.get("practice") or [])
-        steps.append({"kind": "skill", "skill": skill, "title": f"Learn {skill}", "resources": resources})
+        cards = list(res.get("courses") or []) + list(res.get("practice") or [])
+        steps.append({"kind": "skill", "skill": skill, "title": f"Learn {skill}",
+                      "resources": [_card(c) for c in cards]})
     for kind, title in _STEP_TITLES:
         items = data.get(kind) or []
         if items:
-            steps.append({"kind": kind, "title": title, "resources": items})
+            steps.append({"kind": kind, "title": title, "resources": [_card(c) for c in items]})
     for i, step in enumerate(steps):
         step["order"] = i + 1
         step["id"] = f"{step['kind']}-{_slug(step.get('skill') or step['kind'])}-{i + 1}"
