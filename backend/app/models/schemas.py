@@ -102,6 +102,7 @@ class Candidate(BaseModel):
     name: str
     url: str
     why_stronger: str = Field(default="", description="One sentence: what makes them a strong candidate")
+    score: int = Field(default=0, ge=0, le=100, description="Deterministic 0-100 strength — plot on the scale")
 
 
 class BenchmarkResponse(BaseModel):

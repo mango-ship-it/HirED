@@ -106,23 +106,28 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
     except (AgentUnavailableError, ValueError, AttributeError) as exc:
         logger.warning("benchmark agent unavailable, using real-candidate comparison: %s", exc)
 
-    # 2. Real-candidate comparison via Exa — real professionals + a transparency note.
-    percentile = max(1, min(99, request.score - 5))
+    # 2. Real-candidate comparison via Exa — real professionals SCORED the same deterministic
+    #    way, so the percentile is a real 'how many you're ahead of' and the frontend can plot
+    #    each candidate behind/in front of the user on a red->green readiness scale.
+    percentile = max(1, min(99, request.score - 5))  # default if Exa is off / no candidates
     candidates: list[Candidate] = []
     if has_exa() and role:
         try:
             found = await find_candidates(role)
             candidates = [
-                Candidate(name=c["name"], url=c["url"], why_stronger=c["why_stronger"]) for c in found
+                Candidate(name=c["name"], url=c["url"], why_stronger=c["why_stronger"], score=c["score"])
+                for c in found
             ]
+            if found:
+                beaten = sum(1 for c in found if c["score"] < request.score)
+                percentile = max(1, min(99, round(100 * beaten / len(found))))
         except Exception:
             logger.exception("real-candidate comparison failed")
     transparency = (
-        f"Your readiness score ({request.score}/100) is built from 5 weighted factors — skills "
-        f"match (35%), quantified impact (25%), experience (20%), education (10%), and clarity "
-        f"(10%) — so the number is fully reproducible. The percentile is an estimate from that "
-        f"readiness score. The profiles below are real {role} professionals, shown so you can see "
-        f"concretely what strong candidates bring and where to grow."
+        f"Your readiness score ({request.score}/100) comes from 5 weighted factors — skills "
+        f"match 35%, quantified impact 25%, experience 20%, education 10%, clarity 10%. Each real "
+        f"candidate below is scored 0–100 the same transparent way (experience + seniority + "
+        f"credentials), and your percentile is how many of them you're currently ahead of."
     )
     return BenchmarkResponse(
         percentile=percentile,

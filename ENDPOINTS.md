@@ -55,8 +55,10 @@ Body: `{ "user_id": "…", "score": 84, "target": { "type":"role", "value":"Bus 
   "percentile": 79,
   "sample_size": 4,
   "message": "You're ahead of 79% of candidates…",
-  "transparency": "Your readiness score (84/100) is built from 5 weighted factors…",  // page-6 transparency paragraph
-  "candidates": [ { "name": "Jane Doe", "url": "https://linkedin.com/in/…", "why_stronger": "32+ years leading…" } ],
+  "transparency": "Your readiness score (84/100)… each candidate is scored 0–100 the same way…",  // page-6 explanation
+  "candidates": [                      // real LinkedIn profiles, each SCORED 0–100 (deterministic)
+    { "name": "Jane Doe", "url": "https://linkedin.com/in/…", "score": 88, "why_stronger": "32+ years leading…" }
+  ],                                   // plot each on a red→yellow→green scale; score < user = behind, > user = ahead
   "matches": []                        // populated only if the Fetch.ai 2AFC agent is running
 }
 ```

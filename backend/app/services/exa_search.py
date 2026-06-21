@@ -243,22 +243,49 @@ async def people_to_connect(role: str, location: str = "") -> list[dict]:
     )
 
 
-async def find_candidates(role: str, location: str = "", *, limit: int = 4) -> list[dict]:
-    """Real profiles of strong {role} professionals — each with a one-sentence 'what makes them
-    competitive' summary. Powers the 'How you compare' page (real candidates, not synthetic)."""
+# Deterministic candidate scoring — hardcoded signals so every real profile gets a
+# reproducible 0–100 the frontend can plot on the red→green scale around the user.
+_SENIOR_HIGH = ("founder", "ceo", "president", "owner", "chief", "vice president",
+                "director", "principal", "head of", "executive", "partner")
+_SENIOR_MID = ("senior", "lead", "manager", "supervisor", "specialist")
+_CRED_WORDS = ("certified", "licensed", "master", "board-certified", "accredited",
+               "registered", "degree", "phd", "doctorate", "mba", "bachelor", "associate")
+
+
+def score_candidate(text: str) -> int:
+    """Deterministic 0–100 strength score from a profile summary: base + years of experience
+    (up to 20) + seniority + credentials. Reproducible (no LLM) — for plotting on the scale."""
+    t = (text or "").lower()
+    match = re.search(r"(\d{1,2})\s*\+?\s*years?", t)
+    years = int(match.group(1)) if match else 0
+    score = 35.0 + min(years, 20) / 20 * 35  # base 35 + up to 35 for 20+ years
+    if any(k in t for k in _SENIOR_HIGH):
+        score += 20
+    elif any(k in t for k in _SENIOR_MID):
+        score += 12
+    if any(k in t for k in _CRED_WORDS):
+        score += 10
+    return max(20, min(99, round(score)))
+
+
+async def find_candidates(role: str, location: str = "", *, limit: int = 5) -> list[dict]:
+    """Real {role} profiles across career levels, each scored 0–100 deterministically — so the
+    frontend can plot them around the user on a red→green readiness scale (behind + in front)."""
     where = f" in {location}" if location else ""
     summary_q = (
-        f"In one sentence, what makes this person a strong {role or 'this role'} candidate — "
-        f"their key skills, experience, and credentials?"
+        f"In one sentence, what makes this person a {role or 'this role'} candidate — their "
+        f"years of experience, seniority, key skills, and credentials?"
     )
     cards = await _search(
-        f"LinkedIn profiles of accomplished, experienced {role} professionals{where}:",
-        card_type="candidate", why="", category="people", summary_query=summary_q, num_results=8,
+        f"LinkedIn profiles of {role} professionals at a range of career levels{where}:",
+        card_type="candidate", why="", category="people", summary_query=summary_q, num_results=10,
     )
-    return [
-        {"name": c["title"], "url": c["url"], "why_stronger": c.get("snippet") or ""}
+    out = [
+        {"name": c["title"], "url": c["url"], "why_stronger": c["snippet"],
+         "score": score_candidate(c["snippet"])}
         for c in cards if c.get("url") and c.get("snippet")
-    ][:limit]
+    ]
+    return out[:limit]
 
 
 async def exa_resources_by_skill(skills: list[str], role: str, *, max_skills: int = 3) -> dict[str, list[dict]]:
