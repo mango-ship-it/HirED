@@ -517,7 +517,26 @@
       .filter(a => !isNaN(a.start) && a.start >= 0 && !isNaN(a.end) && a.end > a.start)
       .sort((a, b) => a.start - b.start);
 
-    if(!valid.length) return `<span>${esc(text)}</span>`;
+    // Fallback: backend didn't send char-offset annotations, so highlight by
+    // string-matching the matched (green) / missing (red) skill lists instead.
+    if(!valid.length){
+      const matched = Array.isArray(data.matched_skills) ? data.matched_skills : [];
+      const missing = Array.isArray(data.missing_skills) ? data.missing_skills : [];
+      const terms = [
+        ...matched.map(s => ({s, sentiment:'positive'})),
+        ...missing.map(s => ({s, sentiment:'negative'}))
+      ].filter(t => t.s && String(t.s).trim())
+       .sort((a, b) => String(b.s).length - String(a.s).length);
+      if(!terms.length) return `<span>${esc(text)}</span>`;
+      const re = new RegExp('(' + terms.map(t => String(t.s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+      return text.split(re).map(part => {
+        const hit = terms.find(t => String(t.s).toLowerCase() === part.toLowerCase());
+        if(!hit) return esc(part);
+        const bg  = hit.sentiment === 'positive' ? 'rgba(34,197,94,.32)' : 'rgba(229,72,77,.32)';
+        const col = hit.sentiment === 'positive' ? '#14532d'             : '#991b1b';
+        return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;">${esc(part)}</mark>`;
+      }).join('');
+    }
 
     const parts = [];
     let cursor = 0;
