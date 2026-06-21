@@ -128,6 +128,10 @@ class Candidate(BaseModel):
     url: str
     why_stronger: str = Field(default="", description="One sentence: what makes them a strong candidate")
     score: int = Field(default=0, ge=0, le=100, description="Deterministic 0-100 strength — plot on the scale")
+    kind: str = Field(
+        default="professional",
+        description='"professional" (real pro from Exa) | "peer" (an anonymized learner on your path, from Redis)',
+    )
 
 
 class BenchmarkResponse(BaseModel):

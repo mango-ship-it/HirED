@@ -32,6 +32,7 @@ from app.models.schemas import (
     ResourcesResponse,
 )
 from app.services.exa_search import find_candidates, has_exa, resources_for_gap
+from app.services.profile_vectors import people_like_you
 from app.services.fetch_bridge import (
     AgentUnavailableError,
     ask_agent,
@@ -123,11 +124,36 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
                 percentile = max(1, min(99, round(100 * beaten / len(found))))
         except Exception:
             logger.exception("real-candidate comparison failed")
+
+    # Blend in REAL PEERS from the Redis 'people like you' cohort, so the same scale also shows
+    # learners on the SAME path (readiness-scored — apples-to-apples with the user), not just the
+    # aspirational pros. Tagged kind="peer" so the frontend can color them differently if it wants.
+    try:
+        record = await load_profile(request.user_id)
+        if record:
+            gaps = ", ".join((record.get("missing_skills") or [])[:5])
+            cohort = await people_like_you(role, gaps, your_score=request.score, exclude_user_id=request.user_id)
+            for peer in (cohort or {}).get("peers", []):
+                building = ", ".join(peer.get("shared_gaps", [])[:2])
+                candidates.append(
+                    Candidate(
+                        name="A learner on this path",
+                        url="",
+                        why_stronger=f"Targeting {peer['target']} · {peer['score']}/100 readiness"
+                        + (f" · building {building}" if building else ""),
+                        score=peer["score"],
+                        kind="peer",
+                    )
+                )
+    except Exception:
+        logger.exception("peer cohort blend failed")
     transparency = (
         f"Your readiness score ({request.score}/100) comes from 5 weighted factors — skills "
-        f"match 35%, quantified impact 25%, experience 20%, education 10%, clarity 10%. Each real "
-        f"candidate below is scored 0–100 the same transparent way (experience + seniority + "
-        f"credentials), and your percentile is how many of them you're currently ahead of."
+        f"match 35%, quantified impact 25%, experience 20%, education 10%, clarity 10%. The "
+        f"professionals shown are real people in this field (scored on experience, seniority, and "
+        f"credentials); the 'learners on this path' are real, anonymized HirED users at a similar "
+        f"stage, scored on the SAME readiness scale as you — so you see both where you stand among "
+        f"peers and what the top of the field looks like."
     )
     return BenchmarkResponse(
         percentile=percentile,

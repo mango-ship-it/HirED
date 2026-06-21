@@ -149,10 +149,44 @@ def _insight(peers: list[dict], gaps: str) -> str:
     return line
 
 
+def _standing(your_score: int, cohort_avg: int) -> str:
+    """One-line peer comparison — where the user sits vs others on the same path."""
+    if not your_score or not cohort_avg:
+        return ""
+    diff = your_score - cohort_avg
+    if diff >= 5:
+        return f"You're ahead of others on this path — {your_score} vs a {cohort_avg} average. Keep going."
+    if diff <= -5:
+        return (
+            f"You're a bit behind others on this path ({your_score} vs {cohort_avg} average) — but "
+            "you're working on the same gaps, which is exactly how they closed it."
+        )
+    return f"You're right where others on this path are ({your_score} vs {cohort_avg} average)."
+
+
+def _focus_areas(peers: list[dict], gaps: str) -> list[str]:
+    """The 1-3 highest-leverage areas to work on: the user's OWN gaps that peers also share
+    (social proof these matter), falling back to the cohort's most common gaps."""
+    counts: Counter = Counter()
+    casing: dict = {}
+    for p in peers:
+        for g in p.get("shared_gaps") or []:
+            gl = g.strip().lower()
+            if gl:
+                counts[gl] += 1
+                casing.setdefault(gl, g.strip())
+    user_gaps = [g.strip() for g in (gaps or "").split(",") if g.strip()]
+    shared = [g for g in user_gaps if g.lower() in counts]
+    if shared:
+        return shared[:3]
+    return [casing[g] for g, _ in counts.most_common(3)]
+
+
 async def people_like_you(
-    target: str, gaps: str, *, exclude_user_id: str = "", k: int = 3
+    target: str, gaps: str, *, your_score: int = 0, exclude_user_id: str = "", k: int = 3
 ) -> Optional[dict]:
-    """KNN past learners with a similar background. None if the index is down."""
+    """KNN past learners with a similar background, plus a peer comparison + what to work on.
+    None if the index is down."""
     if _status != "ready" or _index is None or _model is None:
         return None
     try:
@@ -179,7 +213,17 @@ async def people_like_you(
             for r in results
             if r.get("user_id") != exclude_user_id
         ][:k]
-        return {"count": len(peers), "peers": peers, "insight": _insight(peers, gaps)}
+        peer_scores = [p["score"] for p in peers if p.get("score")]
+        cohort_avg = round(sum(peer_scores) / len(peer_scores)) if peer_scores else 0
+        return {
+            "count": len(peers),
+            "your_score": your_score,
+            "cohort_avg_score": cohort_avg,
+            "standing": _standing(your_score, cohort_avg),
+            "focus_areas": _focus_areas(peers, gaps),
+            "peers": peers,
+            "insight": _insight(peers, gaps),
+        }
     except Exception as exc:
         logger.debug("people_like_you failed (%s)", exc)
         return None

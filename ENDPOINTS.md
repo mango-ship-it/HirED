@@ -70,9 +70,10 @@ Body: `{ "user_id": "…", "score": 84, "target": { "type":"role", "value":"Bus 
   "sample_size": 4,
   "message": "You're ahead of 79% of candidates…",
   "transparency": "Your readiness score (84/100)… each candidate is scored 0–100 the same way…",  // page-6 explanation
-  "candidates": [                      // real LinkedIn profiles, each SCORED 0–100 (deterministic)
-    { "name": "Jane Doe", "url": "https://linkedin.com/in/…", "score": 88, "why_stronger": "32+ years leading…" }
-  ],                                   // plot each on a red→yellow→green scale; score < user = behind, > user = ahead
+  "candidates": [                      // plot each on a red→yellow→green scale by `score`
+    { "name": "Jane Doe", "url": "https://linkedin.com/in/…", "score": 88, "kind": "professional", "why_stronger": "32+ years leading…" },
+    { "name": "A learner on this path", "url": "", "score": 47, "kind": "peer", "why_stronger": "Targeting Bus Driver · 47/100 readiness · building CDL" }
+  ],                                   // kind="professional" (real pro, Exa) | "peer" (real anonymized HirED user on the same path, Redis)
   "matches": []                        // populated only if the Fetch.ai 2AFC agent is running
 }
 ```
@@ -140,7 +141,7 @@ Then poll **`GET /video/{prompt_hash}`** → `{ "status":"ready", "video_url":"h
 |---|---|---|
 | `GET /health` | — | `{status, store, vector_index, claude_configured, deepgram_configured, exa_configured, fal_configured}` |
 | `GET /profile/{user_id}` | — | the user's last scored result — `{score, target, categories, lessons, matched_skills, missing_skills, resume_text, has_resume, annotations}` (404 if unseen; `has_resume` + `resume_text` always present, even for legacy records). **Use this to re-render the breakdown page without re-uploading the resume.** |
-| `GET /people-like-you/{user_id}?k=3` | — | past learners with a similar background (RedisVL KNN over profiles) → `{available, count, peers:[{target, score, shared_gaps, similarity}], insight}`. Peers are anonymized. Show "you're not alone — here's the path people like you took." `available:false` if the vector index isn't up. |
+| `GET /people-like-you/{user_id}?k=3` | — | past learners with a similar background (RedisVL KNN) → `{available, count, your_score, cohort_avg_score, standing, focus_areas:[…], peers:[{target, score, shared_gaps, similarity}], role_model, insight}`. `standing` = a one-line peer comparison; `focus_areas` = gaps to work on (shared with peers); **`role_model`** = `{name,url,why,score}` for ONE real professional in the field (Exa, the aspirational "someone who made it"), or `null`. Peers are anonymized. `available:false` if the index isn't up. |
 | `POST /progress` | `{user_id, progress:{…}}` | `{user_id, saved:true}` — persists roadmap progress |
 | `GET /progress/{user_id}` | — | `{user_id, progress:{…}}` |
 | `POST /jobs/refresh` | `{target, location?}` | pulls real postings (slow, 10–30s) → caches them |
