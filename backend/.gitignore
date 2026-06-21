@@ -4,9 +4,15 @@ __pycache__/
 .venv/
 venv/
 static/audio/*.mp3
-static/*.html   # local demo / reference pages — handy to open, not shipped
+# local demo / reference pages — handy to open, not shipped
+static/*.html
 .pytest_cache/
 *.egg-info/
 
 # Scraped JD data (produced by scripts/fetch_jds.py)
 app/data/jds_live.json
+
+# Fetch.ai uAgents runtime artifacts — NEVER commit (private_keys.json holds the agents' SECRET keys)
+private_keys.json
+permanent
+agent_storage.json
