@@ -54,7 +54,7 @@ async def test_synthesize_resume_uses_tokenrouter_when_key_present():
     mock_response = _make_openai_response(fake_resume)
 
     with patch("app.services.resume_synthesizer.get_settings") as mock_cfg, \
-         patch("openai.AsyncOpenAI") as mock_cls:
+         patch("app.services.resume_synthesizer.AsyncOpenAI") as mock_cls:
         settings = MagicMock()
         settings.token_router_api_key = "tr-fake-key"
         settings.token_router_base_url = "https://api.tokenrouter.com/v1"
@@ -85,7 +85,7 @@ async def test_synthesize_resume_falls_back_when_no_key():
 @pytest.mark.asyncio
 async def test_synthesize_resume_falls_back_on_exception():
     with patch("app.services.resume_synthesizer.get_settings") as mock_cfg, \
-         patch("openai.AsyncOpenAI") as mock_cls:
+         patch("app.services.resume_synthesizer.AsyncOpenAI") as mock_cls:
         settings = MagicMock()
         settings.token_router_api_key = "tr-fake-key"
         settings.token_router_base_url = "https://api.tokenrouter.com/v1"
@@ -109,7 +109,7 @@ async def test_synthesize_resume_falls_back_on_too_short_response():
     mock_response = _make_openai_response("ok")
 
     with patch("app.services.resume_synthesizer.get_settings") as mock_cfg, \
-         patch("openai.AsyncOpenAI") as mock_cls:
+         patch("app.services.resume_synthesizer.AsyncOpenAI") as mock_cls:
         settings = MagicMock()
         settings.token_router_api_key = "tr-fake-key"
         settings.token_router_base_url = "https://api.tokenrouter.com/v1"

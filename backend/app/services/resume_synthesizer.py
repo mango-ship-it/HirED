@@ -14,6 +14,8 @@ import logging
 import random
 from typing import Literal
 
+from openai import AsyncOpenAI
+
 from app.config import get_settings
 
 logger = logging.getLogger("hired.synthesizer")
@@ -171,8 +173,6 @@ async def synthesize_resume(jd: str, tier: Tier, target: str) -> str:
     )
 
     try:
-        from openai import AsyncOpenAI
-
         client = AsyncOpenAI(
             api_key=settings.token_router_api_key,
             base_url=settings.token_router_base_url,
