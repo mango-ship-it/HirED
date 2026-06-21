@@ -340,31 +340,60 @@
   }
   .res-bench-sub{font-size:13px;color:#9fb0c9;margin-bottom:16px;}
 
-  /* ---- roadmap ---- */
-  .rm-progress-bar{height:3px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden;}
-  .rm-progress-fill{height:100%;border-radius:99px;background:var(--rise);transition:width .6s cubic-bezier(.16,1,.3,1);}
-  .rm-steps{position:relative;display:flex;flex-direction:column;}
-  .rm-connector{position:absolute;left:21px;top:44px;bottom:44px;width:2px;background:var(--line);z-index:0;}
-  .rm-step{display:flex;align-items:flex-start;gap:14px;position:relative;z-index:1;padding-bottom:16px;opacity:0;transform:translateY(18px);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1);}
-  .rm-step.rm-visible{opacity:1;transform:translateY(0);}
-  .rm-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;position:relative;z-index:2;cursor:pointer;background:var(--paper);border:2px solid var(--rise);color:var(--rise);transition:transform .18s cubic-bezier(.16,1,.3,1),background .2s,border-color .2s;}
-  .rm-icon:hover{transform:scale(1.08);}
-  .rm-icon:active{transform:scale(.95);}
-  .rm-icon.rm-done{background:#dcfce7;border-color:#22c55e;color:#16a34a;animation:rmPop .3s cubic-bezier(.34,1.56,.64,1);}
-  @keyframes rmPop{0%{transform:scale(.7);}60%{transform:scale(1.15);}100%{transform:scale(1);}}
-  .rm-card{flex:1;border-radius:12px;padding:13px 16px;border:1px solid var(--line);background:var(--paper-2);position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s;}
-  .rm-card:hover{border-color:rgba(42,125,225,.3);}
-  .rm-card.rm-card-done{border-color:rgba(34,197,94,.3);}
-  .rm-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(42,125,225,.07) 0%,transparent 70%);transition:opacity .3s;}
-  .rm-glow-done{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(34,197,94,.07) 0%,transparent 70%);opacity:0;transition:opacity .3s;}
-  .rm-card-done .rm-glow{opacity:0;}
-  .rm-card-done .rm-glow-done{opacity:1;}
-  .rm-tag{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--rise);display:flex;align-items:center;gap:5px;margin-bottom:4px;}
-  .rm-dot{width:5px;height:5px;border-radius:50%;background:var(--rise);display:inline-block;}
-  .rm-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px;transition:color .2s;}
-  .rm-card-done .rm-title{text-decoration:line-through;color:var(--ink-soft);}
-  .rm-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;}
-  .rm-hint{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:6px;opacity:.6;}
+  /* ---- roadmap one-at-a-time ---- */
+  .rm-solo-wrap{display:grid;margin-bottom:10px;}
+  .rm-solo-item{
+    grid-area:1/1;
+    border:1px solid #e5e7eb;border-radius:16px;padding:20px 18px;
+    background:#f9fafb;display:flex;align-items:flex-start;gap:14px;
+    opacity:0;transform:translateY(14px);
+    transition:opacity .35s ease,transform .35s cubic-bezier(.16,1,.3,1);
+    pointer-events:none;visibility:hidden;
+  }
+  .rm-solo-item.rm-item-visible{opacity:1;transform:translateY(0);pointer-events:auto;visibility:visible;}
+  .rm-solo-item.rm-item-exit{
+    opacity:0;transform:translateY(-14px);
+    transition:opacity .28s ease,transform .28s ease;
+    pointer-events:none;visibility:visible;
+  }
+  .rm-solo-circle{
+    width:38px;height:38px;border-radius:50%;border:2px solid #9ca3af;background:#fff;
+    flex-shrink:0;cursor:pointer;position:relative;
+    transition:border-color .15s,background .15s;
+  }
+  .rm-solo-circle:hover{border-color:#4b5563;}
+  .rm-solo-circle.rm-circle-done{border-color:#16a34a;background:#16a34a;}
+  .rm-solo-circle.rm-circle-done::after{
+    content:'';position:absolute;top:50%;left:50%;
+    width:11px;height:7px;
+    border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;
+    transform:translate(-50%,-65%) rotate(-45deg);
+    display:block;
+  }
+  .rm-solo-text{flex:1;min-width:0;}
+  .rm-priority-label{
+    font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:#6b7280;margin-bottom:5px;
+  }
+  .rm-solo-title{font-size:15px;font-weight:600;color:#1f2937;line-height:1.4;}
+  .rm-counter{
+    font-size:12px;color:#9ca3af;text-align:center;
+    font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  }
+
+  /* ---- road visualization ---- */
+  .rm-road-outer{width:100%;max-width:520px;margin:0 auto 18px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;padding:12px 8px;}
+  .rm-road-svg{width:100%;height:auto;display:block;}
+  .rm-cp-g{cursor:pointer;}
+  .rm-cp-g:hover .rm-cp-ring{stroke:#4b5563;}
+  .rm-road-labels{display:flex;flex-direction:column;gap:8px;}
+  .rm-road-lbl{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;}
+  .rm-road-lbl-num{width:26px;height:26px;border-radius:50%;background:#f3f4f6;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;font-weight:700;display:grid;place-items:center;flex-shrink:0;}
+  .rm-road-lbl-body{flex:1;min-width:0;}
+  .rm-road-lbl-pri{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:3px;}
+  .rm-road-lbl-txt{font-size:14px;font-weight:600;color:#374151;line-height:1.35;}
+  .rm-road-lbl-done .rm-road-lbl-num{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a;}
+  .rm-road-lbl-done .rm-road-lbl-txt{text-decoration:line-through;color:#9ca3af;}
 
   /* ---- bottom nav ---- */
   .rnav{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -823,94 +852,149 @@
   sections.push({
     label: 'Your roadmap',
     render(){
-      const steps = data.gaps && data.gaps.length ? data.gaps.map((g, i) => {
-        const icons = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
-        const icon = icons[i] || 'ti-arrow-right';
-        return `
-          <div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
-            <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
-              <i class="ti ${icon}" aria-hidden="true"></i>
-            </div>
-            <div class="rm-card" onclick="rmToggle(${i})">
-              <div class="rm-glow"></div>
-              <div class="rm-glow-done"></div>
-              <div class="rm-tag"><span class="rm-dot"></span><span>${g.category || 'Gap'}</span></div>
-              <div class="rm-title">${g.action || g.title || 'Next step'}</div>
-              <div class="rm-desc">${g.micro_step || g.description || ''}</div>
-            </div>
-          </div>`;
-      }) : [
-        `<div class="rm-step" id="rms0" style="transition-delay:0ms">
-          <div class="rm-icon" onclick="rmToggle(0)"><i class="ti ti-pencil" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(0)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Resume</span></div>
-            <div class="rm-title">Rewrite 1 bullet point</div>
-            <div class="rm-desc">Change "responsible for X" to "delivered X by doing Y."</div>
-          </div>
-        </div>`,
-        `<div class="rm-step" id="rms1" style="transition-delay:110ms">
-          <div class="rm-icon" onclick="rmToggle(1)"><i class="ti ti-message" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(1)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Interview</span></div>
-            <div class="rm-title">Answer 1 behavioral question</div>
-            <div class="rm-desc">Use STAR format on a question common for your role.</div>
-          </div>
-        </div>`,
-        `<div class="rm-step" id="rms2" style="transition-delay:220ms">
-          <div class="rm-icon" onclick="rmToggle(2)"><i class="ti ti-send" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(2)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Network</span></div>
-            <div class="rm-title">Send 1 cold message</div>
-            <div class="rm-desc">Find one alum or recruiter. Use a short template and send it.</div>
-          </div>
-        </div>`
+      const PRIORITY = [
+        'Highest priority — fix this first',
+        'Still important',
+        'Worth doing, lower priority'
       ];
-      const total = steps.length;
+      const raw = (data.roadmap || data.gaps || []).slice(0, 3);
+      const fallback = [
+        {title:'Rewrite 1 bullet point'},
+        {title:'Answer 1 behavioral question'},
+        {title:'Send 1 cold message'}
+      ];
+      const src = raw.length ? raw : fallback;
+      const items = src.slice(0,3);
+      // Road path — S-curve from lower-left to upper-right
+      const RD = 'M 30,210 C 60,100 160,290 240,160 C 320,30 400,230 470,120';
+      const lbls = items.map((item,i) => `
+        <div class="rm-road-lbl" id="rmRdLbl${i}">
+          <div class="rm-road-lbl-num">${i+1}</div>
+          <div class="rm-road-lbl-body">
+            <div class="rm-road-lbl-pri">${esc(PRIORITY[i])}</div>
+            <div class="rm-road-lbl-txt">${esc(item.action||item.title||'Next step')}</div>
+          </div>
+        </div>`).join('');
       return `<div class="rsec">
         <h2 class="rsec-title" style="font-weight:800;text-align:center;">Your roadmap</h2>
-        <p class="rsec-sub" style="text-align:center;">Small steps — personalized to your gaps. Click each one when done.</p>
-        <div class="rm-progress-bar"><div class="rm-progress-fill" id="rmPbar" style="width:0%"></div></div>
-        <div class="rm-steps" id="rmSteps" data-total="${total}">
-          <div class="rm-connector"></div>
-          ${steps.join('')}
+        <p class="rsec-sub" style="text-align:center;">Click each stop to drive there.</p>
+        <div class="rm-road-outer">
+          <svg id="rmRoadSvg" viewBox="0 0 500 260" class="rm-road-svg" aria-hidden="true">
+            <!-- road border (darker outer edge) -->
+            <path d="${RD}" fill="none" stroke="#d1d5db" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- road surface -->
+            <path d="${RD}" fill="none" stroke="#f3f4f6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- center dashes -->
+            <path d="${RD}" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="13 10" stroke-linecap="round"/>
+            <!-- hidden path used for getPointAtLength() calculations -->
+            <path id="rmCalcPath" d="${RD}" fill="none" stroke="none" style="pointer-events:none;"/>
+            <!-- car (front faces +x; JS rotates to match tangent) -->
+            <g id="rmCar" style="pointer-events:none;" opacity="0">
+              <rect x="-13" y="-8" width="26" height="16" rx="4" fill="#374151"/>
+              <rect x="-3" y="-5" width="11" height="10" rx="2" fill="#4b5563" opacity="0.45"/>
+              <rect x="11" y="-4" width="3" height="8" rx="1.5" fill="#9ca3af"/>
+              <rect x="7"  y="-11" width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="7"  y="7"   width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="-13" y="-11" width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="-13" y="7"   width="5" height="4" rx="1" fill="#111827"/>
+            </g>
+            <!-- checkpoint 1 -->
+            <g id="rmCp0" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">1</text>
+            </g>
+            <!-- checkpoint 2 -->
+            <g id="rmCp1" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">2</text>
+            </g>
+            <!-- checkpoint 3 -->
+            <g id="rmCp2" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">3</text>
+            </g>
+          </svg>
         </div>
-        <p class="rm-hint">Click any step to mark it complete</p>
+        <div class="rm-road-labels">${lbls}</div>
       </div>`;
     },
     onShow(){
-      requestAnimationFrame(()=>{
-        document.querySelectorAll('.rm-step').forEach(el => el.classList.add('rm-visible'));
+      var path = document.getElementById('rmCalcPath');
+      var car  = document.getElementById('rmCar');
+      if(!path||!car) return;
+
+      var total = path.getTotalLength();
+      var fracs  = [1/3, 2/3, 1];
+      var cpLens = fracs.map(function(f){ return f*total; });
+
+      // Position each checkpoint along the path, then reveal it
+      fracs.forEach(function(f,i){
+        var pt = path.getPointAtLength(f*total);
+        var el = document.getElementById('rmCp'+i);
+        if(el){ el.setAttribute('transform','translate('+pt.x+','+pt.y+')'); el.setAttribute('opacity','1'); }
       });
-      window._rmDone = window._rmDone || new Set();
+
+      // Get {x,y,angle} at a given path length
+      function posAt(len){
+        var p0 = path.getPointAtLength(len);
+        var p1 = path.getPointAtLength(Math.min(len+2, total));
+        return { x:p0.x, y:p0.y, a:Math.atan2(p1.y-p0.y, p1.x-p0.x)*180/Math.PI };
+      }
+
+      // Place car at path start and reveal
+      (function(){
+        var pa = posAt(0);
+        car.setAttribute('transform','translate('+pa.x+','+pa.y+') rotate('+pa.a+')');
+        car.setAttribute('opacity','1');
+      })();
+
+      var curLen=0, animating=false, nextCp=0;
+
+      function eio(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+      function animateTo(targetLen, onDone){
+        animating = true;
+        var from=curLen, dur=1400, t0=performance.now();
+        function frame(now){
+          var raw = Math.min(1,(now-t0)/dur);
+          var pa  = posAt(from+(targetLen-from)*eio(raw));
+          car.setAttribute('transform','translate('+pa.x+','+pa.y+') rotate('+pa.a+')');
+          if(raw<1){ requestAnimationFrame(frame); }
+          else{ curLen=targetLen; animating=false; if(onDone) onDone(); }
+        }
+        requestAnimationFrame(frame);
+      }
+
+      // Bind click handlers — only in-order clicks trigger animation
+      for(var i=0;i<3;i++){
+        (function(idx){
+          var cp=document.getElementById('rmCp'+idx);
+          if(!cp) return;
+          cp.addEventListener('click',function(){
+            if(animating||idx!==nextCp) return;
+            nextCp++;
+            animateTo(cpLens[idx],function(){
+              // Mark checkpoint done (green ring + number)
+              var ring=cp.querySelector('.rm-cp-ring'), txt=cp.querySelector('.rm-cp-txt');
+              if(ring){ ring.setAttribute('stroke','#16a34a'); ring.setAttribute('fill','#f0fdf4'); }
+              if(txt)  txt.setAttribute('fill','#16a34a');
+              // Strikethrough label row
+              var lbl=document.getElementById('rmRdLbl'+idx);
+              if(lbl) lbl.classList.add('rm-road-lbl-done');
+              // After final checkpoint, fade car out and leave it hidden
+              if(idx===2){
+                setTimeout(function(){
+                  car.style.transition='opacity 0.5s ease';
+                  car.style.opacity='0';
+                },600);
+              }
+            });
+          });
+        })(i);
+      }
     }
   });
 
-  window.rmToggle = function(i){
-    const step = document.getElementById('rms'+i);
-    if(!step) return;
-    const icon = step.querySelector('.rm-icon');
-    const card = step.querySelector('.rm-card');
-    const done = window._rmDone || (window._rmDone = new Set());
-    const iconNames = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
-    if(done.has(i)){
-      done.delete(i);
-      icon.innerHTML = `<i class="ti ${iconNames[i]||'ti-arrow-right'}" aria-hidden="true"></i>`;
-      icon.classList.remove('rm-done');
-      card.classList.remove('rm-card-done');
-    } else {
-      done.add(i);
-      icon.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i>`;
-      icon.classList.add('rm-done');
-      card.classList.add('rm-card-done');
-    }
-    const total = parseInt(document.getElementById('rmSteps')?.dataset.total || 3);
-    const pct = Math.round((done.size / total) * 100);
-    const bar = document.getElementById('rmPbar');
-    if(bar) bar.style.width = pct + '%';
-  };
 
   // ---- lazy secondary fetches ----
   async function loadResources(category, boxId, role){
