@@ -172,25 +172,6 @@ async def score(
         jd_context=jd_context,
     )
 
-    # Remember this user's parsed profile/skills so the app can recall their inputs
-    # across calls (Redis if available, else in-memory). Best-effort — never fail the
-    # score over a store hiccup.
-    try:
-        await save_profile(
-            user_id,
-            {
-                "user_id": user_id,
-                "target": target_obj.model_dump(),
-                "score": outcome.score,
-                "matched_skills": list(profile.matched_skills),
-                "missing_skills": list(profile.missing_skills),
-                "profile": profile.model_dump(),
-                "saved_at": datetime.now(timezone.utc).isoformat(),
-            },
-        )
-    except Exception:
-        logger.exception("failed to save profile for %s", user_id)
-
     # Resume highlight annotations (Claude path only; empty on the heuristic path). Built
     # defensively so a malformed item never breaks the score.
     annotations = [
@@ -203,6 +184,29 @@ async def score(
         for a in profile.annotations
         if isinstance(a, dict) and a.get("quote")
     ]
+
+    # Remember this user's FULL scored result so the frontend can re-render the breakdown
+    # page — including the resume text + its highlights — via GET /profile/{user_id},
+    # WITHOUT ever asking the user to upload their resume again. Best-effort; never fails.
+    try:
+        await save_profile(
+            user_id,
+            {
+                "user_id": user_id,
+                "target": target_obj.model_dump(),
+                "score": outcome.score,
+                "matched_skills": list(profile.matched_skills),
+                "missing_skills": list(profile.missing_skills),
+                "profile": profile.model_dump(),
+                "resume_text": resume,
+                "annotations": [a.model_dump() for a in annotations],
+                "categories": {k: v.model_dump() for k, v in categories.items()},
+                "lessons": [lesson.model_dump() for lesson in lessons],
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception:
+        logger.exception("failed to save profile for %s", user_id)
 
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     response = ScoreResponse(
