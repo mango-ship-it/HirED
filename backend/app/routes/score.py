@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Form, UploadFile
@@ -48,6 +49,24 @@ router = APIRouter()
 
 _MAX_RESUME_BYTES = 10 * 1024 * 1024  # 10 MB
 _SCORE_TTL = 7 * 24 * 3600  # cache an identical (resume, target) score for a week
+
+
+def _locate(text: str, quote: str) -> tuple[int, int]:
+    """Char offsets of `quote` in `text` so the frontend highlights the FULL span exactly
+    (no fragile client-side matching). Falls back to whitespace-tolerant matching for file
+    uploads where newlines/spacing differ from what Claude quoted. (-1, -1) if not found."""
+    q = (quote or "").strip()
+    if not q:
+        return -1, -1
+    idx = text.find(q)
+    if idx >= 0:
+        return idx, idx + len(q)
+    tokens = [re.escape(tok) for tok in q.split()]
+    if tokens:
+        match = re.search(r"\s+".join(tokens), text)
+        if match:
+            return match.start(), match.end()
+    return -1, -1
 
 
 def _category_explanations(profile) -> dict[str, str]:
@@ -188,16 +207,20 @@ async def score(
 
     # Resume highlight annotations (Claude path only; empty on the heuristic path). Built
     # defensively so a malformed item never breaks the score.
-    annotations = [
-        Annotation(
-            quote=a.get("quote", ""),
-            category=a.get("category", ""),
-            sentiment=a.get("sentiment", ""),
-            reason=a.get("reason", ""),
-        )
-        for a in profile.annotations
-        if isinstance(a, dict) and a.get("quote")
-    ]
+    annotations = []
+    for a in profile.annotations:
+        if isinstance(a, dict) and a.get("quote"):
+            start, end = _locate(resume, a["quote"])
+            annotations.append(
+                Annotation(
+                    quote=a.get("quote", ""),
+                    category=a.get("category", ""),
+                    sentiment=a.get("sentiment", ""),
+                    reason=a.get("reason", ""),
+                    start=start,
+                    end=end,
+                )
+            )
 
     # Remember this user's FULL scored result so the frontend can re-render the breakdown
     # page — including the resume text + its highlights — via GET /profile/{user_id},

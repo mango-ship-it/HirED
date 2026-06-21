@@ -104,7 +104,7 @@ EXTRACTION_JSON_SCHEMA: dict = {
                             "experience", "education", "clarity",
                         ],
                     },
-                    "sentiment": {"type": "string", "enum": ["positive", "negative"]},
+                    "sentiment": {"type": "string", "enum": ["positive", "neutral", "negative"]},
                     "reason": {"type": "string"},
                 },
                 "required": ["quote", "category", "sentiment", "reason"],

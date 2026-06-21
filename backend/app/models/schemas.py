@@ -56,12 +56,16 @@ class ScoreStatus(BaseModel):
 
 
 class Annotation(BaseModel):
-    """A resume excerpt the score references — powers breakdown-page highlighting."""
+    """A resume excerpt the score references — powers breakdown-page highlighting + hover."""
 
-    quote: str = Field(description="VERBATIM text from the resume; match against resume_text to highlight")
+    quote: str = Field(description="VERBATIM text from the resume (the highlighted span)")
     category: str = Field(description="Which scoring category it affects (snake_case)")
-    sentiment: str = Field(description='"positive" (strengthens) or "negative" (a gap)')
-    reason: str = Field(default="", description="Short why")
+    sentiment: str = Field(description='"positive" (green) | "neutral" (yellow) | "negative" (red)')
+    reason: str = Field(
+        default="", description="1-2 sentence hover explanation, grounded in the target role + their resume"
+    )
+    start: int = Field(default=-1, description="Char offset of the quote in resume_text (-1 if not located)")
+    end: int = Field(default=-1, description="End offset (exclusive) — highlight resume_text[start:end]")
 
 
 class ScoreResponse(BaseModel):

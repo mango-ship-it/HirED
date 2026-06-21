@@ -61,12 +61,17 @@ _EXTRACTION_SYSTEM = (
     "metrics they actually wrote. Do NOT score, rank, or editorialize — only extract "
     "stated facts into the required JSON shape. "
     "Also produce `annotations`: 3-8 EXACT verbatim quotes from the resume that most drive "
-    "each category's score. Each annotation has `quote` (copied character-for-character from "
-    "the resume so the UI can find and highlight it — NEVER paraphrase, shorten, or fix "
-    "typos), `category` (one of skills_match, quantified_achievements, experience, education, "
-    "clarity), `sentiment` ('positive' if the quote strengthens that category, 'negative' if "
-    "it's a gap or weakness), and `reason` (a short phrase). Include both strengths and "
-    "weaknesses; if the resume is empty, return an empty annotations list."
+    "each category's score. Each annotation has: `quote` (copied character-for-character from "
+    "the resume so the UI can highlight it — NEVER paraphrase, shorten, or fix typos); "
+    "`category` (one of skills_match, quantified_achievements, experience, education, clarity); "
+    "`sentiment` — 'positive' if it clearly STRENGTHENS the candidate's fit for the TARGET ROLE "
+    "(green), 'neutral' if it's relevant but could be stronger (yellow), 'negative' if it's a "
+    "gap or weakness for the target role (red); and `reason` — ONE or TWO sentences written TO "
+    "the candidate ('you'/'your') explaining CONCRETELY why this text helps or hurts their fit "
+    "for THIS specific target role, naming what the role needs and what their resume shows (e.g. "
+    "'Registered Nurse roles want measurable patient outcomes, and your 15% satisfaction gain "
+    "proves exactly that'). Be specific and encouraging — no generic filler. Include both "
+    "strengths and weaknesses; if the resume is empty, return an empty annotations list."
 )
 
 _LESSONS_SYSTEM = (

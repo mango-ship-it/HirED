@@ -39,14 +39,18 @@ Multipart form:
   "missing_skills": ["…"],
   "resume_text": "<full extracted resume text>",   // page 2: render the resume beside the score
   "has_resume": true,                               // gate the side-by-side resume panel on THIS
-  "annotations": [                                  // highlight each quote inside resume_text
-    { "quote": "Reduced processing time 30%", "category": "quantified_achievements",
-      "sentiment": "positive", "reason": "Concrete metric showing measurable impact." }
+  "annotations": [                                  // highlight resume_text[start:end] for each
+    { "quote": "Cut food waste 18% by redesigning prep", "category": "quantified_achievements",
+      "sentiment": "positive",                      // positive=green · neutral=yellow · negative=red
+      "reason": "Restaurant Managers must control costs; your 18% waste reduction shows measurable impact.",
+      "start": 74, "end": 112 }                     // exact char offsets into resume_text
   ],
   "status": { "scoring": "complete", "benchmark": "pending", "resources": "pending" }
 }
 ```
-> Same input always returns the same score (deterministic + cached). `annotations` is empty on the no-key heuristic path. To highlight: find each `quote` in `resume_text`, color by `sentiment` (positive/negative).
+> Same input always returns the same score (deterministic + cached). `annotations` is empty on the no-key heuristic path.
+>
+> **Highlighting (do NOT string-match):** wrap **`resume_text.slice(start, end)`** for each annotation — `start`/`end` are exact char offsets so the FULL phrase highlights (not one word). Color by `sentiment`: **`positive`→green, `neutral`→yellow, `negative`→red**. On **hover**, show `reason` — a 1–2 sentence explanation grounded in their target role + their own résumé. (If `start` is `-1`, the quote couldn't be located — skip the highlight, still show it in a list.)
 >
 > **Don't ask the user to upload again to show their resume.** The resume comes back on this response as `resume_text` — cache it client-side (e.g. in your `hired_result`), **or** re-fetch the whole breakdown anytime via `GET /profile/{user_id}` (returns `resume_text` + `annotations` + `categories` + `lessons` + `score`).
 >
