@@ -89,6 +89,11 @@ Body: `{ "target":"Bus Driver", "location":"Oakland, CA", "skills":["CDL"], "use
     { "order":2, "id":"certifications-2", "kind":"certifications", "title":"Earn a certification", "locked":true, "resources":[…] }
     // kinds: skill · certifications · events · people · networking · scholarships
   ],
+  "actions": [                         // small personalized to-dos, decided from REAL data
+    { "kind":"resume", "title":"Polish one résumé bullet", "detail":"<their concrete fix>" },   // ONLY present if their quantified/clarity score < 70
+    { "kind":"pitch",  "title":"Practice your 30-second elevator pitch", "detail":"…their role + a real strength…" },
+    { "kind":"cold_message", "title":"Send a cold message to Stacy O'Brien…", "detail":"<ready-to-send template>", "person":{ "name":"…", "url":"linkedin…" } }
+  ],
   "events":[…], "networking":[…], "people":[…], "certifications":[…], "scholarships":[…]   // raw lists too
 }
 ```

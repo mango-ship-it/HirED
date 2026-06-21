@@ -71,6 +71,70 @@ async def learning_plan(body: dict):
     )
 
 
+def _roadmap_actions(record: dict | None, steps: list[dict], role: str) -> list[dict]:
+    """Small, personalized to-dos decided from REAL data: a résumé fix ONLY if their own score
+    shows a résumé-quality gap, an elevator-pitch rep grounded in a real strength, and a cold
+    message to a REAL person pulled from the roadmap's people step."""
+    record = record or {}
+    actions: list[dict] = []
+
+    # 1. Résumé fix — only when their scoring shows a résumé-quality category is weak (<70).
+    categories = record.get("categories") or {}
+    lessons = record.get("lessons") or []
+    # Only WRITING-quality categories warrant a "polish a bullet" fix — NOT skills_match
+    # (that's a content gap fixed by learning a skill, not by rewriting a line).
+    weak = {
+        key
+        for key, val in categories.items()
+        if isinstance(val, dict) and val.get("score", 100) < 70
+        and key in ("quantified_achievements", "clarity")
+    }
+    if weak:
+        detail = next(
+            (
+                lesson.get("action")
+                for lesson in lessons
+                if isinstance(lesson, dict) and lesson.get("category") in weak and lesson.get("action")
+            ),
+            "Rewrite one bullet to start with an action verb and end with a measurable result.",
+        )
+        actions.append({"kind": "resume", "title": "Polish one résumé bullet", "detail": detail})
+
+    # 2. Elevator pitch — always useful; lead with a real strength if we have one.
+    matched = record.get("matched_skills") or []
+    strength = f" Lead with your strongest proof: {matched[0]}." if matched else ""
+    actions.append({
+        "kind": "pitch",
+        "title": "Practice your 30-second elevator pitch",
+        "detail": f"Say who you are, that you're targeting {role or 'this role'}, and one concrete result."
+        + strength + " Say it out loud three times.",
+    })
+
+    # 3. Cold message to a REAL person from the roadmap's people step.
+    person = next(
+        (
+            (s.get("resources") or [{}])[0]
+            for s in steps
+            if s.get("kind") == "people" and s.get("resources")
+        ),
+        None,
+    )
+    if person and person.get("name"):
+        first = person["name"].split()[0]
+        actions.append({
+            "kind": "cold_message",
+            "title": f"Send a cold message to {person['name']}",
+            "detail": (
+                f"Hi {first}, I'm working toward becoming a {role or 'professional in your field'} and "
+                "really admire your path. Could I ask you one quick question about how you got started? "
+                "Even a one-line reply would mean a lot."
+            ),
+            "person": {"name": person["name"], "url": person.get("url", "")},
+        })
+
+    return actions
+
+
 @router.post("/roadmap")
 async def roadmap(body: dict):
     """Full Exa-powered roadmap: per-skill courses/practice + events, networking,
@@ -79,11 +143,10 @@ async def roadmap(body: dict):
     location = (body.get("location") or "").strip()
     skills = [s for s in (body.get("skills") or []) if s]
     user_id = body.get("user_id")
+    record = await load_profile(user_id) if user_id else None
 
-    if not skills and user_id:
-        record = await load_profile(user_id)
-        if record:
-            skills = list(record.get("missing_skills") or [])
+    if not skills and record:
+        skills = list(record.get("missing_skills") or [])
     if not skills and target:
         jobs = await load_jobs(target)
         skills = [r["skill"] for r in top_skills_from_jobs(jobs or [], limit=4)]
@@ -100,10 +163,12 @@ async def roadmap(body: dict):
             "exa": False,
             "role": target,
             "steps": [],
+            "actions": _roadmap_actions(record, [], target),
             "note": "Exa not configured (set EXA_API_KEY) — use /learning-plan for the search-link roadmap.",
         }
     data["exa"] = True
     data["steps"] = to_steps(data)  # ordered, reveal-friendly "unlock as you go" list
+    data["actions"] = _roadmap_actions(record, data["steps"], target)  # small personalized to-dos
     return data
 
 
