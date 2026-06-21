@@ -147,6 +147,32 @@
   .res-bench-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--rise-bright),var(--highlight));transition:width 1.4s cubic-bezier(.2,.7,.2,1);}
   .res-bench-sub{font-size:14px;color:#9fb0c9;margin-top:12px;}
 
+  /* ---- roadmap ---- */
+  .rm-progress-bar{height:3px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden;}
+  .rm-progress-fill{height:100%;border-radius:99px;background:var(--rise);transition:width .6s cubic-bezier(.16,1,.3,1);}
+  .rm-steps{position:relative;display:flex;flex-direction:column;}
+  .rm-connector{position:absolute;left:21px;top:44px;bottom:44px;width:2px;background:var(--line);z-index:0;}
+  .rm-step{display:flex;align-items:flex-start;gap:14px;position:relative;z-index:1;padding-bottom:16px;opacity:0;transform:translateY(18px);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1);}
+  .rm-step.rm-visible{opacity:1;transform:translateY(0);}
+  .rm-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;position:relative;z-index:2;cursor:pointer;background:var(--paper);border:2px solid var(--rise);color:var(--rise);transition:transform .18s cubic-bezier(.16,1,.3,1),background .2s,border-color .2s;}
+  .rm-icon:hover{transform:scale(1.08);}
+  .rm-icon:active{transform:scale(.95);}
+  .rm-icon.rm-done{background:#dcfce7;border-color:#22c55e;color:#16a34a;animation:rmPop .3s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes rmPop{0%{transform:scale(.7);}60%{transform:scale(1.15);}100%{transform:scale(1);}}
+  .rm-card{flex:1;border-radius:12px;padding:13px 16px;border:1px solid var(--line);background:var(--paper-2);position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s;}
+  .rm-card:hover{border-color:rgba(42,125,225,.3);}
+  .rm-card.rm-card-done{border-color:rgba(34,197,94,.3);}
+  .rm-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(42,125,225,.07) 0%,transparent 70%);transition:opacity .3s;}
+  .rm-glow-done{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(34,197,94,.07) 0%,transparent 70%);opacity:0;transition:opacity .3s;}
+  .rm-card-done .rm-glow{opacity:0;}
+  .rm-card-done .rm-glow-done{opacity:1;}
+  .rm-tag{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--rise);display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+  .rm-dot{width:5px;height:5px;border-radius:50%;background:var(--rise);display:inline-block;}
+  .rm-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px;transition:color .2s;}
+  .rm-card-done .rm-title{text-decoration:line-through;color:var(--ink-soft);}
+  .rm-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .rm-hint{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:6px;opacity:.6;}
+
   /* ---- bottom nav ---- */
   .rnav{display:flex;align-items:center;justify-content:space-between;gap:14px;
     margin-top:28px;padding-top:20px;border-top:1px solid var(--line);}
@@ -331,6 +357,99 @@
       onShow(){ loadBenchmark(); }
     });
   }
+
+  // ---- roadmap section ----
+  sections.push({
+    label: 'Your roadmap',
+    render(){
+      const steps = data.gaps && data.gaps.length ? data.gaps.map((g, i) => {
+        const icons = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
+        const icon = icons[i] || 'ti-arrow-right';
+        return `
+          <div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
+            <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
+              <i class="ti ${icon}" aria-hidden="true"></i>
+            </div>
+            <div class="rm-card" onclick="rmToggle(${i})">
+              <div class="rm-glow"></div>
+              <div class="rm-glow-done"></div>
+              <div class="rm-tag"><span class="rm-dot"></span><span>${g.category || 'Gap'}</span></div>
+              <div class="rm-title">${g.action || g.title || 'Next step'}</div>
+              <div class="rm-desc">${g.micro_step || g.description || ''}</div>
+            </div>
+          </div>`;
+      }) : [
+        `<div class="rm-step" id="rms0" style="transition-delay:0ms">
+          <div class="rm-icon" onclick="rmToggle(0)"><i class="ti ti-pencil" aria-hidden="true"></i></div>
+          <div class="rm-card" onclick="rmToggle(0)">
+            <div class="rm-glow"></div><div class="rm-glow-done"></div>
+            <div class="rm-tag"><span class="rm-dot"></span><span>Resume</span></div>
+            <div class="rm-title">Rewrite 1 bullet point</div>
+            <div class="rm-desc">Change "responsible for X" to "delivered X by doing Y."</div>
+          </div>
+        </div>`,
+        `<div class="rm-step" id="rms1" style="transition-delay:110ms">
+          <div class="rm-icon" onclick="rmToggle(1)"><i class="ti ti-message" aria-hidden="true"></i></div>
+          <div class="rm-card" onclick="rmToggle(1)">
+            <div class="rm-glow"></div><div class="rm-glow-done"></div>
+            <div class="rm-tag"><span class="rm-dot"></span><span>Interview</span></div>
+            <div class="rm-title">Answer 1 behavioral question</div>
+            <div class="rm-desc">Use STAR format on a question common for your role.</div>
+          </div>
+        </div>`,
+        `<div class="rm-step" id="rms2" style="transition-delay:220ms">
+          <div class="rm-icon" onclick="rmToggle(2)"><i class="ti ti-send" aria-hidden="true"></i></div>
+          <div class="rm-card" onclick="rmToggle(2)">
+            <div class="rm-glow"></div><div class="rm-glow-done"></div>
+            <div class="rm-tag"><span class="rm-dot"></span><span>Network</span></div>
+            <div class="rm-title">Send 1 cold message</div>
+            <div class="rm-desc">Find one alum or recruiter. Use a short template and send it.</div>
+          </div>
+        </div>`
+      ];
+      const total = steps.length;
+      return `<div class="rsec">
+        <h2 class="rsec-title">Your roadmap</h2>
+        <p class="rsec-sub">Small steps — personalized to your gaps. Click each one when done.</p>
+        <div class="rm-progress-bar"><div class="rm-progress-fill" id="rmPbar" style="width:0%"></div></div>
+        <div class="rm-steps" id="rmSteps" data-total="${total}">
+          <div class="rm-connector"></div>
+          ${steps.join('')}
+        </div>
+        <p class="rm-hint">Click any step to mark it complete</p>
+      </div>`;
+    },
+    onShow(){
+      requestAnimationFrame(()=>{
+        document.querySelectorAll('.rm-step').forEach(el => el.classList.add('rm-visible'));
+      });
+      window._rmDone = window._rmDone || new Set();
+    }
+  });
+
+  window.rmToggle = function(i){
+    const step = document.getElementById('rms'+i);
+    if(!step) return;
+    const icon = step.querySelector('.rm-icon');
+    const card = step.querySelector('.rm-card');
+    const done = window._rmDone || (window._rmDone = new Set());
+    const iconNames = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
+    if(done.has(i)){
+      done.delete(i);
+      icon.innerHTML = `<i class="ti ${iconNames[i]||'ti-arrow-right'}" aria-hidden="true"></i>`;
+      icon.classList.remove('rm-done');
+      card.classList.remove('rm-card-done');
+    } else {
+      done.add(i);
+      icon.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i>`;
+      icon.classList.add('rm-done');
+      card.classList.add('rm-card-done');
+    }
+    const total = parseInt(document.getElementById('rmSteps')?.dataset.total || 3);
+    const pct = Math.round((done.size / total) * 100);
+    const bar = document.getElementById('rmPbar');
+    if(bar) bar.style.width = pct + '%';
+  };
 
   // ---- lazy secondary fetches ----
   async function loadResources(category, boxId){
