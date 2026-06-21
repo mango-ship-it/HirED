@@ -96,13 +96,27 @@ class Match(BaseModel):
     user_won: bool
 
 
+class Candidate(BaseModel):
+    """A real professional in the target role, shown on the 'How you compare' page."""
+
+    name: str
+    url: str
+    why_stronger: str = Field(default="", description="One sentence: what makes them a strong candidate")
+
+
 class BenchmarkResponse(BaseModel):
     percentile: int = Field(ge=0, le=100)
     sample_size: int = Field(ge=0, description="Size of the comparison cohort")
     message: str = Field(description="Motivating, plain-language framing of the percentile")
     matches: list[Match] = Field(
         default_factory=list,
-        description="Per-2AFC results. Empty on agent-unavailable fallback.",
+        description="Per-2AFC results (Fetch.ai agent). Empty when using the real-candidate path.",
+    )
+    candidates: list[Candidate] = Field(
+        default_factory=list, description="Real professionals in this role (page 6 — Exa)"
+    )
+    transparency: str = Field(
+        default="", description="Plain-language explanation of how the percentile/comparison is computed"
     )
 
 

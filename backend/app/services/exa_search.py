@@ -238,6 +238,24 @@ async def people_to_connect(role: str, location: str = "") -> list[dict]:
     )
 
 
+async def find_candidates(role: str, location: str = "", *, limit: int = 4) -> list[dict]:
+    """Real profiles of strong {role} professionals — each with a one-sentence 'what makes them
+    competitive' summary. Powers the 'How you compare' page (real candidates, not synthetic)."""
+    where = f" in {location}" if location else ""
+    summary_q = (
+        f"In one sentence, what makes this person a strong {role or 'this role'} candidate — "
+        f"their key skills, experience, and credentials?"
+    )
+    cards = await _search(
+        f"LinkedIn profiles of accomplished, experienced {role} professionals{where}:",
+        card_type="candidate", why="", category="people", summary_query=summary_q, num_results=8,
+    )
+    return [
+        {"name": c["title"], "url": c["url"], "why_stronger": c.get("snippet") or ""}
+        for c in cards if c.get("url") and c.get("snippet")
+    ][:limit]
+
+
 async def exa_resources_by_skill(skills: list[str], role: str, *, max_skills: int = 3) -> dict[str, list[dict]]:
     """Real course resources per skill for build_plan(resources_by_skill=...). <=max_skills searches."""
     if not has_exa() or not skills:

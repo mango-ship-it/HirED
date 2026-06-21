@@ -24,13 +24,14 @@ from agents.messages import (
 from app.models.schemas import (
     BenchmarkRequest,
     BenchmarkResponse,
+    Candidate,
     Match,
     Resource,
     ResourceContext,
     ResourcesRequest,
     ResourcesResponse,
 )
-from app.services.exa_search import has_exa, resources_for_gap
+from app.services.exa_search import find_candidates, has_exa, resources_for_gap
 from app.services.fetch_bridge import (
     AgentUnavailableError,
     ask_agent,
@@ -77,15 +78,18 @@ def _benchmark_message(percentile: int, target_value: str) -> str:
 
 @router.post("/benchmark", response_model=BenchmarkResponse)
 async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
-    """Peer-readiness percentile from the Fetch.ai benchmark uAgent."""
-    matches: list[Match] = []
+    """How you compare. Tries the Fetch.ai 2AFC/ELO agent; otherwise builds a REAL-candidate
+    comparison (Exa) with a transparency note — that's the 'How you compare' page."""
+    role = request.target.value
+
+    # 1. Fetch.ai 2AFC/ELO agent (synthetic competitors), if it's running.
     try:
         reply = await ask_agent(
             benchmark_agent_address(),
-            AgentBenchmarkRequest(score=request.score, target=request.target.value),
+            AgentBenchmarkRequest(score=request.score, target=role),
             AgentBenchmarkResponse,
         )
-        percentile, sample_size = int(reply.percentile), int(reply.sample_size)
+        percentile = int(reply.percentile)
         matches = [
             Match(
                 competitor_headline=m.competitor_headline,
@@ -94,17 +98,38 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
             )
             for m in getattr(reply, "matches", [])
         ]
+        return BenchmarkResponse(
+            percentile=percentile, sample_size=int(reply.sample_size),
+            message=_benchmark_message(percentile, role), matches=matches,
+        )
     except (AgentUnavailableError, ValueError, AttributeError) as exc:
-        # Deterministic local fallback so a cold agent never breaks the demo.
-        logger.warning("benchmark agent unavailable, using fallback: %s", exc)
-        percentile = max(0, min(100, request.score - 5))
-        sample_size = _FALLBACK_SAMPLE_SIZE
-        matches = []  # explicit — contract guarantees this field is always present
+        logger.warning("benchmark agent unavailable, using real-candidate comparison: %s", exc)
+
+    # 2. Real-candidate comparison via Exa — real professionals + a transparency note.
+    percentile = max(1, min(99, request.score - 5))
+    candidates: list[Candidate] = []
+    if has_exa() and role:
+        try:
+            found = await find_candidates(role)
+            candidates = [
+                Candidate(name=c["name"], url=c["url"], why_stronger=c["why_stronger"]) for c in found
+            ]
+        except Exception:
+            logger.exception("real-candidate comparison failed")
+    transparency = (
+        f"Your readiness score ({request.score}/100) is built from 5 weighted factors — skills "
+        f"match (35%), quantified impact (25%), experience (20%), education (10%), and clarity "
+        f"(10%) — so the number is fully reproducible. The percentile is an estimate from that "
+        f"readiness score. The profiles below are real {role} professionals, shown so you can see "
+        f"concretely what strong candidates bring and where to grow."
+    )
     return BenchmarkResponse(
         percentile=percentile,
-        sample_size=sample_size,
-        message=_benchmark_message(percentile, request.target.value),
-        matches=matches,
+        sample_size=len(candidates) or _FALLBACK_SAMPLE_SIZE,
+        message=_benchmark_message(percentile, role),
+        matches=[],
+        candidates=candidates,
+        transparency=transparency,
     )
 
 
