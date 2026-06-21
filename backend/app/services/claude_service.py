@@ -73,7 +73,14 @@ _LESSONS_SYSTEM = (
     "'e.g.' or hypotheticals), never as facts about this person. If they say they "
     "have no experience, meet them there — suggest realistic ways to BUILD it, don't "
     "pretend they already have it. The ACTION must be doable given only what they "
-    "actually have today. Be warm, concrete, jargon-free, never shaming. Set each "
+    "actually have today. "
+    "When a 'REAL JOB POSTINGS' block is provided, it describes what EMPLOYERS want — "
+    "never attribute it to the candidate's experience, never claim they have a skill or "
+    "did something a posting mentions, and never copy posting requirements in as their "
+    "achievements; use it only to make EXAMPLEs and ACTIONs market-relevant, and ground "
+    "any claim about what the role needs ONLY in those postings (don't invent "
+    "requirements, salaries, or company names). "
+    "Be warm, concrete, jargon-free, never shaming. Set each "
     "lesson's `category` to the exact snake_case category key it addresses."
 )
 
@@ -122,6 +129,7 @@ class ClaudeService:
         target: str,
         categories: dict[str, int],
         profile: ExtractedProfile,
+        jd_context: str = "",
     ) -> list[Lesson]:
         """Generate 1-3 lessons for the weakest categories.
 
@@ -131,14 +139,17 @@ class ClaudeService:
         weakest = sorted(categories.items(), key=lambda kv: kv[1])[:3]
         focus = ", ".join(f"{name} ({value}/100)" for name, value in weakest)
 
+        market_block = f"\n{jd_context}\n" if jd_context else ""
         user_content = (
             f"TARGET: {profile.target_summary or target}\n"
             f"WEAKEST CATEGORIES (lowest score first): {focus}\n"
             f"MISSING SKILLS: {', '.join(profile.missing_skills) or 'none'}\n"
             f"QUANTIFIED ACHIEVEMENTS: {profile.quantified_achievement_count} "
             f"of {profile.total_achievement_count} bullets\n\n"
-            f"RESUME EXCERPT:\n{resume[:1500]}\n\n"
-            "Write 1-3 micro-lessons for the weakest categories above. Set each "
+            f"RESUME EXCERPT:\n{resume[:1500]}\n"
+            f"{market_block}\n"
+            "Write 1-3 micro-lessons for the weakest categories above; make the EXAMPLE "
+            "and ACTION reflect what real postings emphasize when provided. Set each "
             "lesson's `category` to the matching weak-category name so the app can "
             "fetch resources for it."
         )

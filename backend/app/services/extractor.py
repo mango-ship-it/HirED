@@ -39,8 +39,13 @@ async def generate_lessons(
     target: str,
     category_scores: dict[str, int],
     profile: ExtractedProfile,
+    jd_context: str = "",
 ) -> list[Lesson]:
-    """1-3 lessons for the weakest categories. Claude if available, else templated."""
+    """1-3 lessons for the weakest categories. Claude if available, else templated.
+
+    `jd_context` is an optional grounded digest of real postings (build_lesson_context);
+    only the Claude path uses it — the heuristic fallback ignores it gracefully.
+    """
     if get_settings().anthropic_api_key:
         try:
             from app.services.claude_service import get_claude_service
@@ -50,6 +55,7 @@ async def generate_lessons(
                 target=target,
                 categories=category_scores,
                 profile=profile,
+                jd_context=jd_context,
             )
         except Exception:
             logger.exception("Claude lesson generation failed; using heuristic fallback")

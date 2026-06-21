@@ -32,6 +32,7 @@ from app.services.document_parser import (
     extract_text,
 )
 from app.services.extractor import extract_profile, generate_lessons
+from app.services.jd_context import build_lesson_context
 from app.services.jd_skills import jd_enriched_skills
 from app.services.jobs import load_jobs
 from app.services.scoring_engine import get_scorer
@@ -89,8 +90,10 @@ async def score(
     profile = await extract_profile(resume, target_obj.value)
 
     # Accuracy bridge: if we've cached real postings for this target, measure skills
-    # against what employers ACTUALLY require (JobSpy JDs) rather than a guess. Additive
-    # + graceful — falls back to the extracted skills when no jobs are cached.
+    # against what employers ACTUALLY require (JobSpy JDs) rather than a guess, and build
+    # a grounded digest so the lessons cite real market language. Additive + graceful —
+    # falls back to the extracted skills / un-grounded lessons when no jobs are cached.
+    jd_context = ""
     try:
         cached_jobs = await load_jobs(target_obj.value)
         if cached_jobs:
@@ -103,6 +106,7 @@ async def score(
                         "missing_skills": missing,
                     }
                 )
+            jd_context = build_lesson_context(cached_jobs, profile.missing_skills)
     except Exception:
         logger.exception("JD-skill enrichment failed; using extracted skills")
 
@@ -119,6 +123,7 @@ async def score(
         target=target_obj.value,
         category_scores=key_scores,
         profile=profile,
+        jd_context=jd_context,
     )
 
     # Remember this user's parsed profile/skills so the app can recall their inputs
