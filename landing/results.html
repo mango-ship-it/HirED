@@ -517,10 +517,10 @@
       if(ann.start > cursor) parts.push(esc(text.slice(cursor, ann.start)));
       const snippet = text.slice(ann.start, ann.end);
       const s = ann.sentiment || 'neutral';
-      const bg  = s === 'positive' ? 'rgba(34,197,94,.18)'  : s === 'negative' ? 'rgba(229,72,77,.18)'  : 'rgba(245,158,11,.18)';
-      const col = s === 'positive' ? '#16a34a'               : s === 'negative' ? '#dc2626'               : '#d97706';
+      const bg  = s === 'positive' ? 'rgba(34,197,94,.32)'  : s === 'negative' ? 'rgba(229,72,77,.32)'  : 'rgba(245,158,11,.32)';
+      const col = s === 'positive' ? '#14532d'               : s === 'negative' ? '#991b1b'               : '#92400e';
       const tip = ann.reason ? ` title="${ann.reason.replace(/"/g,'&quot;')}"` : '';
-      parts.push(`<mark style="background:${bg};color:${col};border-radius:3px;padding:0 2px;font-weight:600;font-style:normal;cursor:help;"${tip}>${esc(snippet)}</mark>`);
+      parts.push(`<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${tip}>${esc(snippet)}</mark>`);
       cursor = ann.end;
     }
     if(cursor < text.length) parts.push(esc(text.slice(cursor)));
