@@ -12,6 +12,15 @@ The score + roadmap result module is internally branded **NextStep** — this is
 
 **Brand voice:** reliable and kind. Every surface — loading copy, report language, error states — should read like a coach who's on the user's side, not a cold grading system. Avoid clinical/judgmental phrasing ("you failed to…") in favor of constructive framing ("here's what's missing, and how to close it").
 
+<!-- NEW: Design principle -->
+
+**Design principle — endpoints are designed around the frontend story.** When adding or changing any backend endpoint, write the one-sentence frontend story first ("the FE will use this to show X to the user"), and let that drive the response shape. Three rules that fall out of this:
+
+1. **Start every new endpoint spec with a one-line FE story.** If you can't write it, the endpoint isn't ready to design.
+2. **Don't discard intermediate artifacts the FE might want.** If the backend computes something on the way to the headline number (e.g. 2AFC matches → ELO → percentile), surface those intermediates in the response unless there's a concrete reason to hide them. Adding them later forces a contract change; including them now is free.
+3. **Wire shape and contract move together.** API_CONTRACT.md is updated in the same PR as the code change. Backend-merged + contract-lagging = always-out-of-sync.
+4. **For multi-stage long-running operations (the analyzing phase in §5.2), the FE's progressive UI must walk through the same stages, in the same order, as the backend executes them.** A status feed that shows "scraping JDs… generating competitors… comparing 3/8…" only earns user trust when those labels match what the backend is doing *right now*. The backend exposes its real stage transitions (Redis status keys, SSE events, etc.); the FE labels reflect them. Don't fake progress — if the backend doesn't yet emit a stage, the UI doesn't claim to show that stage.
+
 ---
 
 ## 0. Decisions locked (2026-06-20)
