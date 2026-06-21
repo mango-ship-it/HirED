@@ -97,19 +97,27 @@ def _scholarships_query(role: str) -> str:
 _COURSE_DOMAINS = ["coursera.org", "edx.org", "udemy.com", "khanacademy.org", "classcentral.com", "youtube.com"]
 
 
+def _concise(text: str, limit: int = 180) -> str:
+    """Collapse whitespace and truncate at a word boundary (with an ellipsis) — never mid-word."""
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(".,;:") + "…"
+
+
 async def _search(
     query: str, *, card_type: str, why: str, include_domains: list[str] | None = None,
-    num_results: int = _NUM_RESULTS, category: str | None = None, highlights: bool = False,
+    num_results: int = _NUM_RESULTS, category: str | None = None, summary_query: str | None = None,
 ) -> list[dict]:
     """One cached, cost-capped Exa search -> resource cards. [] on no-key/cap/failure.
 
-    highlights=True pulls a 1-sentence CONTENT snippet per result (small extra cost) so the
-    cards + Redis embeddings carry real, role-specific content — not generic boilerplate.
+    summary_query enables a SHORT, role-aware AI summary per result (a concise "what it is +
+    why it helps") used as the card description + the Redis embedding — small extra cost.
     """
     if not has_exa():
         return []
     digest = hashlib.sha1(
-        f"{query}|{include_domains}|{num_results}|{category}|{highlights}".encode()
+        f"{query}|{include_domains}|{num_results}|{category}|{bool(summary_query)}".encode()
     ).hexdigest()[:16]
     cache_key = f"exa:{digest}"
     try:
@@ -123,7 +131,7 @@ async def _search(
         return []
     try:
         _calls["count"] += 1
-        contents = {"highlights": {"num_sentences": 1, "query": query}} if highlights else False
+        contents = {"summary": {"query": summary_query}} if summary_query else False
         resp = await _get_client().search(
             query, type="auto", num_results=num_results,
             include_domains=include_domains, category=category, contents=contents,
@@ -136,11 +144,10 @@ async def _search(
         url = getattr(r, "url", None)
         if not url:
             continue
-        hl = getattr(r, "highlights", None)
-        snippet = (hl[0] if hl else "") or ""
+        summary = (getattr(r, "summary", None) or "").strip()
         cards.append({
             "title": getattr(r, "title", None) or url, "url": url,
-            "type": card_type, "why": why, "snippet": snippet.strip(),
+            "type": card_type, "why": why, "snippet": _concise(summary),  # concise "what + why"
         })
     try:
         await get_store().set_json(cache_key, cards, ttl=_CACHE_TTL)
@@ -193,8 +200,13 @@ async def resources_for_gap(gap_category: str, role: str) -> list[dict]:
     template = _GAP_QUERY.get(gap_category, "free resources and courses to become a {role}")
     query = template.format(role=role or "this role")
     gap_phrase = gap_category.replace("_", " ")
+    summary_q = (
+        f"In one brief sentence of about 15 words, plainly say what this resource is and why "
+        f"it helps someone become a {role or 'this role'}."
+    )
     return await _search(
-        query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}", highlights=True
+        query, card_type="resource", why=f"Free help with {gap_phrase} for a {role}",
+        summary_query=summary_q,
     )
 
 
