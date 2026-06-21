@@ -32,7 +32,8 @@ from uagents import Agent, Context  # noqa: E402
 
 from agents.messages import BenchmarkRequest, BenchmarkResponse  # noqa: E402
 from app.config import get_settings  # noqa: E402
-from app.services.elo import run_tournament, win_rate_to_percentile  # noqa: E402
+from app.services.elo import elo_update, rating_to_percentile  # noqa: E402
+from app.services.resume_synthesizer import synthesize_cohort  # noqa: E402
 from app.services.twoafc_judge import judge_pair  # noqa: E402
 
 logger = logging.getLogger("hired.benchmark_agent")
@@ -88,6 +89,10 @@ _FALLBACK_JD = (
 )
 
 
+# Timeout in seconds for the cohort synthesis step.
+_SYNTHESIS_TIMEOUT: float = 60.0
+
+
 def _load_jd(target: str) -> str:
     """Return the most relevant JD text available for `target`.
 
@@ -122,27 +127,40 @@ def _load_jd(target: str) -> str:
 
 
 async def _run_2afc_pipeline(user_resume_proxy: str, target: str) -> tuple[int, int]:
-    """Run 2AFC vs. seeded competitors; return (percentile, n_competitors).
+    """Run 2AFC vs. a JD-synthesized cohort; return (percentile, n_competitors).
 
-    user_resume_proxy is synthesized from the score + target because the uAgent
-    message only carries the numeric score and target string. For the hackathon
-    this is fine — the judge still sees a realistic profile vs. real competitors.
+    Synthesis and judging both run in parallel. Falls back to _SEED_COMPETITORS
+    if synthesis times out or raises.
     """
     jd = _load_jd(target)
-    competitors = _SEED_COMPETITORS
 
-    winners: list[str] = []
-    for competitor in competitors:
-        winner = await judge_pair(
-            resume_a=user_resume_proxy,
-            resume_b=competitor,
-            jd=jd,
+    try:
+        competitors = await asyncio.wait_for(
+            synthesize_cohort(jd, target),
+            timeout=_SYNTHESIS_TIMEOUT,
         )
-        winners.append(winner)
+    except (asyncio.TimeoutError, Exception) as exc:
+        logger.warning("Cohort synthesis failed (%s); falling back to seed competitors", exc)
+        competitors = _SEED_COMPETITORS
 
-    wins = sum(1 for w in winners if w == "A")
-    percentile = win_rate_to_percentile(wins, len(winners))
-    return percentile, len(winners)
+    judge_tasks = [
+        judge_pair(resume_a=user_resume_proxy, resume_b=comp, jd=jd)
+        for comp in competitors
+    ]
+    winners: list[str] = list(
+        await asyncio.wait_for(asyncio.gather(*judge_tasks), timeout=90.0)
+    )
+
+    # ELO: user starts at 1000; each competitor also starts at 1000 (no prior history).
+    user_rating = 1000.0
+    competitor_ratings: list[float] = []
+    for winner in winners:
+        comp_rating = 1000.0
+        user_rating, final_comp = elo_update(user_rating, comp_rating, winner)
+        competitor_ratings.append(final_comp)
+
+    percentile = rating_to_percentile(user_rating, competitor_ratings)
+    return percentile, len(competitors)
 
 
 agent = Agent(
