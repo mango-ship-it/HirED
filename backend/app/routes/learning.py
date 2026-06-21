@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.errors import ErrorCode, error_response
-from app.services.exa_search import exa_resources_by_skill, full_roadmap, has_exa
+from app.services.exa_search import exa_resources_by_skill, full_roadmap, has_exa, to_steps
 from app.services.jd_skills import top_skills_from_jobs
 from app.services.jobs import load_jobs
 from app.services.leetcode_company import detect_company, fetch_company_problems
@@ -99,9 +99,11 @@ async def roadmap(body: dict):
         return {
             "exa": False,
             "role": target,
+            "steps": [],
             "note": "Exa not configured (set EXA_API_KEY) — use /learning-plan for the search-link roadmap.",
         }
     data["exa"] = True
+    data["steps"] = to_steps(data)  # ordered, reveal-friendly "unlock as you go" list
     return data
 
 

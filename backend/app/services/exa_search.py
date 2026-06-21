@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import re
 from datetime import datetime, timezone
 
 from app.config import get_settings
@@ -209,3 +210,39 @@ async def full_roadmap(role: str, skills: list[str], location: str, *, max_skill
         "certifications": certs_r,
         "scholarships": schol_r,
     }
+
+
+_STEP_TITLES = [
+    ("certifications", "Earn a certification"),
+    ("events", "Attend an event"),
+    ("people", "Connect with people"),
+    ("networking", "Join a community"),
+    ("scholarships", "Fund your learning"),
+]
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-") or "step"
+
+
+def to_steps(data: dict) -> list[dict]:
+    """Flatten the category-grouped roadmap into an ORDERED, reveal-friendly step list.
+
+    Skills become the first learning steps (courses + practice merged), then the role
+    milestones (certifications, events, people, community, scholarships). Each step gets
+    an `order`, a stable `id`, and a `locked` flag (everything after step 1 starts locked)
+    so the frontend can render an "unlock as you go" roadmap with zero extra logic.
+    """
+    steps: list[dict] = []
+    for skill, res in (data.get("skills") or {}).items():
+        resources = list(res.get("courses") or []) + list(res.get("practice") or [])
+        steps.append({"kind": "skill", "skill": skill, "title": f"Learn {skill}", "resources": resources})
+    for kind, title in _STEP_TITLES:
+        items = data.get(kind) or []
+        if items:
+            steps.append({"kind": kind, "title": title, "resources": items})
+    for i, step in enumerate(steps):
+        step["order"] = i + 1
+        step["id"] = f"{step['kind']}-{_slug(step.get('skill') or step['kind'])}-{i + 1}"
+        step["locked"] = i > 0  # first step open; the rest unlock as the user progresses
+    return steps

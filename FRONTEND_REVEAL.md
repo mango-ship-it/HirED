@@ -139,4 +139,54 @@ const lc = await fetch(`${BASE}/leetcode/google?period=thirty-days&limit=15`).th
 5. **Benchmark percentile** when ready (`/benchmark`)
 
 ## Health check
-`GET /health` → confirm `"store":"redis"` and `"vector_index":"ready"` before demoing.
+`GET /health` → confirm `"store":"redis"`, `"vector_index":"ready"`, `"exa_configured":true` before demoing.
+
+---
+
+# NEW — the rich roadmap + intelligence (Exa + Deepgram)
+
+## 7. `POST /roadmap` — the "unlock as you go" roadmap (Exa)
+`{target, location, skills?}` (or `user_id`). Returns category data **and** a pre-ordered
+`steps` array built for progressive reveal — you just render `steps` and flip `locked`:
+```jsonc
+{
+  "exa": true, "role": "Bus Driver",
+  "steps": [
+    { "order": 1, "id": "skill-cdl-1", "kind": "skill", "skill": "CDL",
+      "title": "Learn CDL", "locked": false,            // step 1 starts open
+      "resources": [ { "title","url","type":"course","why" }, … ] },
+    { "order": 2, "id": "certifications-2", "kind": "certifications",
+      "title": "Earn a certification", "locked": true,  // unlock as the user finishes step 1
+      "resources": [ … ] },
+    // …events, people, community, scholarships — each a step with resources
+  ],
+  // also available un-flattened if you prefer to group your own way:
+  "skills": { "CDL": { "courses":[…], "practice":[…] } },
+  "events": […], "networking": […], "people": […], "certifications": […], "scholarships": […]
+}
+```
+UI: render `steps` as a vertical path; show step 1 open, the rest with a 🔒; flip `locked`
+in your own state as the user marks a step done. `kind` drives the icon
+(skill/certifications/events/people/networking/scholarships). `people` = real LinkedIn
+profiles to connect with. Every resource is `{title, url, type, why}`.
+
+## 8. `POST /intelligence` — Deepgram signals for visuals
+`{text}` (resume + JD + roadmap summary) or `{user_id}`. Returns
+`{summary, topics:[…], intents:[…], sentiment:{label,score}, configured}` — feed `topics`
+into a tag cloud / radar, `sentiment` into a mood meter, `summary` into the header or TTS.
+`{"configured": false}` means the Deepgram key isn't set (degrade gracefully).
+
+## Voice + video
+- **TTS:** `POST /narrate {text}` → `{audio_url}` (play in `<audio>`). Use it to narrate the
+  `summary` from `/intelligence` or the job description.
+- **Pika video — generated on the BACKEND, you just play the URL.** Same rule as every other
+  key: Pika's key stays server-side. You'll get a video URL (or a job id to poll); never call
+  Pika directly from the browser. (Endpoint coming — ask Kaden.)
+- **Voice agent (chat about their data):** runs as a Deepgram Voice Agent WebSocket in the
+  browser; the backend will hand you a config + token with the user's resume/Exa/JD injected
+  as context. Interruption/barge-in is native. (Endpoint coming.)
+
+## One fix on your side
+`landing/index.html` uses `sessionStorage` for `hired_uid` — that resets when the tab closes,
+so "remember me" won't persist across sessions. Switch to `localStorage.getItem/setItem`
+(same code, just `localStorage`) and per-user memory works across visits.
