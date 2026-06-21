@@ -12,9 +12,11 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import get_settings
+from app.errors import ErrorCode, error_response
 from app.models.schemas import NarrateRequest, NarrateResponse, TranscribeResponse
 from app.services.deepgram_service import get_deepgram_service
 from app.services.store import load_profile
+from app.services.voice_memory import append_turn, get_turns, summarize_for_prompt
 
 logger = logging.getLogger("hired.routes.voice")
 
@@ -109,14 +111,15 @@ async def intelligence(body: dict):
 _AGENT_VOICE = "aura-2-asteria-en"
 
 
-def _agent_prompt(record: dict | None) -> str:
+def _agent_prompt(record: dict | None, memory_recap: str = "") -> str:
     # Treat a profile with no usable score like no record at all — otherwise the coach
     # would claim "Readiness score: None/100" with em-dash skills for a score-less profile.
+    memory_block = f"\n\n{memory_recap}" if memory_recap else ""
     if not record or record.get("score") is None:
         return (
             "You are HirED's warm, encouraging career coach. Help the user understand their "
             "job readiness and how to close their gaps with free resources. Keep answers "
-            "short and conversational for voice."
+            "short and conversational for voice." + memory_block
         )
     target = (record.get("target") or {}).get("value") or "their target role"
     return (
@@ -127,12 +130,17 @@ def _agent_prompt(record: dict | None) -> str:
         f"- Skills they have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
         f"- Skills they're missing: {', '.join(record.get('missing_skills') or []) or '—'}\n"
         "Help them understand the score, prioritize the gaps that matter most, and suggest "
-        "concrete free next steps. Be concise, jargon-free, and never shaming."
+        "concrete free next steps. Be concise, jargon-free, and never shaming." + memory_block
     )
 
 
-def _agent_greeting(record: dict | None) -> str:
+def _agent_greeting(record: dict | None, *, returning: bool = False) -> str:
     target = (record.get("target") or {}).get("value") if record else None
+    if returning and target:
+        return (
+            f"Welcome back! I remember we were working on your path to {target}. How did it go — "
+            "and what would you like to pick up on today?"
+        )
     if target:
         return (
             f"Hi! I'm your HirED coach. I see you're aiming for {target} — ask me anything "
@@ -168,9 +176,13 @@ async def voice_agent_config(body: dict):
     """
     if not get_settings().deepgram_api_key:
         return {"configured": False, "note": "DEEPGRAM_API_KEY not set — voice agent disabled."}
-    record = await load_profile(body["user_id"]) if body.get("user_id") else None
-    prompt = _agent_prompt(record)
-    greeting = _agent_greeting(record)
+    user_id = body.get("user_id") or ""
+    record = await load_profile(user_id) if user_id else None
+    # Agent memory: fold the user's recent conversation into the prompt so the coach
+    # remembers across sessions ("last time you asked about CDL — did you start that course?").
+    turns = await get_turns(user_id) if user_id else []
+    prompt = _agent_prompt(record, summarize_for_prompt(turns))
+    greeting = _agent_greeting(record, returning=bool(turns))
     try:
         token = await get_deepgram_service().grant_token(ttl_seconds=120)
     except Exception as exc:
@@ -182,4 +194,27 @@ async def voice_agent_config(body: dict):
         "token": token,
         "greeting": greeting,
         "settings": _agent_settings(prompt, greeting),
+        "remembered_turns": len(turns),
     }
+
+
+@router.post("/voice-agent/memory")
+async def voice_agent_memory_append(body: dict):
+    """Persist one conversation turn so the coach remembers it next session (agent memory).
+
+    The frontend captures each Deepgram Voice Agent turn (ConversationText events) and POSTs
+    `{user_id, role: "user"|"assistant", content}` here. Stored in Redis per user.
+    """
+    user_id = (body.get("user_id") or "").strip()
+    content = (body.get("content") or "").strip()
+    if not user_id or not content:
+        return error_response("`user_id` and `content` are required.", ErrorCode.INVALID_INPUT, 400)
+    count = await append_turn(user_id, body.get("role") or "user", content)
+    return {"user_id": user_id, "saved": True, "turns": count}
+
+
+@router.get("/voice-agent/memory/{user_id}")
+async def voice_agent_memory_get(user_id: str):
+    """The user's remembered conversation turns (oldest first) — for showing history."""
+    turns = await get_turns(user_id)
+    return {"user_id": user_id, "turns": turns, "count": len(turns)}

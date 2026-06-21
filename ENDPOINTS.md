@@ -114,9 +114,15 @@ Body `{ "user_id":"…" }` →
 ```jsonc
 { "configured": true, "ws_url": "wss://agent.deepgram.com/v1/agent/converse",
   "token": "…",            // short-lived; open the Deepgram Voice Agent WS with this
-  "greeting": "Hi! I see you're aiming for Bus Driver…",
-  "settings": { … } }       // send verbatim to Deepgram; system prompt already has the user's data
+  "greeting": "Welcome back! I remember we were working on Bus Driver…",  // "welcome back" if remembered_turns>0
+  "settings": { … },        // send verbatim to Deepgram; system prompt has the user's data + recent convo
+  "remembered_turns": 4 }   // how many prior turns were folded into the prompt
 ```
+**Agent memory (persists across sessions):** forward each Voice Agent turn to the backend so the coach remembers next time. Capture Deepgram `ConversationText` events and:
+- `POST /voice-agent/memory` `{ user_id, role:"user"|"assistant", content }` → `{ saved:true, turns:N }`
+- `GET /voice-agent/memory/{user_id}` → `{ turns:[{role,content}], count }` (to show history)
+
+The next `/voice-agent/config` automatically folds the recent turns into the system prompt, so the coach can say *"last time you said you'd sign up for the CDL course — how did it go?"*
 
 ### `POST /video`  — Pika "your journey" video (async)
 Body `{ "user_id":"…" }` (or `{role}`/`{prompt}`) → `{ "prompt_hash":"…", "status":"generating" }`.
