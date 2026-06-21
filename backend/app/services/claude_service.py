@@ -137,7 +137,9 @@ class ClaudeService:
         Deterministically picks the lowest-scoring categories so the lessons always
         target the gaps that matter, then lets Claude write the teaching copy.
         """
-        weakest = sorted(categories.items(), key=lambda kv: kv[1])[:3]
+        from app.scoring import select_gaps
+
+        weakest = select_gaps(categories)  # genuine gaps only -> a better resume shows fewer
         focus = ", ".join(f"{name} ({value}/100)" for name, value in weakest)
 
         market_block = f"\n{jd_context}\n" if jd_context else ""

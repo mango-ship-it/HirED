@@ -129,8 +129,10 @@ _LESSON_TEMPLATES: dict[str, dict[str, str]] = {
 
 
 def heuristic_lessons(category_scores: dict[str, int]) -> list[Lesson]:
-    """Templated lessons for the up-to-3 lowest-scoring categories."""
-    weakest = sorted(category_scores.items(), key=lambda kv: kv[1])[:3]
+    """Templated lessons for the genuine gaps (a stronger resume yields fewer)."""
+    from app.scoring import select_gaps
+
+    weakest = select_gaps(category_scores)
     return [
         Lesson(**_LESSON_TEMPLATES[key])
         for key, _ in weakest

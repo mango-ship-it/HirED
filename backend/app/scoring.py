@@ -32,6 +32,21 @@ CATEGORY_LABELS: dict[str, str] = {
     "clarity": "Clarity & Communication",
 }
 
+# A category counts as a "gap" worth coaching only below this score. A stronger resume has
+# fewer categories below it, so it shows fewer gaps (e.g. 2 instead of 3).
+GAP_THRESHOLD = 70
+
+
+def select_gaps(
+    category_scores: dict[str, int], *, threshold: int = GAP_THRESHOLD, max_gaps: int = 3
+) -> list[tuple[str, int]]:
+    """The genuine gaps to coach: categories below `threshold`, weakest first, capped at
+    `max_gaps`. A better resume -> fewer weak categories -> fewer gaps. Always returns at
+    least the single weakest, so there's always one concrete next step."""
+    ranked = sorted(category_scores.items(), key=lambda kv: kv[1])
+    gaps = [(name, score) for name, score in ranked if score < threshold][:max_gaps]
+    return gaps or ranked[:1]
+
 # Simple, documented proxies for normalizing raw signals to 0..1.
 TARGET_QUANTIFIED_BULLETS = 5  # >= 5 quantified bullets earns full marks
 TARGET_RELEVANT_YEARS = 5.0  # >= 5 relevant years earns full marks
