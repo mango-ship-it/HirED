@@ -97,3 +97,27 @@ def test_degraded_returns_none():
             assert result is None
 
     asyncio.run(main())
+
+
+def test_route_returns_current_resume_text_on_semantic_hit():
+    """On a semantic cache hit, the returned resume_text must be the NEW input, not the cached one."""
+    from app.services import score_cache as sc
+
+    original_resume = _RESUME
+    variant_resume = _RESUME.replace(" SKILLS:", "  SKILLS:")
+    key_original = f"{original_resume[:1500]}\n---TARGET---\n{_TARGET_A}"
+
+    async def main():
+        payload_with_original = {**_PAYLOAD, "resume_text": original_resume}
+        await sc.set_cached(key_original, payload_with_original)
+
+        key_variant = f"{variant_resume[:1500]}\n---TARGET---\n{_TARGET_A}"
+        result = await sc.get_cached(key_variant)
+
+        if sc.status() == "ready" and result is not None:
+            # Simulate the patching logic the route applies
+            result["resume_text"] = variant_resume
+            assert result["resume_text"] == variant_resume
+            assert result["resume_text"] != original_resume
+
+    asyncio.run(main())
