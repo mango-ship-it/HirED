@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
 <style>
   :root{
     --ink:#0E2A47;
@@ -358,13 +359,22 @@
     });
   }
 
-  // ---- roadmap section ----
+  // ---- roadmap section — built from the same lessons/gaps the API returns ----
+  const CAT_ICONS = {
+    skills_match: 'ti-tool',
+    quantified_achievements: 'ti-chart-bar',
+    experience: 'ti-briefcase',
+    education: 'ti-school',
+    clarity: 'ti-align-left'
+  };
+  const rmIconFor = cat => CAT_ICONS[cat] || 'ti-arrow-right';
+
   sections.push({
     label: 'Your roadmap',
     render(){
-      const steps = data.gaps && data.gaps.length ? data.gaps.map((g, i) => {
-        const icons = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
-        const icon = icons[i] || 'ti-arrow-right';
+      const steps = lessons.length ? lessons.map((l, i) => {
+        const catLabel = CAT_LABELS[l.category] || l.category || 'Gap';
+        const icon = rmIconFor(l.category);
         return `
           <div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
             <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
@@ -373,13 +383,13 @@
             <div class="rm-card" onclick="rmToggle(${i})">
               <div class="rm-glow"></div>
               <div class="rm-glow-done"></div>
-              <div class="rm-tag"><span class="rm-dot"></span><span>${g.category || 'Gap'}</span></div>
-              <div class="rm-title">${g.action || g.title || 'Next step'}</div>
-              <div class="rm-desc">${g.micro_step || g.description || ''}</div>
+              <div class="rm-tag"><span class="rm-dot"></span><span>${esc(catLabel)}</span></div>
+              <div class="rm-title">${esc(l.action || l.principle || 'Next step')}</div>
+              <div class="rm-desc">${esc(l.principle || l.example || '')}</div>
             </div>
           </div>`;
-      }) : [
-        `<div class="rm-step" id="rms0" style="transition-delay:0ms">
+      }).join('') : `
+        <div class="rm-step" id="rms0" style="transition-delay:0ms">
           <div class="rm-icon" onclick="rmToggle(0)"><i class="ti ti-pencil" aria-hidden="true"></i></div>
           <div class="rm-card" onclick="rmToggle(0)">
             <div class="rm-glow"></div><div class="rm-glow-done"></div>
@@ -387,8 +397,8 @@
             <div class="rm-title">Rewrite 1 bullet point</div>
             <div class="rm-desc">Change "responsible for X" to "delivered X by doing Y."</div>
           </div>
-        </div>`,
-        `<div class="rm-step" id="rms1" style="transition-delay:110ms">
+        </div>
+        <div class="rm-step" id="rms1" style="transition-delay:110ms">
           <div class="rm-icon" onclick="rmToggle(1)"><i class="ti ti-message" aria-hidden="true"></i></div>
           <div class="rm-card" onclick="rmToggle(1)">
             <div class="rm-glow"></div><div class="rm-glow-done"></div>
@@ -396,8 +406,8 @@
             <div class="rm-title">Answer 1 behavioral question</div>
             <div class="rm-desc">Use STAR format on a question common for your role.</div>
           </div>
-        </div>`,
-        `<div class="rm-step" id="rms2" style="transition-delay:220ms">
+        </div>
+        <div class="rm-step" id="rms2" style="transition-delay:220ms">
           <div class="rm-icon" onclick="rmToggle(2)"><i class="ti ti-send" aria-hidden="true"></i></div>
           <div class="rm-card" onclick="rmToggle(2)">
             <div class="rm-glow"></div><div class="rm-glow-done"></div>
@@ -405,16 +415,15 @@
             <div class="rm-title">Send 1 cold message</div>
             <div class="rm-desc">Find one alum or recruiter. Use a short template and send it.</div>
           </div>
-        </div>`
-      ];
-      const total = steps.length;
+        </div>`;
+      const total = lessons.length || 3;
       return `<div class="rsec">
         <h2 class="rsec-title">Your roadmap</h2>
-        <p class="rsec-sub">Small steps — personalized to your gaps. Click each one when done.</p>
+        <p class="rsec-sub">Personalized to your top ${total} gap${total !== 1 ? 's' : ''}. Click each step when done.</p>
         <div class="rm-progress-bar"><div class="rm-progress-fill" id="rmPbar" style="width:0%"></div></div>
         <div class="rm-steps" id="rmSteps" data-total="${total}">
           <div class="rm-connector"></div>
-          ${steps.join('')}
+          ${steps}
         </div>
         <p class="rm-hint">Click any step to mark it complete</p>
       </div>`;
@@ -433,10 +442,11 @@
     const icon = step.querySelector('.rm-icon');
     const card = step.querySelector('.rm-card');
     const done = window._rmDone || (window._rmDone = new Set());
-    const iconNames = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
+    const cat = lessons[i] ? lessons[i].category : null;
+    const origIcon = cat ? rmIconFor(cat) : ['ti-pencil','ti-message','ti-send'][i] || 'ti-arrow-right';
     if(done.has(i)){
       done.delete(i);
-      icon.innerHTML = `<i class="ti ${iconNames[i]||'ti-arrow-right'}" aria-hidden="true"></i>`;
+      icon.innerHTML = `<i class="ti ${origIcon}" aria-hidden="true"></i>`;
       icon.classList.remove('rm-done');
       card.classList.remove('rm-card-done');
     } else {
