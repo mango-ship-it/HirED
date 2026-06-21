@@ -37,6 +37,7 @@ from app.services.extractor import extract_profile, generate_lessons
 from app.services.jd_context import build_lesson_context
 from app.services.jd_skills import jd_enriched_skills
 from app.services.jobs import load_jobs
+from app.services.resume_guard import has_usable_resume
 from app.services.scoring_engine import get_scorer
 from app.services.store import get_store, save_profile
 
@@ -110,6 +111,18 @@ async def score(
     else:
         return error_response(
             "Provide a resume_file (.pdf/.docx) or resume_text.",
+            ErrorCode.INVALID_INPUT,
+            400,
+        )
+
+    # Content floor: a near-empty input (a stray page number, a lone ".", a one-word
+    # transcript, a scanned PDF that yielded a single glyph) must NOT be scored as a real
+    # resume — that produces a misleading low-but-non-zero number with empty highlights.
+    # Reject it honestly BEFORE the cache so a fake score is never cached or re-served.
+    if not has_usable_resume(resume):
+        return error_response(
+            "We couldn't find enough resume text to score. Paste your experience, skills, "
+            "and education, or upload a readable .pdf/.docx file.",
             ErrorCode.INVALID_INPUT,
             400,
         )
@@ -199,6 +212,7 @@ async def score(
                 "missing_skills": list(profile.missing_skills),
                 "profile": profile.model_dump(),
                 "resume_text": resume,
+                "has_resume": True,  # passed the content floor above
                 "annotations": [a.model_dump() for a in annotations],
                 "categories": {k: v.model_dump() for k, v in categories.items()},
                 "lessons": [lesson.model_dump() for lesson in lessons],
@@ -216,6 +230,7 @@ async def score(
         matched_skills=list(profile.matched_skills),
         missing_skills=list(profile.missing_skills),
         resume_text=resume,  # full text so the frontend can render + highlight against it
+        has_resume=True,  # /score only reaches here with a usable resume (floor above)
         annotations=annotations,
         status=ScoreStatus(scoring="complete", benchmark="pending", resources="pending"),
     )

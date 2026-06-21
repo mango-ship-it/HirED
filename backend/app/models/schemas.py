@@ -87,6 +87,10 @@ class ScoreResponse(BaseModel):
         default="",
         description="Full extracted resume text — the frontend renders it and matches annotations against it",
     )
+    has_resume: bool = Field(
+        default=False,
+        description="True when a real resume was scored — gate the side-by-side resume view on this",
+    )
     annotations: list[Annotation] = Field(
         default_factory=list,
         description="Verbatim resume excerpts the score references (breakdown-page highlighting)",

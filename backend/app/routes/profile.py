@@ -19,7 +19,17 @@ async def get_profile(user_id: str):
     record = await load_profile(user_id)
     if record is None:
         return error_response("No saved profile for this user.", ErrorCode.NOT_FOUND, 404)
-    return record
+    # Normalize the shape so OLD records (saved before resume_text/annotations existed,
+    # where the keys are absent — not "") look identical to new ones. The frontend always
+    # gets resume_text + an explicit has_resume to gate the side-by-side resume panel on,
+    # instead of inferring from a possibly-missing key. Immutable: build a new dict.
+    resume_text = record.get("resume_text") or ""
+    return {
+        **record,
+        "resume_text": resume_text,
+        "annotations": record.get("annotations") or [],
+        "has_resume": bool(resume_text.strip()),
+    }
 
 
 @router.post("/progress")

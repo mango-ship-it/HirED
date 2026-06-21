@@ -38,6 +38,7 @@ Multipart form:
   "matched_skills": ["…"],
   "missing_skills": ["…"],
   "resume_text": "<full extracted resume text>",   // page 2: render the resume beside the score
+  "has_resume": true,                               // gate the side-by-side resume panel on THIS
   "annotations": [                                  // highlight each quote inside resume_text
     { "quote": "Reduced processing time 30%", "category": "quantified_achievements",
       "sentiment": "positive", "reason": "Concrete metric showing measurable impact." }
@@ -48,6 +49,8 @@ Multipart form:
 > Same input always returns the same score (deterministic + cached). `annotations` is empty on the no-key heuristic path. To highlight: find each `quote` in `resume_text`, color by `sentiment` (positive/negative).
 >
 > **Don't ask the user to upload again to show their resume.** The resume comes back on this response as `resume_text` — cache it client-side (e.g. in your `hired_result`), **or** re-fetch the whole breakdown anytime via `GET /profile/{user_id}` (returns `resume_text` + `annotations` + `categories` + `lessons` + `score`).
+>
+> **No-resume case:** gate the side-by-side resume panel on **`has_resume`** (true here, but `GET /profile` returns `has_resume:false` + `resume_text:""` for users who haven't scored a real resume — including older saved profiles). If false, hide the panel. A near-empty / unreadable resume (a scanned image PDF, a stray `.`/page number) returns **400 `INVALID_INPUT`** rather than a fake low score — show "we couldn't read your resume, paste it or upload a readable file."
 
 ### `POST /resources`  — "free ways to close this gap" (pages 3–5)
 Body: `{ "gap_category": "education", "context": "Bus Driver", "user_id": "…" }`  — `context` is the **role string**; `gap_category` is one of the 5 category keys. **Send `user_id`** so each `description` is personalized to the user's own resume gaps (e.g. a CNA targeting RN gets why-it-helps about fast-track RN training), not a generic role blurb.
@@ -126,7 +129,7 @@ Then poll **`GET /video/{prompt_hash}`** → `{ "status":"ready", "video_url":"h
 | Method · Path | Body / params | Returns |
 |---|---|---|
 | `GET /health` | — | `{status, store, vector_index, claude_configured, deepgram_configured, exa_configured, fal_configured}` |
-| `GET /profile/{user_id}` | — | the user's last scored result — `{score, target, categories, lessons, matched_skills, missing_skills, resume_text, annotations}` (404 if unseen). **Use this to re-render the breakdown page without re-uploading the resume.** |
+| `GET /profile/{user_id}` | — | the user's last scored result — `{score, target, categories, lessons, matched_skills, missing_skills, resume_text, has_resume, annotations}` (404 if unseen; `has_resume` + `resume_text` always present, even for legacy records). **Use this to re-render the breakdown page without re-uploading the resume.** |
 | `POST /progress` | `{user_id, progress:{…}}` | `{user_id, saved:true}` — persists roadmap progress |
 | `GET /progress/{user_id}` | — | `{user_id, progress:{…}}` |
 | `POST /jobs/refresh` | `{target, location?}` | pulls real postings (slow, 10–30s) → caches them |

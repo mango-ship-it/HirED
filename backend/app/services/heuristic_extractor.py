@@ -54,7 +54,7 @@ def _education_level(resume_lower: str) -> str:
 def _clarity_proxy(resume: str) -> float:
     words = resume.split()
     if not words:
-        return 0.3
+        return 0.0  # no content -> no clarity signal; never fabricate a floor
     verbs = sum(1 for w in words if w.strip(".,;:").lower() in _ACTION_VERBS)
     density = verbs / max(len(words) / 30, 1)  # action verbs per ~30 words
     return max(0.2, min(1.0, 0.4 + 0.15 * density))

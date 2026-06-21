@@ -39,6 +39,7 @@ target: {
   "matched_skills": ["python", "sql"],
   "missing_skills": ["airflow", "dbt"],
   "resume_text": "<full extracted resume text — render it on the breakdown page; highlight annotations against it>",
+  "has_resume": true,
   "annotations": [
     {
       "quote": "Reduced processing time 30%",
@@ -57,7 +58,9 @@ target: {
 
 **`matched_skills` / `missing_skills`** _(additive — added by backend, frontend please confirm)_: the target skills the candidate already has vs. lacks. `missing_skills` is the data source for the **"what the top tier has that you don't"** chips on the readiness/benchmark view (the landing page currently hardcodes these).
 
-**`resume_text` + `annotations`** _(new — breakdown-page resume highlighting)_: `resume_text` is the **full extracted resume text** (render it beside the score). `annotations` are VERBATIM `quote`s from that text, each tagged with `category` (one of the 5 scoring keys), `sentiment` (`"positive"` strengthens / `"negative"` is a gap), and `reason`. To highlight: find each `quote` inside `resume_text` and mark it (e.g. green = positive, red = negative). `annotations` is empty on the heuristic path (no `ANTHROPIC_API_KEY`). Each `categories[*]` entry also carries an `explanation` string (why it scored that — for the breakdown bars).
+**`resume_text` + `has_resume` + `annotations`** _(new — breakdown-page resume highlighting)_: `resume_text` is the **full extracted resume text** (render it beside the score). **`has_resume`** is the explicit boolean to **gate the side-by-side resume panel on** — true here, but `GET /profile/{user_id}` returns `has_resume:false` + `resume_text:""` for users who never scored a real resume (including legacy profiles saved before this field existed). `annotations` are VERBATIM `quote`s from that text, each tagged with `category` (one of the 5 scoring keys), `sentiment` (`"positive"` strengthens / `"negative"` is a gap), and `reason`. To highlight: find each `quote` inside `resume_text` and mark it (e.g. green = positive, red = negative). `annotations` is empty on the heuristic path (no `ANTHROPIC_API_KEY`). Each `categories[*]` entry also carries an `explanation` string (why it scored that — for the breakdown bars).
+
+**No-resume / unreadable resume:** a near-empty or unreadable upload (a scanned image-only PDF, a stray `.` or page number, a one-word voice transcript) returns **400 `INVALID_INPUT`** — never a fake low score. The frontend should treat that 400 as "we couldn't read your resume" (offer paste / re-upload), and hide the side-by-side panel whenever `has_resume` is false.
 
 **Why `status` exists:** scoring now pulls data from multiple agents (Fetch.ai + scoring agent) running in parallel. Per decision on #6, a slow/failed agent does NOT fail the whole request — `/score` still returns what it has. Frontend reads `status` and conditionally renders the benchmark/resources sections instead of assuming they're always present. If `"pending"`, frontend can poll or just show a "still calculating" state for that section; if `"failed"`, hide that section gracefully rather than showing broken/empty data.
 

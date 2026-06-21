@@ -84,8 +84,13 @@ async def intelligence(body: dict):
         record = await load_profile(user_id)
         if record:
             text = _profile_text(record)
-    if not text:
-        raise HTTPException(status_code=400, detail="Provide `text` or a `user_id` with a scored profile.")
+    # Min-content floor: don't burn a paid Deepgram call on a stray glyph that would just
+    # come back empty-but-"configured" (frames nothing as a real analysis).
+    if len(text) < 15:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough text to analyze — provide a fuller `text` or a `user_id` with a scored profile.",
+        )
     if not get_settings().deepgram_api_key:
         return {"configured": False, "note": "DEEPGRAM_API_KEY not set — add it to enable text intelligence."}
     try:
@@ -105,7 +110,9 @@ _AGENT_VOICE = "aura-2-asteria-en"
 
 
 def _agent_prompt(record: dict | None) -> str:
-    if not record:
+    # Treat a profile with no usable score like no record at all — otherwise the coach
+    # would claim "Readiness score: None/100" with em-dash skills for a score-less profile.
+    if not record or record.get("score") is None:
         return (
             "You are HirED's warm, encouraging career coach. Help the user understand their "
             "job readiness and how to close their gaps with free resources. Keep answers "
