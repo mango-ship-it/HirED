@@ -529,13 +529,15 @@
       return parts.join('');
     }
 
-    // ---- path B: fallback — use matched_skills / missing_skills string match ----
-    const matched = Array.isArray(data.matched_skills) ? data.matched_skills : [];
-    const missing  = Array.isArray(data.missing_skills)  ? data.missing_skills  : [];
-    if(!matched.length && !missing.length) return `<span>${esc(text)}</span>`;
+    // ---- path B: fallback — matched / neutral / missing string match ----
+    const matched = Array.isArray(data.matched_skills)  ? data.matched_skills  : [];
+    const neutral = Array.isArray(data.neutral_skills)  ? data.neutral_skills  : [];
+    const missing  = Array.isArray(data.missing_skills) ? data.missing_skills  : [];
+    if(!matched.length && !neutral.length && !missing.length) return `<span>${esc(text)}</span>`;
 
     const terms = [
       ...matched.map(s => ({s, sentiment:'positive'})),
+      ...neutral.map(s  => ({s, sentiment:'neutral'})),
       ...missing.map(s  => ({s, sentiment:'negative'}))
     ].sort((a,b) => b.s.length - a.s.length);
 
@@ -543,8 +545,8 @@
     return text.split(re).map(part => {
       const hit = terms.find(t => t.s.toLowerCase() === part.toLowerCase());
       if(!hit) return esc(part);
-      const bg  = hit.sentiment === 'positive' ? 'rgba(34,197,94,.32)' : 'rgba(229,72,77,.32)';
-      const col = hit.sentiment === 'positive' ? '#14532d'              : '#991b1b';
+      const bg  = hit.sentiment === 'positive' ? 'rgba(34,197,94,.32)' : hit.sentiment === 'negative' ? 'rgba(229,72,77,.32)' : 'rgba(245,158,11,.32)';
+      const col = hit.sentiment === 'positive' ? '#14532d'              : hit.sentiment === 'negative' ? '#991b1b'              : '#92400e';
       return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;">${esc(part)}</mark>`;
     }).join('');
   }
