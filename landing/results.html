@@ -458,31 +458,30 @@
 
   const resumeText = sessionStorage.getItem('hired_resume') || localStorage.getItem('hired_resume') || (data && data.resume_text) || '';
 
-  // highlight matched/missing skills in the resume body
+  // highlight resume using exact char offsets from backend annotations
   function buildAnnotatedResume(text){
-    const matched = Array.isArray(data.matched_skills) ? data.matched_skills : [];
-    const missing  = Array.isArray(data.missing_skills)  ? data.missing_skills  : [];
-    if(!matched.length && !missing.length) return `<span>${esc(text)}</span>`;
+    const annotations = Array.isArray(data.annotations) ? data.annotations : [];
+    const valid = annotations
+      .filter(a => typeof a.start === 'number' && a.start >= 0 && typeof a.end === 'number' && a.end > a.start)
+      .sort((a, b) => a.start - b.start);
 
-    // longest terms first so "machine learning" beats "learning"
-    const terms = [
-      ...matched.map(s => ({s, type:'match'})),
-      ...missing.map(s  => ({s, type:'miss'}))
-    ].sort((a,b) => b.s.length - a.s.length);
+    if(!valid.length) return `<span>${esc(text)}</span>`;
 
-    const re = new RegExp(
-      '(' + terms.map(t => t.s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + ')',
-      'gi'
-    );
-
-    return text.split(re).map(part => {
-      const hit = terms.find(t => t.s.toLowerCase() === part.toLowerCase());
-      if(!hit) return esc(part);
-      const isMatch = hit.type === 'match';
-      const bg  = isMatch ? 'rgba(34,197,94,.18)'  : 'rgba(229,72,77,.18)';
-      const col = isMatch ? '#16a34a' : '#dc2626';
-      return `<mark style="background:${bg};color:${col};border-radius:3px;padding:0 2px;font-weight:600;font-style:normal;">${esc(part)}</mark>`;
-    }).join('');
+    const parts = [];
+    let cursor = 0;
+    for(const ann of valid){
+      if(ann.start < cursor) continue; // skip overlapping
+      if(ann.start > cursor) parts.push(esc(text.slice(cursor, ann.start)));
+      const snippet = text.slice(ann.start, ann.end);
+      const s = ann.sentiment || 'neutral';
+      const bg  = s === 'positive' ? 'rgba(34,197,94,.18)'  : s === 'negative' ? 'rgba(229,72,77,.18)'  : 'rgba(245,158,11,.18)';
+      const col = s === 'positive' ? '#16a34a'               : s === 'negative' ? '#dc2626'               : '#d97706';
+      const tip = ann.reason ? ` title="${ann.reason.replace(/"/g,'&quot;')}"` : '';
+      parts.push(`<mark style="background:${bg};color:${col};border-radius:3px;padding:0 2px;font-weight:600;font-style:normal;cursor:help;"${tip}>${esc(snippet)}</mark>`);
+      cursor = ann.end;
+    }
+    if(cursor < text.length) parts.push(esc(text.slice(cursor)));
+    return parts.join('');
   }
 
   const root = document.getElementById('root');
@@ -585,9 +584,11 @@
         const resumeRight = resumeText
           ? `<div class="bd-resume-label">Your resume</div>
              <div class="bd-resume-legend">
-               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#16a34a"></span>Matched skill</span>
-               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#dc2626"></span>Missing skill</span>
+               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#16a34a"></span>Strength</span>
+               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#d97706"></span>Could be stronger</span>
+               <span class="bd-legend-chip"><span class="bd-chip-dot" style="background:#dc2626"></span>Gap</span>
              </div>
+             <p style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Hover a highlight to see why</p>
              <div class="bd-resume-body">${buildAnnotatedResume(resumeText)}</div>`
           : `<div class="bd-resume-empty">Paste your resume on the upload screen to see it highlighted here.</div>`;
 
