@@ -464,10 +464,6 @@
     .rpanel--wide{max-width:100%;height:auto;}
     .rpanel--wide .rpanel-inner{overflow:visible;}
     .rpanel--wide .rpanel-inner > .rsec{flex:none;}
-    .results-layout--bd{padding-left:0;padding-right:0;}
-    .rpanel--bd{height:auto;max-width:100%;}
-    .rpanel--bd .rpanel-inner{overflow:visible;}
-    .rpanel--bd .rpanel-inner > .rsec{flex:none;}
     .bd-split{flex-direction:column;overflow:visible;height:auto;}
     .bd-left{width:100%;overflow-y:visible;}
     .bd-right{min-height:200px;}
@@ -1023,10 +1019,8 @@
     inner.innerHTML = sections[i].render();
     if(sections[i].onShow) sections[i].onShow();
 
-    // widen the panel + shift the layout right to clear the fixed sidebar
-    const isBd = !!sections[i]._isBreakdown;
-    document.querySelector('.results-layout').classList.toggle('results-layout--bd', isBd);
-    document.querySelector('.rpanel').classList.toggle('rpanel--bd', isBd);
+    // widen the panel for the breakdown two-column step
+    document.querySelector('.rpanel').classList.toggle('rpanel--wide', !!sections[i]._isBreakdown);
 
     // tab states
     tabBtns.forEach((t, idx) => {
