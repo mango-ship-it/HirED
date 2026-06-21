@@ -99,3 +99,80 @@ async def intelligence(body: dict):
         raise HTTPException(status_code=502, detail=f"Text intelligence failed: {exc}")
     result["configured"] = True
     return result
+
+
+_AGENT_VOICE = "aura-2-asteria-en"
+
+
+def _agent_prompt(record: dict | None) -> str:
+    if not record:
+        return (
+            "You are HirED's warm, encouraging career coach. Help the user understand their "
+            "job readiness and how to close their gaps with free resources. Keep answers "
+            "short and conversational for voice."
+        )
+    target = (record.get("target") or {}).get("value") or "their target role"
+    return (
+        "You are HirED's warm, encouraging career coach talking with a job seeker by voice. "
+        "Use THEIR data to give specific, personal advice:\n"
+        f"- Target role: {target}\n"
+        f"- Readiness score: {record.get('score')}/100\n"
+        f"- Skills they have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
+        f"- Skills they're missing: {', '.join(record.get('missing_skills') or []) or '—'}\n"
+        "Help them understand the score, prioritize the gaps that matter most, and suggest "
+        "concrete free next steps. Be concise, jargon-free, and never shaming."
+    )
+
+
+def _agent_greeting(record: dict | None) -> str:
+    target = (record.get("target") or {}).get("value") if record else None
+    if target:
+        return (
+            f"Hi! I'm your HirED coach. I see you're aiming for {target} — ask me anything "
+            "about your score or how to close your gaps."
+        )
+    return "Hi! I'm your HirED coach. Ask me anything about your readiness and your next steps."
+
+
+def _agent_settings(prompt: str, greeting: str) -> dict:
+    return {
+        "type": "Settings",
+        "audio": {
+            "input": {"encoding": "linear16", "sample_rate": 16000},
+            "output": {"encoding": "linear16", "sample_rate": 24000, "container": "none"},
+        },
+        "agent": {
+            "language": "en",
+            "listen": {"provider": {"type": "deepgram", "model": "nova-3"}},
+            "think": {"provider": {"type": "open_ai", "model": "gpt-4o-mini"}, "prompt": prompt},
+            "speak": {"provider": {"type": "deepgram", "model": _AGENT_VOICE}},
+            "greeting": greeting,
+        },
+    }
+
+
+@router.post("/voice-agent/config")
+async def voice_agent_config(body: dict):
+    """Config for a Deepgram Voice Agent that chats about THIS user's results.
+
+    Returns a short-lived `token` (so the browser never holds the raw key) + a `settings`
+    object whose system prompt is injected with the user's target/score/gaps. The frontend
+    opens the Deepgram Voice Agent WebSocket (`ws_url`) with the token and sends `settings`.
+    """
+    if not get_settings().deepgram_api_key:
+        return {"configured": False, "note": "DEEPGRAM_API_KEY not set — voice agent disabled."}
+    record = await load_profile(body["user_id"]) if body.get("user_id") else None
+    prompt = _agent_prompt(record)
+    greeting = _agent_greeting(record)
+    try:
+        token = await get_deepgram_service().grant_token(ttl_seconds=120)
+    except Exception as exc:
+        logger.warning("deepgram token grant failed: %s", exc)
+        token = None
+    return {
+        "configured": True,
+        "ws_url": "wss://agent.deepgram.com/v1/agent/converse",
+        "token": token,
+        "greeting": greeting,
+        "settings": _agent_settings(prompt, greeting),
+    }

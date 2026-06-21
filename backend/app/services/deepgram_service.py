@@ -152,6 +152,16 @@ class DeepgramService:
 
         return await asyncio.to_thread(_transcribe)
 
+    async def grant_token(self, ttl_seconds: int = 120) -> str | None:
+        """Mint a short-lived Deepgram token so the browser never sees the raw API key."""
+
+        def _grant():
+            return self._client.auth.v1.tokens.grant(ttl_seconds=ttl_seconds)
+
+        resp = await asyncio.to_thread(_grant)
+        data = resp.model_dump() if hasattr(resp, "model_dump") else dict(resp)
+        return data.get("access_token") or data.get("token") or data.get("key")
+
 
 _service: DeepgramService | None = None
 
