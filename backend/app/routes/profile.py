@@ -6,11 +6,16 @@ show "we remember you" / pre-fill, and powers re-score from a known user.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter
 
 from app.errors import ErrorCode, error_response
+from app.services.exa_search import find_candidates, has_exa
 from app.services.profile_vectors import people_like_you
 from app.services.store import get_store, load_profile
+
+logger = logging.getLogger("hired.routes.profile")
 
 router = APIRouter()
 
@@ -50,8 +55,24 @@ async def get_people_like_you(user_id: str, k: int = 3):
         target, gaps, your_score=int(record.get("score") or 0), exclude_user_id=user_id, k=max(1, min(k, 5))
     )
     if result is None:
-        return {"count": 0, "peers": [], "insight": "", "available": False}
-    return {**result, "available": True}
+        return {"count": 0, "peers": [], "insight": "", "role_model": None, "available": False}
+
+    # Blend in ONE real professional (a "role model" who made it in this field) via Exa —
+    # the aspirational counterpart to the peer cohort. Best-effort; null if Exa is off/capped.
+    role_model = None
+    if has_exa() and target:
+        try:
+            pros = await find_candidates(target, limit=3)
+            if pros:
+                top = max(pros, key=lambda p: p.get("score", 0))
+                role_model = {
+                    "name": top["name"], "url": top["url"],
+                    "why": top.get("why_stronger", ""), "score": top.get("score", 0),
+                }
+        except Exception:
+            logger.exception("role-model lookup failed for %s", target)
+
+    return {**result, "role_model": role_model, "available": True}
 
 
 @router.post("/progress")

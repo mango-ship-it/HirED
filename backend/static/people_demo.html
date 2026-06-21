@@ -68,6 +68,17 @@
       <label style="margin-bottom:8px;">Focus next — gaps you share with people like you</label>
       <div class="ply-gaps" id="focusChips"></div>
     </div>
+    <div id="roleModel" style="display:none; margin:0 0 20px;">
+      <label style="margin-bottom:8px;">⭐ Someone who made it — a real professional in this field</label>
+      <div class="ply-peer" style="border:1px solid #fde68a; background:#fffbeb;">
+        <div class="ply-top">
+          <a id="rmLink" href="#" target="_blank" rel="noopener" class="ply-target" style="color:#1d4ed8; text-decoration:none;"></a>
+          <span class="ply-score" id="rmScore"></span>
+        </div>
+        <div class="ply-sim" id="rmWhy" style="color:#92400e; margin-top:6px; font-size:13px;"></div>
+      </div>
+    </div>
+
     <h2 class="ply-title">People like you</h2>
     <p class="ply-insight" id="insight"></p>
     <div class="ply-list" id="list"></div>
@@ -118,6 +129,14 @@ document.getElementById("go").onclick = async () => {
     document.getElementById("focus").style.display = focus.length ? "block" : "none";
     document.getElementById("focusChips").innerHTML = focus.map(g => `<span class="ply-chip">${esc(g)}</span>`).join("");
     document.getElementById("insight").textContent = data.insight || "";
+    const rm = data.role_model, rmEl = document.getElementById("roleModel");
+    if (rm && rm.name) {
+      const link = document.getElementById("rmLink");
+      link.textContent = rm.name; link.href = rm.url || "#";
+      document.getElementById("rmScore").textContent = (rm.score || 0) + "/100";
+      document.getElementById("rmWhy").textContent = rm.why || "";
+      rmEl.style.display = "block";
+    } else { rmEl.style.display = "none"; }
     document.getElementById("list").innerHTML = data.peers.map(p => `
       <div class="ply-peer">
         <div class="ply-top">
