@@ -110,6 +110,15 @@ async def intelligence(body: dict):
 
 _AGENT_VOICE = "aura-2-asteria-en"
 
+# Conversation discipline — the fix for "blabbers on load / too fast / talks over me".
+_VOICE_RULES = (
+    " HOW TO TALK (important): Open with ONLY your greeting, then STOP and wait — do NOT launch "
+    "into advice unprompted. Wait until the user has clearly FINISHED their question before you "
+    "answer; never talk over them. Keep every reply SHORT — one to three sentences — then stop and "
+    "let them speak. Never monologue or list more than two things at once. If a question is broad, "
+    "ask one quick clarifying question instead of a long answer. Speak warmly, plainly, and unhurried."
+)
+
 
 def _agent_prompt(record: dict | None, memory_recap: str = "") -> str:
     # Treat a profile with no usable score like no record at all — otherwise the coach
@@ -117,13 +126,18 @@ def _agent_prompt(record: dict | None, memory_recap: str = "") -> str:
     memory_block = f"\n\n{memory_recap}" if memory_recap else ""
     if not record or record.get("score") is None:
         return (
-            "You are HirED's warm, encouraging career coach. Help the user understand their "
-            "job readiness and how to close their gaps with free resources. Keep answers "
-            "short and conversational for voice." + memory_block
+            "You are HirED's warm, encouraging career coach. Help the user understand their job "
+            "readiness and how to close their gaps with free resources." + _VOICE_RULES + memory_block
         )
     target = (record.get("target") or {}).get("value") or "their target role"
     resume = (record.get("resume_text") or "").strip()[:1200]
     lessons = record.get("lessons") or []
+    cats = record.get("categories") or {}
+    breakdown = ", ".join(
+        f"{key.replace('_', ' ')} {val.get('score')}/100"
+        for key, val in cats.items()
+        if isinstance(val, dict) and val.get("score") is not None
+    )
     gaps = "\n".join(
         f"    - {(lesson.get('category') or '').replace('_', ' ')}: "
         f"{lesson.get('action') or lesson.get('principle') or ''}"
@@ -132,33 +146,28 @@ def _agent_prompt(record: dict | None, memory_recap: str = "") -> str:
     )
     return (
         "You are HirED's warm, encouraging career coach talking with a job seeker by voice. "
-        "You have READ THEIR RESUME and scored it — use these specifics so it's clear you know "
-        "them personally, and reference their actual experience by name:\n"
+        "You have READ THEIR RESUME and the results on their screen — use these specifics so it's "
+        "clear you know them personally, and reference their actual experience by name:\n"
         f"- Target role: {target}\n"
         f"- Readiness score: {record.get('score')}/100\n"
-        f"- Skills they already have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
+        + (f"- Score breakdown on their screen: {breakdown}\n" if breakdown else "")
+        + f"- Skills they already have: {', '.join(record.get('matched_skills') or []) or '—'}\n"
         f"- Skills they still need: {', '.join(record.get('missing_skills') or []) or '—'}\n"
         + (f'- Their resume, in their own words:\n"""\n{resume}\n"""\n' if resume else "")
         + (f"- The top gaps to coach them through:\n{gaps}\n" if gaps else "")
         + "Help them understand the score, prioritize the gap that matters most, and suggest one "
-        "concrete free next step at a time. Be concise, warm, jargon-free, and never shaming."
-        + memory_block
+        "concrete free next step at a time. Never shame them."
+        + _VOICE_RULES + memory_block
     )
 
 
 def _agent_greeting(record: dict | None, *, returning: bool = False) -> str:
     target = (record.get("target") or {}).get("value") if record else None
     if returning and target:
-        return (
-            f"Welcome back! I remember we were working on your path to {target}. How did it go — "
-            "and what would you like to pick up on today?"
-        )
+        return f"Welcome back! Want to pick up where we left off on {target}?"
     if target:
-        return (
-            f"Hi! I'm your HirED coach. I see you're aiming for {target} — ask me anything "
-            "about your score or how to close your gaps."
-        )
-    return "Hi! I'm your HirED coach. Ask me anything about your readiness and your next steps."
+        return f"Hi, I'm your HirED coach for {target}. What's on your mind?"
+    return "Hi, I'm your HirED coach. What would you like to work on?"
 
 
 def _agent_settings(prompt: str, greeting: str) -> dict:
@@ -170,9 +179,11 @@ def _agent_settings(prompt: str, greeting: str) -> dict:
         },
         "agent": {
             "language": "en",
-            "listen": {"provider": {"type": "deepgram", "model": "nova-3"}},
+            # endpointing: wait ~600ms of silence before the user's turn ends, so it lets them
+            # finish instead of talking over them. speed 0.9: slower, calmer TTS.
+            "listen": {"provider": {"type": "deepgram", "model": "nova-3", "endpointing": 600}},
             "think": {"provider": {"type": "open_ai", "model": "gpt-4o-mini"}, "prompt": prompt},
-            "speak": {"provider": {"type": "deepgram", "model": _AGENT_VOICE}},
+            "speak": {"provider": {"type": "deepgram", "model": _AGENT_VOICE, "speed": 0.9}},
             "greeting": greeting,
         },
     }
