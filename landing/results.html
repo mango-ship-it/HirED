@@ -228,7 +228,7 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- pull the data handed over by the landing page ----
-  const API_BASE = sessionStorage.getItem('hired_api') || 'https://grey-ribbon-presence-smith.trycloudflare.com';
+  const API_BASE = sessionStorage.getItem('hired_api') || 'https://optimum-write-entertainment-agenda.trycloudflare.com';
   let data, target;
   try { data = JSON.parse(sessionStorage.getItem('hired_result') || 'null'); } catch { data = null; }
   try { target = (JSON.parse(sessionStorage.getItem('hired_target') || 'null') || {}).value || 'your target'; } catch { target = 'your target'; }
