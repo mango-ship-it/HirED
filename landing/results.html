@@ -580,7 +580,7 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- pull the data handed over by the landing page ----
-  const API_BASE = sessionStorage.getItem('hired_api') || 'https://hired.onrender.com';
+  const API_BASE = sessionStorage.getItem('hired_api') || 'https://optimum-write-entertainment-agenda.trycloudflare.com';
   let data, target, targetObj;
   try { data = JSON.parse(sessionStorage.getItem('hired_result') || 'null'); } catch { data = null; }
   try {
@@ -1340,7 +1340,7 @@
 /* Floating Voice Coach — wrapped in an IIFE so its globals can't collide with the page. */
 (function(){
   /* Use the same backend + user id as the rest of the app so the coach knows the résumé. */
-  const HV_API = sessionStorage.getItem('hired_api') || 'https://hired.onrender.com';
+  const HV_API = sessionStorage.getItem('hired_api') || 'https://optimum-write-entertainment-agenda.trycloudflare.com';
   function hvUserId(){ let id=sessionStorage.getItem('hired_uid'); if(!id){ id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)); sessionStorage.setItem('hired_uid',id);} return id; }
 
   const AGENT_OUT = 24000, MIC_RATE = 16000;
