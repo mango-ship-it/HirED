@@ -1,0 +1,6 @@
+# OPTIONAL — semantic resource retrieval (RedisVL vector search on Redis Cloud +
+# free local embeddings). Kept out of core requirements.txt (onnxruntime is ~50MB
+# and the embedding model downloads ~67MB on first use).
+#   pip install -r requirements-vector.txt
+redisvl==0.20.1     # vector index + KNN query on Redis (needs redis-py <8; project pins 5.2.1)
+fastembed==0.8.0    # free LOCAL ONNX embeddings (BAAI/bge-small-en-v1.5, 384-dim) — no PyTorch

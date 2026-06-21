@@ -34,6 +34,7 @@ from app.services.fetch_bridge import (
     benchmark_agent_address,
     resource_agent_address,
 )
+from app.services.vector_resources import search as vector_search
 
 logger = logging.getLogger("hired.routes.agents")
 
@@ -95,7 +96,18 @@ async def benchmark(request: BenchmarkRequest) -> BenchmarkResponse:
 
 @router.post("/resources", response_model=ResourcesResponse)
 async def resources(request: ResourcesRequest) -> ResourcesResponse:
-    """Curated free resources for a gap, from the Fetch.ai resource uAgent."""
+    """Curated free resources for a gap — semantic vector search (Redis), else agent/static."""
+    # 1. Semantic vector search (RedisVL + fastembed on Redis Cloud) — "beyond caching".
+    query = f"{request.gap_category.replace('_', ' ')} {request.context.target_type}".strip()
+    hits = await vector_search(query)
+    if hits:
+        return ResourcesResponse(
+            resources=[
+                Resource(name=h["name"], url=h["url"], description=h["description"]) for h in hits
+            ]
+        )
+
+    # 2. Fall back to the Fetch.ai resource uAgent (then the static list).
     context_hint = (
         f"first_gen={request.context.first_gen}; target_type={request.context.target_type}"
     )

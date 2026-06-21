@@ -27,6 +27,7 @@ from app.routes import report as report_routes
 from app.routes import score as score_routes
 from app.routes import voice as voice_routes
 from app.services.store import get_store
+from app.services.vector_resources import status as vector_index_status
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,8 +36,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Open the per-user store (Redis if reachable, else in-memory) for the app's life."""
+    """Open the per-user store + kick off the semantic-resource index build (background)."""
     await get_store().connect()
+    from app.services.vector_resources import start_build_in_background
+
+    start_build_in_background()  # builds the RedisVL vector index without blocking startup
     yield
     await get_store().aclose()
 
@@ -108,4 +112,5 @@ async def health() -> dict[str, object]:
         "resource_agent_configured": bool(settings.resource_agent_address),
         "benchmark_agent_configured": bool(settings.benchmark_agent_address),
         "store": get_store().backend,
+        "vector_index": vector_index_status(),
     }
