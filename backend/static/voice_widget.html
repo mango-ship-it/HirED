@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HirED — Floating Voice Coach Widget (frontend reference)</title>
+<style>
+  :root { --accent:#5b8cff; --accent2:#8a6bff; --gold:#f5b54a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#0f172a;
+    background:#eef2fb; min-height:100vh; }
+  /* faux results page just so the widget has context */
+  .page { max-width:680px; margin:0 auto; padding:40px 20px; }
+  .page h1 { } .page h1 b { background:linear-gradient(transparent 60%,#fde68a 60%); }
+  .fake { background:#fff; border-radius:16px; padding:22px; box-shadow:0 1px 3px rgba(15,23,42,.08); margin-bottom:16px; color:#475569; }
+  .tip { font-size:13px; color:#64748b; }
+
+  /* ============ THE WIDGET — copy from here ============ */
+  #hv { position:fixed; right:24px; bottom:24px; z-index:9999; font-family:inherit; }
+  /* floating mic button */
+  #hv-fab { width:62px; height:62px; border:0; border-radius:50%; cursor:pointer; color:#fff; font-size:26px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 8px 26px rgba(91,140,255,.5);
+    display:grid; place-items:center; transition:transform .15s; }
+  #hv-fab:hover { transform:scale(1.07); }
+  #hv-fab::after { content:""; position:absolute; inset:0; border-radius:50%; box-shadow:0 0 0 0 rgba(91,140,255,.5);
+    animation:hv-pulse 2.2s infinite; }
+  @keyframes hv-pulse { 0%{box-shadow:0 0 0 0 rgba(91,140,255,.45);} 70%{box-shadow:0 0 0 16px rgba(91,140,255,0);} 100%{box-shadow:0 0 0 0 rgba(91,140,255,0);} }
+  /* the panel */
+  #hv-panel { position:absolute; right:0; bottom:74px; width:340px; max-width:88vw; background:#0b0f1d; color:#e8eefc;
+    border-radius:20px; box-shadow:0 20px 60px rgba(2,6,23,.5); overflow:hidden; transform-origin:bottom right;
+    animation:hv-in .18s ease-out; }
+  #hv-panel[hidden] { display:none; }
+  @keyframes hv-in { from{opacity:0; transform:translateY(10px) scale(.96);} to{opacity:1; transform:none;} }
+  .hv-head { display:flex; justify-content:space-between; align-items:center; padding:14px 16px 4px; }
+  .hv-head b { font-size:15px; } .hv-head small { color:#94a3b8; display:block; font-size:12px; font-weight:400; }
+  .hv-x { background:transparent; border:0; color:#94a3b8; font-size:18px; cursor:pointer; }
+  #hv-orb { width:100%; height:170px; display:block; }
+  .hv-state { text-align:center; font-size:14px; color:#c7d2f0; font-weight:600; min-height:20px; margin:-6px 0 8px; }
+  #hv-transcript { max-height:150px; overflow:auto; padding:0 14px; display:flex; flex-direction:column; gap:7px; }
+  .hv-turn { padding:8px 11px; border-radius:12px; font-size:14px; line-height:1.35; max-width:88%; }
+  .hv-user { align-self:flex-end; background:linear-gradient(135deg,var(--accent),#6d7bff); color:#fff; border-bottom-right-radius:3px; }
+  .hv-asst { align-self:flex-start; background:rgba(255,255,255,.08); border-bottom-left-radius:3px; }
+  .hv-controls { display:flex; gap:8px; padding:12px 14px 16px; }
+  .hv-controls button { flex:1; border:0; border-radius:12px; padding:11px; font-size:15px; font-weight:650; cursor:pointer; }
+  .hv-talk { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+  .hv-talk:disabled { opacity:.5; }
+  .hv-stop { flex:0 0 54px; background:rgba(248,113,113,.18); color:#f87171; }
+  /* ============ end widget styles ============ */
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Your <b>Readiness</b></h1>
+  <div class="fake">This is a stand-in for your results page. The floating coach lives bottom-right →</div>
+  <div class="fake">Readiness 72/100 · top gap: quantified achievements · 3 free resources queued…</div>
+  <p class="tip">📌 For the frontend team: the bottom-right mic is the widget. Click it, then “Talk”. Copy the <code>#hv …</code> markup + the &lt;script&gt; into your results page. Set <code>API_BASE</code>.</p>
+</div>
+
+<!-- ============ THE WIDGET MARKUP — copy this ============ -->
+<div id="hv">
+  <button id="hv-fab" aria-label="Talk to your AI coach">🎙️</button>
+  <div id="hv-panel" hidden>
+    <div class="hv-head">
+      <div><b>Your AI Coach</b><small id="hv-sub">knows your résumé · remembers you</small></div>
+      <button class="hv-x" id="hv-close" aria-label="Close">✕</button>
+    </div>
+    <canvas id="hv-orb" width="680" height="340"></canvas>
+    <div class="hv-state" id="hv-state">Tap “Talk”, then just speak</div>
+    <div id="hv-transcript"></div>
+    <div class="hv-controls">
+      <button class="hv-talk" id="hv-talk">🎙️ Talk</button>
+      <button class="hv-stop" id="hv-stop" disabled>■</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ====== CONFIG: set these two ====== */
+const API_BASE = "";                                  // "" = same origin; else your backend URL / tunnel
+function hvUserId(){ let id=localStorage.getItem('hired_user_id'); if(!id){ id=crypto.randomUUID(); localStorage.setItem('hired_user_id',id);} return id; }
+/* =================================== */
+
+const AGENT_OUT = 24000, MIC_RATE = 16000;
+const $ = (id) => document.getElementById(id);
+const setState = (t) => $("hv-state").textContent = t;
+function addTurn(role, text){ const t=$("hv-transcript"); const d=document.createElement("div");
+  d.className="hv-turn "+(role==="user"?"hv-user":"hv-asst"); d.textContent=text; t.appendChild(d); t.scrollTop=1e9; }
+
+let ws, audioCtx, micStream, micNode, playHead=0, running=false, micAn, outAn, dispAmp=0, speaking=false;
+
+/* open / close panel */
+$("hv-fab").onclick = () => { $("hv-panel").hidden = false; $("hv-fab").style.display="none"; };
+$("hv-close").onclick = () => { stopAgent(); $("hv-panel").hidden = true; $("hv-fab").style.display="grid"; };
+
+/* ---------- orb visualizer ---------- */
+const orb = $("hv-orb"), g2 = orb.getContext("2d");
+function level(an){ if(!an) return 0; an.getByteFrequencyData(an._b); let s=0; for(const v of an._b) s+=v; return (s/an._b.length)/255; }
+function fbin(an,f){ if(!an) return 0; return (an._b[Math.floor(f*an._b.length)]||0)/255; }
+function drawOrb(){
+  requestAnimationFrame(drawOrb);
+  const W=orb.width,H=orb.height,cx=W/2,cy=H/2; g2.clearRect(0,0,W,H);
+  const mA=running?level(micAn):0, oA=running?level(outAn):0; speaking=oA>mA+0.01;
+  const t=performance.now()/1000;
+  const target=running?Math.max(mA,oA,0.02):0.05+0.03*Math.sin(t*1.6); dispAmp+=(target-dispAmp)*0.14;
+  const an=speaking?outAn:micAn, c=speaking?[245,181,74]:[91,140,255];
+  const baseR=Math.min(W,H)*0.18, amp=baseR*(0.5+dispAmp*2.2);
+  const halo=g2.createRadialGradient(cx,cy,baseR*0.4,cx,cy,baseR+amp*1.6);
+  halo.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},0.28)`); halo.addColorStop(1,"rgba(0,0,0,0)");
+  g2.fillStyle=halo; g2.fillRect(0,0,W,H);
+  const N=96; g2.beginPath();
+  for(let i=0;i<=N;i++){ const a=(i/N)*Math.PI*2, f=fbin(an,(i%N)/N);
+    const w=Math.sin(a*3+t*1.4)*0.05+Math.sin(a*6-t*1.05)*0.035;
+    const r=baseR+amp*(0.35+f*1.05)+baseR*w, x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+    i===0?g2.moveTo(x,y):g2.lineTo(x,y); }
+  g2.closePath();
+  const fill=g2.createRadialGradient(cx,cy-amp*.2,baseR*0.25,cx,cy,baseR+amp);
+  fill.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},0.95)`); fill.addColorStop(0.6,`rgba(${c[0]},${c[1]},${c[2]},0.5)`); fill.addColorStop(1,`rgba(${c[0]},${c[1]},${c[2]},0.06)`);
+  g2.save(); g2.shadowColor=`rgb(${c[0]},${c[1]},${c[2]})`; g2.shadowBlur=45+dispAmp*90; g2.fillStyle=fill; g2.fill(); g2.restore();
+}
+drawOrb();
+
+/* ---------- live agent ---------- */
+$("hv-talk").onclick = startAgent;
+$("hv-stop").onclick = stopAgent;
+
+async function startAgent(){
+  $("hv-talk").disabled=true; setState("connecting…");
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume();   // unlock under the click
+  outAn = audioCtx.createAnalyser(); outAn.fftSize=256; outAn._b=new Uint8Array(outAn.frequencyBinCount); outAn.connect(audioCtx.destination);
+  let cfg;
+  try { cfg = await (await fetch(API_BASE+"/voice-agent/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:hvUserId()})})).json(); }
+  catch(e){ setState("connection error"); $("hv-talk").disabled=false; return; }
+  if(!cfg.configured){ setState("voice not enabled on backend"); $("hv-talk").disabled=false; return; }
+  if(cfg.remembered_turns) $("hv-sub").textContent = `remembering ${cfg.remembered_turns} past turns`;
+  try { micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); }
+  catch(e){ setState("microphone blocked"); $("hv-talk").disabled=false; return; }
+
+  ws = new WebSocket(cfg.ws_url, ["bearer", cfg.token]); ws.binaryType="arraybuffer";
+  ws.onclose = () => { if(running) stopAgent(); };
+  ws.onmessage = (ev) => {
+    if(typeof ev.data==="string"){
+      let m; try{ m=JSON.parse(ev.data); }catch{ return; }
+      if(m.type==="Welcome"){
+        ws.send(JSON.stringify(cfg.settings)); startMic(); running=true; $("hv-stop").disabled=false; setState("listening — go ahead");
+        if(cfg.greeting) addTurn("assistant", cfg.greeting);
+        setInterval(()=>{ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:"KeepAlive"})); },5000);
+      } else if(m.type==="ConversationText"){
+        addTurn(m.role, m.content);
+        fetch(API_BASE+"/voice-agent/memory",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:hvUserId(),role:m.role,content:m.content})}).catch(()=>{});
+      } else if(m.type==="UserStartedSpeaking"){ playHead=audioCtx.currentTime; setState("listening…"); }
+      else if(m.type==="AgentAudioDone"){ setState("your turn"); }
+    } else { playPCM(ev.data); }
+  };
+}
+function startMic(){
+  const src=audioCtx.createMediaStreamSource(micStream);
+  micAn=audioCtx.createAnalyser(); micAn.fftSize=256; micAn._b=new Uint8Array(micAn.frequencyBinCount); src.connect(micAn);
+  micNode=audioCtx.createScriptProcessor(4096,1,1); const ratio=audioCtx.sampleRate/MIC_RATE;
+  src.connect(micNode); micNode.connect(audioCtx.destination);
+  micNode.onaudioprocess=(e)=>{ if(!ws||ws.readyState!==1) return;
+    const inp=e.inputBuffer.getChannelData(0), n=Math.floor(inp.length/ratio), pcm=new Int16Array(n);
+    for(let i=0;i<n;i++){ const s=Math.max(-1,Math.min(1,inp[Math.floor(i*ratio)])); pcm[i]=s<0?s*0x8000:s*0x7fff; }
+    ws.send(pcm.buffer); };
+  playHead=audioCtx.currentTime;
+}
+function playPCM(buf){
+  if(!audioCtx) return; if(audioCtx.state==="suspended") audioCtx.resume();
+  const pcm=new Int16Array(buf), f=new Float32Array(pcm.length);
+  for(let i=0;i<pcm.length;i++) f[i]=pcm[i]/0x8000;
+  const ab=audioCtx.createBuffer(1,f.length,AGENT_OUT); ab.copyToChannel(f,0);
+  const node=audioCtx.createBufferSource(); node.buffer=ab; node.connect(outAn);
+  const now=audioCtx.currentTime; if(playHead<now) playHead=now; node.start(playHead); playHead+=ab.duration; setState("coach speaking…");
+}
+function stopAgent(){
+  running=false;
+  try{ ws&&ws.close(); }catch{} try{ micNode&&micNode.disconnect(); }catch{} try{ micStream&&micStream.getTracks().forEach(t=>t.stop()); }catch{}
+  $("hv-talk").disabled=false; $("hv-stop").disabled=true; setState("tap “Talk” to continue");
+}
+</script>
+</body>
+</html>
