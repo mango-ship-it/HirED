@@ -6,3 +6,6 @@ venv/
 static/audio/*.mp3
 .pytest_cache/
 *.egg-info/
+
+# Scraped JD data (produced by scripts/fetch_jds.py)
+app/data/jds_live.json

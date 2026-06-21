@@ -1,10 +1,14 @@
-"""Fetch.ai benchmark uAgent — peer percentile vs. people who landed the target.
+"""Fetch.ai benchmark uAgent — peer percentile via 2AFC + ELO.
 
 Runs as its own process, auto-registers on the Almanac, and answers one-shot
-external queries from FastAPI via uagents.query(). Computes a readiness percentile
-from a seeded distribution of scores of people who already secured the role/school
-(MASTER.md §6). The percentile is independent of the score formula — it makes the
-number relative and motivating, not abstract.
+external queries from FastAPI via uagents.query(). (MASTER.md §6)
+
+Pipeline (per query):
+  1. Load JD text from JD_DATA_PATH (produced by scripts/fetch_jds.py).
+     Falls back to a built-in seed JD if the file isn't present.
+  2. Generate synthetic competitor resumes (seeded set; LLM-generated = stretch).
+  3. Run 2AFC pairwise comparisons: user vs. each competitor via TokenRouter judge.
+  4. Aggregate winners into ELO ratings -> convert to a percentile.
 
 Run:  python agents/benchmark_agent.py
 On startup it prints its agent1q... address — copy into BENCHMARK_AGENT_ADDRESS
@@ -13,44 +17,150 @@ in backend/.env.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import sys
 import warnings
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# on_query is the correct decorator for the uagents.query() external-query bridge
-# that FastAPI uses (on_rest is a separate REST-handler model). It is marked
-# deprecated in 0.25.2 but still functional; silence the noisy warning.
 warnings.filterwarnings("ignore", message="on_query is deprecated.*")
 
 from uagents import Agent, Context  # noqa: E402
 
 from agents.messages import BenchmarkRequest, BenchmarkResponse  # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.services.elo import elo_update, rating_to_percentile  # noqa: E402
+from app.services.resume_synthesizer import synthesize_cohort  # noqa: E402
+from app.services.twoafc_judge import judge_pair  # noqa: E402
 
-# Seeded reference distribution: scores of people who landed comparable roles.
-# For the demo this is a fixed, plausible cohort; can be enriched live via Sai.
-# Sorted ascending so percentile is a simple rank lookup.
-_REFERENCE_COHORT: list[int] = sorted(
-    [
-        42, 48, 51, 55, 58, 60, 61, 63, 64, 66,
-        67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
-        77, 78, 79, 80, 81, 82, 83, 85, 88, 91,
-    ]
+logger = logging.getLogger("hired.benchmark_agent")
+
+# ---------------------------------------------------------------------------
+# Seeded competitor resumes — plausible profiles for common target roles.
+# Replace or augment with LLM-generated competitors in Phase 4.
+# ---------------------------------------------------------------------------
+_SEED_COMPETITORS: list[str] = [
+    (
+        "Alex Chen | Software Engineering Intern\n"
+        "Skills: Python, Java, React, SQL, Git\n"
+        "Experience: 2 internships (fintech startup, 6 mo each)\n"
+        "Projects: Built REST API serving 500 rps; reduced query latency 40%\n"
+        "Education: CS, UC Berkeley, GPA 3.7"
+    ),
+    (
+        "Jordan Lee | CS Student seeking SWE Internship\n"
+        "Skills: Python, C++, JavaScript, AWS basics\n"
+        "Experience: 1 internship (e-commerce, 3 mo), 1 research assistant role\n"
+        "Projects: ML model for churn prediction (83% accuracy)\n"
+        "Education: CS, UCLA, GPA 3.5"
+    ),
+    (
+        "Sam Rivera | SWE Intern candidate\n"
+        "Skills: Java, Python, React, Docker\n"
+        "Experience: Campus club tech lead, 1 part-time dev role (4 mo)\n"
+        "Projects: Open-source contributor (200 stars); personal finance app\n"
+        "Education: CS + Math double major, Stanford, GPA 3.6"
+    ),
+    (
+        "Taylor Kim | Software Developer (entry-level)\n"
+        "Skills: Python, SQL, Flask, Linux\n"
+        "Experience: Boot camp grad, 2 freelance projects\n"
+        "Projects: Inventory system (saved client 5 hrs/week); web scraper\n"
+        "Education: Coding bootcamp + Associate's in CS"
+    ),
+    (
+        "Morgan Patel | CS Senior seeking internship\n"
+        "Skills: C, Python, Node.js, PostgreSQL, Kubernetes\n"
+        "Experience: TA for Data Structures (2 semesters), hackathon winner\n"
+        "Projects: Distributed key-value store (capstone); mobile app (1k downloads)\n"
+        "Education: CS, MIT, GPA 3.9"
+    ),
+]
+
+# Minimal fallback JD used when no JD file is configured.
+_FALLBACK_JD = (
+    "Software Engineering Intern — responsibilities: design, implement, and test "
+    "software features; work with cross-functional teams; write clean, documented code. "
+    "Requirements: strong CS fundamentals, proficiency in at least one programming language, "
+    "experience with version control, good communication skills."
 )
 
 
-def percentile_of(score: int) -> int:
-    """Percent of the reference cohort the candidate is at or above.
+# Timeout in seconds for the cohort synthesis step.
+_SYNTHESIS_TIMEOUT: float = 60.0
 
-    Pure: counts how many cohort members scored <= the candidate's score, as a
-    percentage. Clamped to [0, 100].
+
+def _load_jd(target: str) -> str:
+    """Return the most relevant JD text available for `target`.
+
+    Reads the first JD from JD_DATA_PATH whose title/company roughly matches
+    `target`, or the first JD in the file, or the built-in fallback.
     """
-    if not _REFERENCE_COHORT:
-        return 0
-    at_or_below = sum(1 for s in _REFERENCE_COHORT if s <= score)
-    pct = round(100 * at_or_below / len(_REFERENCE_COHORT))
-    return max(0, min(100, pct))
+    settings = get_settings()
+    jd_path = settings.jd_data_path
+    if not jd_path:
+        return _FALLBACK_JD
+    path = Path(jd_path)
+    if not path.exists():
+        logger.warning("JD_DATA_PATH %s not found; using fallback JD", path)
+        return _FALLBACK_JD
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        jds = data.get("jds", [])
+        if not jds:
+            return _FALLBACK_JD
+        target_lower = target.lower()
+        # Prefer a JD whose title/company mentions words from the target.
+        for jd in jds:
+            if any(
+                word in (jd.get("title", "") + jd.get("company", "")).lower()
+                for word in target_lower.split()
+            ):
+                return jd.get("description", _FALLBACK_JD)
+        return jds[0].get("description", _FALLBACK_JD)
+    except Exception as exc:
+        logger.warning("Failed to parse JD file %s (%s); using fallback", path, exc)
+        return _FALLBACK_JD
+
+
+async def _run_2afc_pipeline(user_resume_proxy: str, target: str) -> tuple[int, int]:
+    """Run 2AFC vs. a JD-synthesized cohort; return (percentile, n_competitors).
+
+    Synthesis and judging both run in parallel. Falls back to _SEED_COMPETITORS
+    if synthesis times out or raises.
+    """
+    jd = _load_jd(target)
+
+    try:
+        competitors = await asyncio.wait_for(
+            synthesize_cohort(jd, target),
+            timeout=_SYNTHESIS_TIMEOUT,
+        )
+    except (asyncio.TimeoutError, Exception) as exc:
+        logger.warning("Cohort synthesis failed (%s); falling back to seed competitors", exc)
+        competitors = _SEED_COMPETITORS
+
+    judge_tasks = [
+        judge_pair(resume_a=user_resume_proxy, resume_b=comp, jd=jd)
+        for comp in competitors
+    ]
+    winners: list[str] = list(
+        await asyncio.wait_for(asyncio.gather(*judge_tasks), timeout=90.0)
+    )
+
+    # ELO: user starts at 1000; each competitor also starts at 1000 (no prior history).
+    user_rating = 1000.0
+    competitor_ratings: list[float] = []
+    for winner in winners:
+        comp_rating = 1000.0
+        user_rating, final_comp = elo_update(user_rating, comp_rating, winner)
+        competitor_ratings.append(final_comp)
+
+    percentile = rating_to_percentile(user_rating, competitor_ratings)
+    return percentile, len(competitors)
 
 
 agent = Agent(
@@ -69,13 +179,28 @@ async def _startup(ctx: Context) -> None:
 
 @agent.on_query(model=BenchmarkRequest, replies={BenchmarkResponse})
 async def handle_query(ctx: Context, sender: str, msg: BenchmarkRequest) -> None:
-    """Return the candidate's readiness percentile + cohort size vs. the seeded cohort."""
+    """Run 2AFC pipeline and return the candidate's readiness percentile."""
+    # Build a short proxy resume from the score so the judge has something to compare.
+    # A fuller version would pass the actual resume text via the message.
+    user_proxy = (
+        f"Candidate targeting: {msg.target}\n"
+        f"Overall resume score: {msg.score}/100\n"
+        "Skills, experience, and education commensurate with this score."
+    )
+
+    try:
+        percentile, sample_size = await asyncio.wait_for(
+            _run_2afc_pipeline(user_proxy, msg.target),
+            timeout=120,
+        )
+    except asyncio.TimeoutError:
+        ctx.logger.warning("2AFC pipeline timed out; falling back to score-based percentile")
+        percentile = max(0, min(100, msg.score - 5))
+        sample_size = len(_SEED_COMPETITORS)
+
     await ctx.send(
         sender,
-        BenchmarkResponse(
-            percentile=percentile_of(msg.score),
-            sample_size=len(_REFERENCE_COHORT),
-        ),
+        BenchmarkResponse(percentile=percentile, sample_size=sample_size),
     )
 
 
