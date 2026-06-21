@@ -16,3 +16,11 @@ def test_missing_key_returns_none():
 
 def test_defaults_to_memory_without_redis():
     assert Store().backend == "memory"
+
+
+def test_redacted_url_never_leaks_password():
+    from app.services.store import _redacted
+
+    out = _redacted("redis://default:superSecretPw@my-host.redis.io:13805")
+    assert "superSecretPw" not in out  # password stripped
+    assert "my-host.redis.io" in out and "13805" in out  # host/port kept for debugging

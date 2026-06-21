@@ -21,6 +21,18 @@ logger = logging.getLogger("hired.store")
 _DEFAULT_TTL = 7 * 24 * 3600  # remember a user for a week
 
 
+def _redacted(url: str) -> str:
+    """Hide credentials in a Redis URL so logs never leak the password."""
+    try:
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(url)
+        port = f":{parts.port}" if parts.port else ""
+        return f"{parts.scheme}://{parts.hostname or '?'}{port}"
+    except Exception:
+        return "redis"
+
+
 class Store:
     """A tiny async JSON KV store backed by Redis, falling back to memory."""
 
@@ -42,7 +54,7 @@ class Store:
             )
             await client.ping()
             self._redis = client
-            logger.info("Store: connected to Redis (%s)", url)
+            logger.info("Store: connected to Redis (%s)", _redacted(url))
         except Exception as exc:  # no server, refused, timeout, bad url, etc.
             self._redis = None
             logger.info("Store: Redis unavailable (%s) — using in-memory store.", exc)
