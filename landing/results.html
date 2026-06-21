@@ -612,7 +612,7 @@
       const scoreAttr  = (score != null) ? ` data-score="${score}"` : '';
       const sentAttr   = sentiment ? ` data-sentiment="${sentiment}"` : '';
       const tip = reason ? ` title="${reason.replace(/"/g,'&quot;')}"` : '';
-      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${catkeyAttr}${scoreAttr}${sentAttr}${tip}>${content}</mark>`;
+      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:default;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${catkeyAttr}${scoreAttr}${sentAttr}${tip}>${content}</mark>`;
     };
 
     // Fallback: backend didn't send char-offset annotations, so highlight by
