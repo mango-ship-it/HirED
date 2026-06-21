@@ -80,31 +80,32 @@ class DeepgramService:
         if not settings.deepgram_api_key:
             raise RuntimeError("DEEPGRAM_API_KEY is not set. Add it to backend/.env.")
         self._client = DeepgramClient(api_key=settings.deepgram_api_key)
-        self._public_base_url = settings.public_base_url.rstrip("/")
         AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
     async def narrate(self, text: str) -> str:
-        """Synthesize `text` to an MP3 and return its public URL.
+        """Synthesize `text` to an MP3 and return a RELATIVE url (/static/audio/...).
 
-        Cached by a hash of (model, text): identical narration is served from the
-        existing file with NO Deepgram call — so re-runs and demo practice don't
-        burn credits. Files live under static/audio/ (served at /static/audio/...).
+        Relative on purpose: the frontend prepends its own API base, so the audio works
+        through any tunnel (the URL changes per restart) without server config. Cached by
+        a hash of (model, text): identical narration is served from the existing file with
+        NO Deepgram call — so re-runs and demo practice don't burn credits.
         """
         digest = hashlib.sha256(f"{_TTS_MODEL}\n{text}".encode()).hexdigest()[:16]
         filename = f"{digest}.mp3"
         out_path = AUDIO_DIR / filename
-        url = f"{self._public_base_url}/static/audio/{filename}"
+        url = f"/static/audio/{filename}"  # frontend prepends API_BASE
 
         if out_path.exists():  # cache hit — skip the API call
             return url
 
         def _synthesize() -> None:
+            # generate() returns Iterator[bytes] (streamed audio chunks) — join them.
             response = self._client.speak.v1.audio.generate(
                 text=text,
                 model=_TTS_MODEL,
                 encoding="mp3",  # match the .mp3 file we write + serve
             )
-            out_path.write_bytes(response.stream.getvalue())
+            out_path.write_bytes(b"".join(response))
 
         await asyncio.to_thread(_synthesize)
         return url

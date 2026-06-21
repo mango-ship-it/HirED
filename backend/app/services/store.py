@@ -70,7 +70,8 @@ class Store:
     def backend(self) -> str:
         return "redis" if self._redis is not None else "memory"
 
-    async def set_json(self, key: str, value: Any, ttl: int = _DEFAULT_TTL) -> None:
+    async def set_json(self, key: str, value: Any, ttl: int | None = _DEFAULT_TTL) -> None:
+        """ttl=None stores permanently (no expiry)."""
         data = json.dumps(value)
         if self._redis is not None:
             try:

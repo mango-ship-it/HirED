@@ -167,3 +167,18 @@ def test_score_remembers_user_profile():
 
 def test_profile_unknown_user_is_404():
     assert client.get("/profile/nobody-xyz").status_code == 404
+
+
+def test_progress_save_and_load_roundtrip():
+    client.post("/progress", json={"user_id": "u-prog", "progress": {"unlocked": [1, 2], "done": [1]}})
+    body = client.get("/progress/u-prog").json()
+    assert body["progress"] == {"unlocked": [1, 2], "done": [1]}  # persisted per user
+
+
+def test_progress_requires_user_id_and_progress():
+    assert client.post("/progress", json={"progress": {}}).status_code == 400
+    assert client.post("/progress", json={"user_id": "x"}).status_code == 400
+
+
+def test_progress_empty_for_unseen_user():
+    assert client.get("/progress/never-seen-xyz").json()["progress"] == {}
