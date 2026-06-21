@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HirED — Fetch.ai Agent Architecture</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 80px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+      color: #f8fafc;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 48px;
+    }
+
+    /* ── Layout grid ─────────────────────────────────────── */
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr 48px 1fr;
+      grid-template-rows: auto 32px auto 32px auto;
+      gap: 0;
+      width: 100%;
+      max-width: 980px;
+    }
+
+    /* ── Cards ───────────────────────────────────────────── */
+    .card {
+      border-radius: 12px;
+      padding: 18px 20px;
+      border: 1px solid;
+      position: relative;
+    }
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .card-sub {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-top: 8px;
+    }
+
+    /* Colour tokens */
+    .c-fe   { background: #1a1f2e; border-color: #3b5bdb; }
+    .c-fe .card-label { color: #748ffc; }
+    .c-fe .badge { background: #2c3a7a; color: #748ffc; }
+
+    .c-coord { background: #1c1a2e; border-color: #7950f2; }
+    .c-coord .card-label { color: #b197fc; }
+    .c-coord .badge { background: #2e2463; color: #b197fc; }
+
+    .c-spec  { background: #1a2820; border-color: #2f9e44; }
+    .c-spec .card-label { color: #69db7c; }
+    .c-spec .badge { background: #1e4230; color: #69db7c; }
+
+    .c-bm   { background: #1f1a10; border-color: #e67700; }
+    .c-bm .card-label { color: #ffa94d; }
+    .c-bm .badge { background: #3d2d00; color: #ffa94d; }
+
+    .c-api  { background: #111827; border-color: #374151; }
+    .c-api .card-label { color: #9ca3af; }
+
+    /* ── Connectors ──────────────────────────────────────── */
+    .connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .arrow-h {
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, #374151, #4b5563);
+      position: relative;
+    }
+    .arrow-h::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -4px;
+      border: 5px solid transparent;
+      border-left-color: #6b7280;
+    }
+    .arrow-v-wrap {
+      grid-column: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .arrow-v {
+      width: 2px;
+      height: 100%;
+      background: linear-gradient(180deg, #374151, #4b5563);
+      position: relative;
+    }
+    .arrow-v::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: -4px;
+      border: 5px solid transparent;
+      border-top-color: #6b7280;
+    }
+    .conn-label {
+      font-size: 0.65rem;
+      color: #4b5563;
+      text-align: center;
+      white-space: nowrap;
+      margin: 0 6px;
+    }
+
+    /* ── Specialist grid ─────────────────────────────────── */
+    .specialists {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .spec-card {
+      border-radius: 10px;
+      padding: 13px 15px;
+      border: 1px solid #2f9e44;
+      background: #1a2820;
+    }
+    .spec-card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #69db7c;
+      margin-bottom: 3px;
+    }
+    .spec-card-sub {
+      font-size: 0.7rem;
+      color: #4b7a58;
+      line-height: 1.4;
+    }
+    .spec-port {
+      font-size: 0.62rem;
+      color: #2f5e38;
+      margin-top: 5px;
+      font-family: monospace;
+    }
+
+    /* ── Almanac note ────────────────────────────────────── */
+    .almanac-bar {
+      margin-top: 36px;
+      width: 100%;
+      max-width: 980px;
+      border: 1px dashed #3b5bdb;
+      border-radius: 10px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #10152a;
+    }
+    .almanac-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .almanac-text { font-size: 0.78rem; color: #93a8f4; line-height: 1.5; }
+    .almanac-text strong { color: #748ffc; }
+
+    /* ── Flow legend ─────────────────────────────────────── */
+    .legend {
+      margin-top: 28px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.72rem;
+      color: #64748b;
+    }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 700px) {
+      .diagram {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+      }
+      .connector { display: none; }
+      .arrow-v-wrap { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>HirED — Fetch.ai Agent Architecture</h1>
+<p class="subtitle">Multi-agent resource pipeline · fetch.ai uAgents (uagents==0.25.2)</p>
+
+<div class="diagram">
+
+  <!-- Row 1: FastAPI | → | Coordinator -->
+  <div class="card c-api" style="grid-column:1; grid-row:1;">
+    <div class="card-label">REST API</div>
+    <div class="card-title">FastAPI Server</div>
+    <div class="card-sub">
+      <code style="font-size:0.72rem; color:#6b7280;">POST /resources</code><br/>
+      Receives <code>gap_category</code> + <code>missing_skills</code> from frontend.
+      Calls coordinator via <code>send_sync_message()</code>.
+    </div>
+    <span class="badge" style="background:#1f2937; color:#6b7280;">port 8000</span>
+  </div>
+
+  <div class="connector" style="grid-column:2; grid-row:1;">
+    <div class="arrow-h"></div>
+    <span class="conn-label">send_sync_<br/>message()</span>
+  </div>
+
+  <div class="card c-coord" style="grid-column:3; grid-row:1;">
+    <div class="card-label">Fetch.ai uAgent · Coordinator</div>
+    <div class="card-title">resource_coordinator_agent</div>
+    <div class="card-sub">
+      @on_query — receives ResourceRequest.<br/>
+      Maps each missing skill → specialist.<br/>
+      Fans out via ctx.send(), awaits replies<br/>
+      (asyncio.Event, 3 s timeout).<br/>
+      Deduplicates + caps at 6 resources.
+    </div>
+    <span class="badge">port 8001</span>
+  </div>
+
+  <div class="connector" style="grid-column:4; grid-row:1;">
+    <div class="arrow-h"></div>
+    <span class="conn-label">ctx.send()<br/>per skill</span>
+  </div>
+
+  <!-- Specialists top-right -->
+  <div style="grid-column:5; grid-row:1 / span 3; display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#2f9e44; margin-bottom:2px;">
+      Fetch.ai uAgents · Specialists
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">skills_resource_agent</div>
+      <div class="spec-card-sub">Skill-level DB: React, SQL, Python, Docker… 20+ named skills + alias map. Catch-all for unknowns.</div>
+      <div class="spec-port">port 8003 · @on_message</div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">experience_resource_agent</div>
+      <div class="spec-card-sub">Micro-internships (Parker Dewey), volunteering (Catchafire), open source (Up For Grabs).</div>
+      <div class="spec-port">port 8004 · @on_message</div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">education_resource_agent</div>
+      <div class="spec-card-sub">Google Certs, Khan Academy, CLEP, community college, IBM SkillsBuild, DOL apprenticeships.</div>
+      <div class="spec-port">port 8005 · @on_message</div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">clarity_resource_agent</div>
+      <div class="spec-card-sub">Hemingway Editor, Purdue OWL, MIT action verbs, Resume Worded.</div>
+      <div class="spec-port">port 8006 · @on_message</div>
+    </div>
+
+    <div class="spec-card">
+      <div class="spec-card-title">quantified_resource_agent</div>
+      <div class="spec-card-sub">XYZ bullet formula, Handshake guides, Harvard OCS action words.</div>
+      <div class="spec-port">port 8007 · @on_message</div>
+    </div>
+  </div>
+
+  <!-- Row 2: vertical arrow under coordinator -->
+  <div style="grid-column:3; grid-row:2; display:flex; flex-direction:column; align-items:center; padding: 0 0 4px;">
+    <div class="arrow-v" style="height:32px;"></div>
+  </div>
+
+  <!-- Row 3: benchmark agent under coordinator -->
+  <div class="card c-bm" style="grid-column:3; grid-row:3;">
+    <div class="card-label">Fetch.ai uAgent · Benchmark</div>
+    <div class="card-title">benchmark_agent</div>
+    <div class="card-sub">
+      @on_query — receives score + target.<br/>
+      Loads JDs → synthesizes competitors<br/>
+      → 2AFC pairwise (Claude judge)<br/>
+      → ELO aggregation → percentile.
+    </div>
+    <span class="badge">port 8002</span>
+  </div>
+
+  <!-- Row 2 col1: vertical spacer for alignment -->
+  <div style="grid-column:1; grid-row:2;"></div>
+
+  <!-- Row 3 col1: FastAPI benchmark call -->
+  <div style="grid-column:1; grid-row:3;" class="card c-api">
+    <div class="card-label">REST API</div>
+    <div class="card-title">POST /benchmark</div>
+    <div class="card-sub">Calls benchmark_agent via<br/><code style="font-size:0.72rem;">send_sync_message()</code></div>
+  </div>
+
+  <div class="connector" style="grid-column:2; grid-row:3;">
+    <div class="arrow-h"></div>
+  </div>
+
+</div>
+
+<!-- Bureau note -->
+<div class="almanac-bar">
+  <div class="almanac-icon">🏛️</div>
+  <div class="almanac-text">
+    <strong>Bureau pattern:</strong> All 7 agents (coordinator + 5 specialists + benchmark) run in a single
+    <code>python agents/bureau.py</code> process behind <strong>port 8010</strong>. Each agent retains its own
+    stable <code>agent1q…</code> address derived from its seed — copy these into <code>.env</code> once.
+    The FastAPI server is a separate process on port 8000.
+  </div>
+</div>
+
+<!-- Almanac note -->
+<div class="almanac-bar" style="margin-top:12px; border-color:#748ffc;">
+  <div class="almanac-icon">🌐</div>
+  <div class="almanac-text">
+    <strong>Fetch.ai Almanac:</strong> Each uAgent auto-registers on the Almanac on startup (testnet — no manual key needed).
+    <code>send_sync_message()</code> resolves an <code>agent1q…</code> address through the Almanac, enabling
+    decentralised agent discovery. The coordinator locates specialists via env-configured addresses (stable via seed).
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#374151;"></div> FastAPI REST (sync)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7950f2;"></div> Coordinator uAgent</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2f9e44;"></div> Specialist uAgents</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e67700;"></div> Benchmark uAgent</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b5bdb;"></div> Fetch.ai Almanac / Bureau</div>
+</div>
+
+</body>
+</html>

@@ -38,6 +38,7 @@ from app.services.fetch_bridge import (
     ask_agent,
     benchmark_agent_address,
     resource_agent_address,
+    resource_coordinator_address,
 )
 from app.services.store import load_profile
 from app.services.vector_resources import add_resources, search as vector_search
@@ -181,14 +182,17 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
     the fallback once it's rich. Order: Exa -> Redis index -> agent -> static."""
     role = _role(request.context)
 
+    # Load profile once — reused for Exa personalization and agent missing_skills.
+    profile_record: dict | None = None
+    if request.user_id:
+        profile_record = await load_profile(request.user_id)
+
     # Personalize the 'why it helps' to THIS user's resume (their actual skill gaps), when known.
     user_context = ""
-    if request.user_id:
-        record = await load_profile(request.user_id)
-        if record:
-            gaps = [g for g in (record.get("missing_skills") or []) if g][:3]
-            if gaps:
-                user_context = "still needs to build " + ", ".join(gaps)
+    if profile_record:
+        gaps = [g for g in (profile_record.get("missing_skills") or []) if g][:3]
+        if gaps:
+            user_context = "still needs to build " + ", ".join(gaps)
 
     # 1. Exa FIRST — real, exact, role-specific resources for ANY job. Index the results
     #    (best-effort) so the Redis vector index keeps growing for the fallback below.
@@ -216,16 +220,32 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
             resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
         )
 
-    # 3. Fetch.ai resource uAgent, then 4. static fallback.
-    try:
-        reply = await ask_agent(
-            resource_agent_address(),
-            AgentResourceRequest(gap_category=request.gap_category, context=role),
-            AgentResourceResponse,
-        )
-        return ResourcesResponse(
-            resources=[Resource(name=i.name, url=i.url, description=i.description) for i in reply.resources]
-        )
-    except (AgentUnavailableError, ValueError, AttributeError) as exc:
-        logger.warning("resource agent unavailable, using fallback: %s", exc)
-        return ResourcesResponse(resources=_FALLBACK_RESOURCES)
+    # 3. Fetch.ai multi-agent coordinator — skill-specific resources.
+    #    Falls back to the legacy single agent if coordinator isn't configured,
+    #    then to the static list so /resources never returns empty.
+    missing: list[str] = []
+    if profile_record:
+        missing = [s for s in (profile_record.get("missing_skills") or []) if s][:6]
+
+    coordinator_addr = resource_coordinator_address()
+    legacy_addr = resource_agent_address()
+    agent_addr = coordinator_addr or legacy_addr
+
+    if agent_addr:
+        try:
+            reply = await ask_agent(
+                agent_addr,
+                AgentResourceRequest(
+                    gap_category=request.gap_category,
+                    context=role,
+                    missing_skills=missing if coordinator_addr else [],
+                ),
+                AgentResourceResponse,
+            )
+            return ResourcesResponse(
+                resources=[Resource(name=i.name, url=i.url, description=i.description) for i in reply.resources]
+            )
+        except (AgentUnavailableError, ValueError, AttributeError) as exc:
+            logger.warning("resource agent unavailable, using fallback: %s", exc)
+
+    return ResourcesResponse(resources=_FALLBACK_RESOURCES)

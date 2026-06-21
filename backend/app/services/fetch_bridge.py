@@ -66,7 +66,12 @@ async def ask_agent(
 
 
 def resource_agent_address() -> str:
+    """Deprecated: use resource_coordinator_address() for the multi-agent pipeline."""
     return get_settings().resource_agent_address
+
+
+def resource_coordinator_address() -> str:
+    return get_settings().resource_coordinator_address
 
 
 def benchmark_agent_address() -> str:
