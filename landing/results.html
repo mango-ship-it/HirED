@@ -935,12 +935,42 @@
         'Worth doing, lower priority'
       ];
       const raw = (data.roadmap || data.gaps || []).slice(0, 3);
-      const fallback = [
-        {title:'Rewrite 1 bullet point', desc:'Numbers and outcomes turn passive bullets into proof — this is the fastest single-line win.'},
-        {title:'Answer 1 behavioral question', desc:'Saying your answer out loud once is worth more than reading notes ten times.'},
-        {title:'Send 1 cold message', desc:'Most roles are filled through people, not postings — one message opens the door.'}
-      ];
-      const src = raw.length ? raw : fallback;
+
+      // Build fallback tasks from the actual gap analysis so they are specific
+      // to this user's resume and target role — not generic placeholder text.
+      const GAP_ACTIONS = {
+        skills_match: {
+          title: `Add missing skills for ${target}`,
+          desc: `Your skills section is missing keywords that ${target} roles screen for. Add them where you genuinely have the experience — even a side project counts.`
+        },
+        quantified_achievements: {
+          title: 'Quantify 2–3 bullet points with real numbers',
+          desc: `Recruiters scan for impact. Pick your strongest bullets and add a metric — users, revenue, speed, accuracy, or scale. One number per bullet is enough.`
+        },
+        experience: {
+          title: `Reframe experience to match ${target} responsibilities`,
+          desc: `Your experience exists but isn't framed for this role. Rewrite 2–3 bullets to mirror the language in ${target} job postings — same work, sharper match.`
+        },
+        education: {
+          title: 'Surface relevant coursework or certifications',
+          desc: `List coursework, certificates, or bootcamps that align with ${target}. Recruiters use these as proxy signals when work history is thin.`
+        },
+        clarity: {
+          title: 'Cut filler and fix formatting inconsistencies',
+          desc: `ATS and humans both penalize dense, inconsistent resumes. Remove redundant words, standardize date formats, and keep bullet length under 2 lines.`
+        }
+      };
+
+      // Derive fallback tasks from the gapList (already ordered by priority)
+      const derivedFallback = gapList.slice(0, 3).map(g => {
+        const tpl = GAP_ACTIONS[g.category];
+        return {
+          title: tpl ? tpl.title : `Improve ${CAT_LABELS[g.category] || g.category}`,
+          desc:  tpl ? tpl.desc  : (g.action || `Strengthening this area will raise your readiness score the most.`)
+        };
+      });
+
+      const src = raw.length ? raw : derivedFallback;
       const items = src.slice(0,3);
       // Road path — S-curve from lower-left to upper-right
       const RD = 'M 30,210 C 60,100 160,290 240,160 C 320,30 400,230 470,120';
