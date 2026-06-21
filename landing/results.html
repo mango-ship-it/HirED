@@ -758,18 +758,10 @@
             <div class="res-bench-loading" id="benchLoading">Benchmarking against real candidates…</div>
             <div class="res-bench-content" id="benchContent">
               <div class="res-bench-label">Your standing</div>
-              <div class="res-bench-big">Ahead of <span id="benchPct">—</span>% <span>of candidates</span></div>
+              <div class="res-bench-big">Ahead of <span id="benchPct">—</span>% <span>of <span id="benchTotal">—</span> people</span></div>
               <div class="res-bench-sub" id="benchSub"></div>
               <div class="res-bench-zone-wrap">
-                <div class="res-bench-zone-bar">
-                  <div class="res-bench-peer res-bench-peer-a" id="benchPeerA">
-                    <div class="res-bench-peer-label" id="benchPeerALabel"></div>
-                    <div class="res-bench-peer-dot">ML</div>
-                  </div>
-                  <div class="res-bench-peer res-bench-peer-b" id="benchPeerB">
-                    <div class="res-bench-peer-label" id="benchPeerBLabel"></div>
-                    <div class="res-bench-peer-dot">JR</div>
-                  </div>
+                <div class="res-bench-zone-bar" id="benchZoneBar">
                   <div class="res-bench-marker" id="benchMarker">
                     <div class="res-bench-marker-dot" id="benchDot"></div>
                     <div class="res-bench-marker-you">You</div>
@@ -938,7 +930,7 @@
       });
       if(!r.ok) throw 0;
       const d = await r.json();
-      benchState = { percentile: d.percentile, sample_size: d.sample_size, message: d.message };
+      benchState = { percentile: d.percentile, sample_size: d.sample_size, message: d.message, candidates: Array.isArray(d.candidates) ? d.candidates : [] };
       paintBenchmark(benchState);
     }catch{
       benchState = null;
@@ -954,33 +946,48 @@
     content.style.display = 'block';
 
     const pct = b.percentile;
-    const markerPos = Math.max(3, Math.min(97, pct));
+    const myScore = data.score;
 
-    const isRed    = pct < 45;
-    const isYellow = pct >= 45 && pct < 70;
+    // zone color + verdict are based on the user's actual readiness score (same scale as the people)
+    const isRed    = myScore < 45;
+    const isYellow = myScore >= 45 && myScore < 70;
     const zoneColor  = isRed ? '#E5484D' : isYellow ? '#F5A524' : '#22C55E';
     const zoneLabel  = isRed ? 'Needs Work' : isYellow ? 'Slight Improvement' : 'Green Zone';
 
+    // headline = live leaderboard rank
     document.getElementById('benchPct').textContent = pct;
     document.getElementById('benchPct').style.color = zoneColor;
+    const totalEl = document.getElementById('benchTotal');
+    if(totalEl) totalEl.textContent = b.sample_size;
+    const sub = document.getElementById('benchSub');
+    if(sub) sub.textContent = `Your live rank among everyone targeting ${target}.`;
 
+    // "You" marker positioned at the user's readiness score
     const dot = document.getElementById('benchDot');
     if(dot){ dot.style.background = zoneColor; dot.style.borderColor = zoneColor; }
-
     const marker = document.getElementById('benchMarker');
-    if(marker) setTimeout(() => { marker.style.left = markerPos + '%'; }, 60);
+    if(marker) setTimeout(() => { marker.style.left = Math.max(3, Math.min(97, myScore)) + '%'; }, 60);
 
-    const seed = pct * 7 % 10;
-    const aheadPct = Math.min(96, pct + 10 + seed);
-    const behindPct = Math.max(4, pct - 9 - (seed % 6));
-    const peerA = document.getElementById('benchPeerA');
-    const peerB = document.getElementById('benchPeerB');
-    if(peerA) setTimeout(() => { peerA.style.left = Math.max(3,Math.min(97,aheadPct)) + '%'; }, 80);
-    if(peerB) setTimeout(() => { peerB.style.left = Math.max(3,Math.min(97,behindPct)) + '%'; }, 80);
-    const peerALabel = document.getElementById('benchPeerALabel');
-    const peerBLabel = document.getElementById('benchPeerBLabel');
-    if(peerALabel) peerALabel.textContent = aheadPct + '%';
-    if(peerBLabel) peerBLabel.textContent = behindPct + '%';
+    // real people on the bar — one dot per candidate, positioned by its score (same scale as You)
+    const bar = document.getElementById('benchZoneBar');
+    if(bar){
+      bar.querySelectorAll('.res-bench-peer.bench-gen').forEach(el => el.remove());
+      const initials = (name) => ((name||'').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()) || '?';
+      (b.candidates || []).slice(0, 6).forEach((c, i) => {
+        const pos = Math.max(3, Math.min(97, Number(c.score) || 0));
+        const isPro = c.kind === 'professional';
+        const wrap = document.createElement('div');
+        wrap.className = 'res-bench-peer bench-gen ' + (isPro ? 'res-bench-peer-b' : 'res-bench-peer-a');
+        wrap.style.pointerEvents = 'auto';
+        const tip = `${c.name || ''}${c.why_stronger ? ' — ' + c.why_stronger : ''}`.trim();
+        const dotHTML = `<div class="res-bench-peer-dot" title="${esc(tip).replace(/"/g,'&quot;')}" style="cursor:${isPro && c.url ? 'pointer' : 'help'}">${esc(initials(c.name))}</div>`;
+        wrap.innerHTML = (isPro && c.url)
+          ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" style="pointer-events:auto">${dotHTML}</a>`
+          : dotHTML;
+        bar.insertBefore(wrap, marker);   // keep the "You" marker painted on top
+        setTimeout(() => { wrap.style.left = pos + '%'; }, 80 + i*45);
+      });
+    }
 
     const verdict = document.getElementById('benchVerdict');
     if(verdict){
@@ -988,8 +995,6 @@
       verdict.style.color = zoneColor;
       verdict.style.background = zoneColor + '22';
     }
-
-    document.getElementById('benchSub').textContent = `You are ahead of ${pct}% of candidates targeting this role.`;
   }
 
   // ---- render shell ----
