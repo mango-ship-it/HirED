@@ -48,12 +48,21 @@ async def ask_agent(
         raise AgentUnavailableError(
             "Agent address not configured. Start the agent and set its address in .env."
         )
+    # If a local bureau endpoint is configured, resolve the address straight to it (bypasses the
+    # Almanac, so local agents that didn't register on-chain are still reachable). Else: Almanac.
+    resolver = None
+    endpoint = get_settings().agent_endpoint
+    if endpoint:
+        from uagents.resolver import RulesBasedResolver
+
+        resolver = RulesBasedResolver(rules={address: endpoint})
     try:
         reply = await send_sync_message(
             destination=address,
             message=message,
             response_type=response_type,
             timeout=timeout,
+            resolver=resolver,
         )
     except Exception as exc:  # transport / decode errors
         logger.warning("uAgent query to %s failed: %s", address, exc)

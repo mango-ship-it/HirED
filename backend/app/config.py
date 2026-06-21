@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     clarity_resource_agent_address: str = Field(default="", alias="CLARITY_RESOURCE_AGENT_ADDRESS")
     quantified_resource_agent_address: str = Field(default="", alias="QUANTIFIED_RESOURCE_AGENT_ADDRESS")
     benchmark_agent_address: str = Field(default="", alias="BENCHMARK_AGENT_ADDRESS")
+    # Local bureau endpoint (e.g. http://127.0.0.1:8010/submit). When set, the backend resolves
+    # agent addresses to it DIRECTLY (RulesBasedResolver) — so local agents that aren't registered
+    # on the Almanac are reachable. Leave empty in prod to use Almanac resolution.
+    agent_endpoint: str = Field(default="", alias="AGENT_ENDPOINT")
 
     # --- Infra ---
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
