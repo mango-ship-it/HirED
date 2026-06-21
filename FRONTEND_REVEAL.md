@@ -5,6 +5,11 @@ live on the `backend` branch. Base URL = the cloudflared tunnel (ask Kaden for t
 current `https://<...>.trycloudflare.com`). No API keys in the frontend — they live on
 the backend only.
 
+> **▶ Live, working reference:** open **`<API_BASE>/static/demo.html`** in a browser. It runs
+> `/score → /roadmap (unlock-as-you-go) → /intelligence` end-to-end with plain `fetch` and
+> a `localStorage` user_id. **View source to copy any feature** — it's a single self-contained
+> HTML file, no build step.
+
 ---
 
 ## 0. The `user_id` (do this once)

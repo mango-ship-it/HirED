@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HirED — Backend Feature Reference</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#272b34; --fg:#e8eaed; --mut:#9aa3b2; --acc:#7c9cff; --ok:#46c98b; --lock:#5a6172; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:baseline; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  header .meta { color:var(--mut); font-size:13px; }
+  main { max-width:920px; margin:0 auto; padding:24px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:20px; }
+  h2 { font-size:15px; margin:0 0 12px; }
+  label { display:block; color:var(--mut); font-size:12px; margin:10px 0 4px; }
+  input, textarea { width:100%; background:#0f1218; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
+  textarea { min-height:90px; resize:vertical; }
+  .row { display:flex; gap:12px; } .row > * { flex:1; }
+  button { background:var(--acc); color:#0b0d12; border:0; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; margin-top:12px; }
+  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--acc); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .score { font-size:34px; font-weight:700; }
+  .bar { height:8px; background:#0f1218; border-radius:4px; overflow:hidden; margin:4px 0 10px; }
+  .bar > i { display:block; height:100%; background:var(--acc); }
+  .chip { display:inline-block; background:#0f1218; border:1px solid var(--line); border-radius:999px; padding:3px 10px; margin:3px 4px 0 0; font-size:13px; }
+  .chip.miss { border-color:#5a3a3a; color:#ff9b9b; }
+  .step { border:1px solid var(--line); border-radius:10px; padding:14px; margin:10px 0; }
+  .step.locked { opacity:.55; }
+  .step h3 { margin:0; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .kind { font-size:11px; text-transform:uppercase; color:var(--mut); letter-spacing:.5px; }
+  .res { display:block; color:var(--acc); text-decoration:none; padding:6px 0; border-top:1px solid var(--line); }
+  .res small { color:var(--mut); display:block; }
+  .muted { color:var(--mut); font-size:13px; }
+  pre { background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:10px; overflow:auto; font-size:12px; color:var(--mut); }
+</style>
+</head>
+<body>
+<header>
+  <h1>HirED — Backend Feature Reference</h1>
+  <span class="meta">Copy these patterns. Every call is plain <code>fetch</code>. Keys live on the backend.</span>
+</header>
+<main>
+  <section>
+    <div class="row">
+      <div><label>API base</label><input id="api" /></div>
+      <div><label>user_id (persisted in localStorage)</label><input id="uid" readonly /></div>
+    </div>
+  </section>
+
+  <!-- 1. SCORE -->
+  <section>
+    <h2>1 · Score the resume — <code>POST /score</code></h2>
+    <label>Resume / pitch (paste or type)</label>
+    <textarea id="resume">Maria Lopez. 6 years driving delivery vans in Oakland. Clean record, great with people, punctual. Looking to become a school bus driver.</textarea>
+    <div class="row">
+      <div><label>Target role</label><input id="target" value="Bus Driver" /></div>
+      <div><label>Location</label><input id="location" value="Oakland, CA" /></div>
+    </div>
+    <button onclick="runScore()">Analyze resume</button>
+    <div id="scoreOut"></div>
+  </section>
+
+  <!-- 2. ROADMAP -->
+  <section>
+    <h2>2 · Roadmap — <code>POST /roadmap</code> (unlock as you go)</h2>
+    <p class="muted">Renders the <code>steps</code> array. Step 1 is open; the rest unlock as the user finishes each. <code>people</code> are real profiles to connect with.</p>
+    <button onclick="runRoadmap()">Build roadmap</button>
+    <div id="roadmapOut"></div>
+  </section>
+
+  <!-- 3. INTELLIGENCE -->
+  <section>
+    <h2>3 · Deepgram signals — <code>POST /intelligence</code></h2>
+    <p class="muted">Topics / intents / sentiment over the resume — for tag clouds, radars, mood meters.</p>
+    <button onclick="runIntel()">Analyze text</button>
+    <div id="intelOut"></div>
+  </section>
+</main>
+
+<script>
+// ---- setup ----
+const $ = id => document.getElementById(id);
+const DEFAULT_API = location.origin.startsWith('http') ? location.origin : 'https://grey-ribbon-presence-smith.trycloudflare.com';
+$('api').value = localStorage.getItem('hired_api') || DEFAULT_API;
+$('api').onchange = e => localStorage.setItem('hired_api', e.target.value);
+function getUserId() {           // <-- copy this: stable per-user id for memory
+  let id = localStorage.getItem('hired_user_id');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('hired_user_id', id); }
+  return id;
+}
+$('uid').value = getUserId();
+const api = () => $('api').value.replace(/\/$/, '');
+let missingSkills = [];
+
+// ---- 1. /score (multipart) ----
+async function runScore() {
+  const out = $('scoreOut'); out.innerHTML = '<p class="muted">Scoring…</p>';
+  const fd = new FormData();
+  fd.append('user_id', getUserId());
+  fd.append('target', JSON.stringify({ type: 'role', value: $('target').value }));
+  fd.append('resume_text', $('resume').value);
+  try {
+    const d = await (await fetch(`${api()}/score`, { method:'POST', body: fd })).json();
+    if (d.error) return out.innerHTML = `<p class="muted">Error: ${d.error}</p>`;
+    missingSkills = d.missing_skills || [];
+    out.innerHTML = `
+      <div class="score">${d.score}<span class="muted" style="font-size:16px">/100</span></div>
+      ${Object.entries(d.categories).map(([k,v]) =>
+        `<label>${k.replace(/_/g,' ')} — ${v.score}</label><div class="bar"><i style="width:${v.score}%"></i></div>`).join('')}
+      <label>Skills you have</label><div>${(d.matched_skills||[]).map(s=>`<span class="chip">${s}</span>`).join('') || '<span class="muted">—</span>'}</div>
+      <label>Skills you're missing</label><div>${(d.missing_skills||[]).map(s=>`<span class="chip miss">${s}</span>`).join('') || '<span class="muted">—</span>'}</div>
+      <label>Lessons</label>${(d.lessons||[]).map(l=>`<div class="step"><b>${l.category}</b><br><span class="muted">${l.principle}</span><br>${l.action}</div>`).join('')}`;
+  } catch (e) { out.innerHTML = `<p class="muted">Request failed: ${e}</p>`; }
+}
+
+// ---- 2. /roadmap (steps + unlock-as-you-go) ----
+async function runRoadmap() {
+  const out = $('roadmapOut'); out.innerHTML = '<p class="muted">Building (Exa search across courses, events, people, certs…)…</p>';
+  try {
+    const d = await (await fetch(`${api()}/roadmap`, {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ target: $('target').value, location: $('location').value, skills: missingSkills, user_id: getUserId() }),
+    })).json();
+    if (!d.exa) return out.innerHTML = `<p class="muted">${d.note || 'Exa off.'}</p>`;
+    out.innerHTML = (d.steps||[]).map(renderStep).join('') || '<p class="muted">No steps.</p>';
+  } catch (e) { out.innerHTML = `<p class="muted">Request failed: ${e}</p>`; }
+}
+function renderStep(step) {
+  const resources = (step.resources||[]).map(r =>
+    `<a class="res" href="${r.url}" target="_blank">${r.title}<small>${r.type} · ${r.why||''}</small></a>`).join('');
+  return `<div class="step ${step.locked ? 'locked' : ''}" id="step-${step.order}">
+    <h3>${step.locked ? '🔒' : '✅'} Step ${step.order}: ${step.title} <span class="kind">${step.kind}</span></h3>
+    <div class="content" ${step.locked ? 'style="display:none"' : ''}>${resources || '<span class="muted">—</span>'}</div>
+    ${step.locked ? '' : `<button class="ghost" onclick="unlockNext(${step.order})">Mark done → unlock next</button>`}
+  </div>`;
+}
+function unlockNext(order) {       // <-- the unlock pattern: reveal the next step
+  const next = $(`step-${order+1}`);
+  if (!next) return;
+  next.classList.remove('locked');
+  next.querySelector('.content').style.display = '';
+  next.querySelector('h3').firstChild.textContent = '✅ ';
+  const btn = document.createElement('button');
+  btn.className = 'ghost'; btn.textContent = 'Mark done → unlock next';
+  btn.onclick = () => unlockNext(order+1);
+  next.appendChild(btn);
+}
+
+// ---- 3. /intelligence ----
+async function runIntel() {
+  const out = $('intelOut'); out.innerHTML = '<p class="muted">Analyzing…</p>';
+  try {
+    const d = await (await fetch(`${api()}/intelligence`, {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ text: $('resume').value + ' Target: ' + $('target').value, user_id: getUserId() }),
+    })).json();
+    if (d.configured === false) return out.innerHTML = `<p class="muted">${d.note}</p>`;
+    out.innerHTML = `
+      <label>Summary</label><div class="muted">${d.summary || '—'}</div>
+      <label>Topics</label><div>${(d.topics||[]).map(t=>`<span class="chip">${t}</span>`).join('') || '—'}</div>
+      <label>Intents</label><div>${(d.intents||[]).map(t=>`<span class="chip">${t}</span>`).join('') || '—'}</div>
+      <label>Sentiment</label><div class="muted">${d.sentiment?.label || '—'} ${d.sentiment?.score!=null ? '('+d.sentiment.score.toFixed(2)+')' : ''}</div>`;
+  } catch (e) { out.innerHTML = `<p class="muted">Request failed: ${e}</p>`; }
+}
+</script>
+</body>
+</html>
