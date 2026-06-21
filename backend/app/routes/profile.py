@@ -46,7 +46,9 @@ async def get_people_like_you(user_id: str, k: int = 3):
         return error_response("No saved profile for this user.", ErrorCode.NOT_FOUND, 404)
     target = (record.get("target") or {}).get("value") or ""
     gaps = ", ".join((record.get("missing_skills") or [])[:6])
-    result = await people_like_you(target, gaps, exclude_user_id=user_id, k=max(1, min(k, 5)))
+    result = await people_like_you(
+        target, gaps, your_score=int(record.get("score") or 0), exclude_user_id=user_id, k=max(1, min(k, 5))
+    )
     if result is None:
         return {"count": 0, "peers": [], "insight": "", "available": False}
     return {**result, "available": True}

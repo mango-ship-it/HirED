@@ -63,6 +63,11 @@
 
   <div class="card" id="result" style="display:none;">
     <p class="you" id="you"></p>
+    <p class="ply-insight" id="standing" style="color:#0f172a; font-weight:600;"></p>
+    <div id="focus" style="display:none; margin:0 0 18px;">
+      <label style="margin-bottom:8px;">Focus next — gaps you share with people like you</label>
+      <div class="ply-gaps" id="focusChips"></div>
+    </div>
     <h2 class="ply-title">People like you</h2>
     <p class="ply-insight" id="insight"></p>
     <div class="ply-list" id="list"></div>
@@ -108,6 +113,10 @@ document.getElementById("go").onclick = async () => {
       return;
     }
     document.getElementById("you").innerHTML = `Your readiness for <b>${esc(role)}</b>: <b>${score.score}/100</b> — here are people on the same path:`;
+    document.getElementById("standing").textContent = data.standing || "";
+    const focus = data.focus_areas || [];
+    document.getElementById("focus").style.display = focus.length ? "block" : "none";
+    document.getElementById("focusChips").innerHTML = focus.map(g => `<span class="ply-chip">${esc(g)}</span>`).join("");
     document.getElementById("insight").textContent = data.insight || "";
     document.getElementById("list").innerHTML = data.peers.map(p => `
       <div class="ply-peer">
