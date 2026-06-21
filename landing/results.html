@@ -57,14 +57,14 @@
 
   /* ---- layout ---- */
   .results-layout{
-    max-width:1080px;margin:0 auto;padding:32px clamp(16px,4vw,40px) 80px;
-    display:flex;gap:28px;align-items:flex-start;
+    max-width:1020px;margin:0 auto 0 clamp(16px,5vw,64px);padding:28px 20px 80px 0;
+    display:flex;gap:20px;align-items:flex-start;
   }
 
   /* ---- sidebar tabs ---- */
   .rtabs{
-    width:248px;flex-shrink:0;position:sticky;top:90px;
-    display:flex;flex-direction:column;gap:6px;
+    width:220px;flex-shrink:0;position:sticky;top:90px;
+    display:flex;flex-direction:column;gap:4px;
   }
   .rtabs-head{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
     color:var(--ink-soft);padding:4px 10px 10px;}
@@ -387,20 +387,22 @@
     sections.push({
       label: `Gap ${i+1} · ${CAT_LABELS[l.category]||l.category}`,
       render(){
+        // Trim example to first sentence only for a punchy 1-liner
+        const shortExample = esc((l.example||'').split(/[.!?]/)[0].trim() + '.');
         return `<div class="rsec">
           <span class="res-lesson-tag">${esc(CAT_LABELS[l.category]||l.category)} &middot; ${i+1} of ${lessons.length}</span>
           <h2 class="rsec-title">${esc(l.principle)}</h2>
-          <div class="ex">${esc(l.example)}</div>
+          <div class="ex">${shortExample}</div>
           <div class="action">${esc(l.action)}</div>
           <div class="res-resblock">
-            <div class="rsec-reslabel">Free ways to close this gap</div>
+            <div class="rsec-reslabel">Top resources for this gap</div>
             <div class="res-resources" id="resbox-${i}">
               <div class="res-resource res-loading"><span style="color:var(--ink-soft);font-size:13px;">Finding resources…</span></div>
             </div>
           </div>
         </div>`;
       },
-      onShow(){ loadResources(l.category, 'resbox-'+i); }
+      onShow(){ loadResources(l.category, 'resbox-'+i, target); }
     });
   });
 
@@ -520,40 +522,41 @@
   };
 
   // ---- lazy secondary fetches ----
-  async function loadResources(category, boxId){
+  async function loadResources(category, boxId, role){
     const box = document.getElementById(boxId);
-    if(resCache[category]){ paintResources(box, resCache[category]); return; }
+    const cacheKey = `${category}::${role||target}`;
+    if(resCache[cacheKey]){ paintResources(box, resCache[cacheKey], role||target); return; }
     try{
       const r = await fetch(`${API_BASE}/resources`,{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ gap_category: category, context: target })
+        body: JSON.stringify({ gap_category: category, user_id: USER_ID, context: { target_type: role||target } })
       });
       if(!r.ok) throw 0;
       const d = await r.json();
-      resCache[category] = d.resources || [];
-      // only paint if this box is still on screen
+      resCache[cacheKey] = (d.resources || []).slice(0, 3);
       const live = document.getElementById(boxId);
-      if(live) paintResources(live, resCache[category]);
+      if(live) paintResources(live, resCache[cacheKey], role||target);
     }catch{
       const live = document.getElementById(boxId);
       if(live) live.innerHTML = '<div class="res-resource res-loading">Resources unavailable right now.</div>';
     }
   }
-  function paintResources(box, list){
+  function paintResources(box, list, role){
     if(!list.length){ box.innerHTML = '<div class="res-resource res-loading"><span style="color:var(--ink-soft);font-size:13px;">No resources found.</span></div>'; return; }
     box.innerHTML = '';
-    list.forEach(res => {
+    list.slice(0,3).forEach(res => {
       const el = document.createElement('div');
       el.className = 'res-resource';
       if(res && typeof res === 'object'){
         const url  = res.url  || '';
         const name = esc(res.name || url);
-        const desc = esc(res.description || '');
+        // Show description as-is — it's already role-specific from the backend
+        const why  = esc(res.description || '');
         el.innerHTML = url
           ? `<a class="res-resource-link" href="${esc(url)}" target="_blank" rel="noopener">${name}</a>
-             <span class="res-resource-why">${desc}</span>`
+             <span class="res-resource-why">${why}</span>`
           : `<span class="res-resource-link" style="cursor:default">${name}</span>
-             <span class="res-resource-why">${desc}</span>`;
+             <span class="res-resource-why">${why}</span>`;
       } else {
         el.innerHTML = `<span class="res-resource-link" style="cursor:default">${esc(String(res))}</span>`;
       }
