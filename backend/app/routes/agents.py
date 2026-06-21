@@ -37,7 +37,7 @@ from app.services.fetch_bridge import (
     benchmark_agent_address,
     resource_agent_address,
 )
-from app.services.vector_resources import search as vector_search
+from app.services.vector_resources import add_resources, search as vector_search
 
 logger = logging.getLogger("hired.routes.agents")
 
@@ -119,29 +119,37 @@ def _role(context) -> str:
 
 @router.post("/resources", response_model=ResourcesResponse)
 async def resources(request: ResourcesRequest) -> ResourcesResponse:
-    """Free, ROLE-SPECIFIC resources to close a gap: Exa (real web) first, then vector/agent/static."""
+    """Role-specific free resources. The Redis vector index (which GROWS from every Exa
+    search) is tried first; on a miss we fetch fresh from Exa and index it for next time."""
     role = _role(request.context)
+    query = f"{request.gap_category.replace('_', ' ')} for a {role}".strip()
 
-    # 1. Exa — REAL resources tailored to THIS role (golf coach -> golf coaching courses,
-    #    not the generic corpus). This is what makes "free ways to close the gap" personal.
+    # 1. Redis vector index FIRST — a real, GROWING knowledge base. A tight distance
+    #    threshold keeps results role-relevant (a golf query never returns a tech resource),
+    #    and a later "golf instructor" reuses a prior "golf coach" search for free.
+    indexed = await vector_search(query, k=4, max_distance=0.42)
+    if indexed and len(indexed) >= 3:
+        return ResourcesResponse(
+            resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
+        )
+
+    # 2. Exa — REAL role-specific fetch; index the results so Redis serves them next time.
     if has_exa() and role:
         try:
             hits = await resources_for_gap(request.gap_category, role)
             if hits:
+                await add_resources(hits, gap_category=request.gap_category)  # grow the index
                 return ResourcesResponse(
                     resources=[Resource(name=h["title"], url=h["url"], description=h["why"]) for h in hits]
                 )
         except Exception as exc:
             logger.warning("Exa resources failed (%s); falling back", exc)
 
-    # 2. Semantic vector search over the generic free-resource corpus (Redis "beyond caching").
-    hits = await vector_search(f"{request.gap_category.replace('_', ' ')} {role}".strip())
-    if hits:
+    # 3. Any weaker indexed hits, then 4. the Fetch.ai agent, then 5. the static list.
+    if indexed:
         return ResourcesResponse(
-            resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in hits]
+            resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
         )
-
-    # 3. Fetch.ai resource uAgent, then 4. static fallback.
     try:
         reply = await ask_agent(
             resource_agent_address(),

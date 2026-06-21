@@ -110,8 +110,9 @@ def start_build_in_background() -> None:
         pass  # no running loop (e.g. import-time / tests)
 
 
-async def search(query: str, *, k: int = 4) -> Optional[list[dict]]:
-    """KNN-search the corpus by meaning. Returns None if unavailable (caller falls back)."""
+async def search(query: str, *, k: int = 4, max_distance: float | None = None) -> Optional[list[dict]]:
+    """KNN-search the index by meaning. `max_distance` drops weak matches (cosine distance,
+    0=identical) so a golf query never returns an unrelated generic resource. None if down."""
     if _status != "ready" or _index is None or _embed is None:
         return None
     try:
@@ -124,11 +125,50 @@ async def search(query: str, *, k: int = 4) -> Optional[list[dict]]:
             num_results=k,
         )
         rows = await _index.query(vq)
-        return [
-            {"name": r["name"], "url": r["url"], "description": r["description"]}
-            for r in rows
-            if r.get("name")
-        ]
+        out: list[dict] = []
+        for r in rows:
+            if not r.get("name"):
+                continue
+            if max_distance is not None and float(r.get("vector_distance", 1.0)) > max_distance:
+                continue
+            out.append({"name": r["name"], "url": r["url"], "description": r["description"]})
+        return out
     except Exception as exc:
         logger.warning("semantic resource query failed (%s); falling back", exc)
         return None
+
+
+async def add_resources(resources: list[dict], *, gap_category: str = "") -> int:
+    """Embed + add REAL resources (from Exa) into the live index so it GROWS per role.
+
+    Keyed by URL, so re-adding the same resource de-duplicates instead of piling up.
+    Best-effort: a no-op when the index isn't ready. Returns how many were indexed.
+    """
+    if _status != "ready" or _index is None or _embed is None or not resources:
+        return 0
+    try:
+        import hashlib
+
+        import numpy as np
+
+        records, keys = [], []
+        for r in resources:
+            url = (r.get("url") or "").strip()
+            name = (r.get("title") or r.get("name") or "").strip()
+            if not url or not name:
+                continue
+            desc = r.get("description") or r.get("why") or ""
+            records.append({
+                "name": name,
+                "url": url,
+                "description": desc,
+                "gap_category": gap_category or r.get("type", ""),
+                "embedding": np.asarray(_embed(f"{name}. {desc}"), dtype=np.float32).tobytes(),
+            })
+            keys.append("resource:" + hashlib.sha1(url.encode()).hexdigest()[:16])
+        if records:
+            await _index.load(records, keys=keys)  # URL-based keys -> dedup on re-add
+        return len(records)
+    except Exception as exc:
+        logger.info("add_resources failed (%s)", exc)
+        return 0
