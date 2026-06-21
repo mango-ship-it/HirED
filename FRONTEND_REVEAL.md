@@ -184,9 +184,12 @@ into a tag cloud / radar, `sentiment` into a mood meter, `summary` into the head
 ## Voice + video
 - **TTS:** `POST /narrate {text}` → `{audio_url}` (play in `<audio>`). Use it to narrate the
   `summary` from `/intelligence` or the job description.
-- **Pika video — generated on the BACKEND, you just play the URL.** Same rule as every other
-  key: Pika's key stays server-side. You'll get a video URL (or a job id to poll); never call
-  Pika directly from the browser. (Endpoint coming — ask Kaden.)
+- **Pika video — `POST /video`, then poll `GET /video/{prompt_hash}`.** Generated on the
+  backend via fal.ai (key server-side). `POST /video {user_id}` (or `{role, skills}` / `{prompt}`)
+  → `{prompt_hash, status:"generating"}`; poll `GET /video/{prompt_hash}` every ~4s until
+  `{status:"ready", video_url}`, then `<video src={video_url} controls>`. Redis-cached by prompt
+  (a journey is billed once). Handle `status:"unconfigured"` (no key) and `status:"error"` (fal
+  issue, e.g. out of balance) by simply hiding the video.
 - **Voice agent (chat about their data):** runs as a Deepgram Voice Agent WebSocket in the
   browser; the backend will hand you a config + token with the user's resume/Exa/JD injected
   as context. Interruption/barge-in is native. (Endpoint coming.)
