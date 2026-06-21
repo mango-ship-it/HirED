@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Hard per-process daily cap on live Exa searches — protects a small budget. Once
     # hit, the roadmap layer short-circuits to the free deterministic search links.
     exa_daily_call_cap: int = Field(default=300, alias="EXA_DAILY_CALL_CAP")
+    fal_api_key: str = Field(default="", alias="FAL_KEY")  # fal.ai — Pika video generation
 
     # --- Fetch.ai uAgent addresses (filled after agents start) ---
     resource_agent_address: str = Field(default="", alias="RESOURCE_AGENT_ADDRESS")

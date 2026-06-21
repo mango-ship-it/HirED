@@ -13,5 +13,6 @@ from pathlib import Path
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["DEEPGRAM_API_KEY"] = ""
 os.environ["EXA_API_KEY"] = ""  # never hit the paid Exa API in tests
+os.environ["FAL_KEY"] = ""  # never hit the paid fal/Pika video API in tests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))

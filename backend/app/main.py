@@ -26,8 +26,10 @@ from app.routes import learning as learning_routes
 from app.routes import profile as profile_routes
 from app.routes import report as report_routes
 from app.routes import score as score_routes
+from app.routes import video as video_routes
 from app.routes import voice as voice_routes
 from app.services.exa_search import has_exa
+from app.services.pika_video import has_fal
 from app.services.store import get_store
 from app.services.vector_resources import status as vector_index_status
 
@@ -92,6 +94,7 @@ app.include_router(report_routes.router, tags=["report"])
 app.include_router(profile_routes.router, tags=["profile"])
 app.include_router(jobs_routes.router, tags=["jobs"])
 app.include_router(learning_routes.router, tags=["learning"])
+app.include_router(video_routes.router, tags=["video"])
 
 
 @app.get("/", tags=["meta"])
@@ -117,4 +120,5 @@ async def health() -> dict[str, object]:
         "store": get_store().backend,
         "vector_index": vector_index_status(),
         "exa_configured": has_exa(),
+        "fal_configured": has_fal(),
     }
