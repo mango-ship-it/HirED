@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HirED — Your lessons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0E2A47;
+    --ink-soft:#48607f;
+    --paper:#EEF4FC;
+    --paper-2:#FFFFFF;
+    --highlight:#FFC44D;
+    --highlight-soft:#FFE6AC;
+    --rise:#2A7DE1;
+    --rise-bright:#5BA3F0;
+    --line:#D3E2F4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;overflow:hidden;}
+  body{
+    background:#fff;color:var(--ink);
+    font-family:"Hanken Grotesk",system-ui,sans-serif;
+    font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+    user-select:none;
+  }
+
+  /* ── top bar ── */
+  header{
+    flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+    padding:18px 24px;
+  }
+  .cat-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    background:#f3f4f6;color:#374151;
+    font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    padding:5px 11px;border-radius:8px;
+  }
+  .badge-placeholder{
+    font-size:10px;font-family:monospace;
+    background:#fef3c7;color:#92400e;border:1px solid #fde68a;
+    border-radius:4px;padding:1px 5px;letter-spacing:0;text-transform:none;font-weight:600;
+  }
+  .icon-btn{
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+    border-radius:999px;border:none;background:transparent;cursor:pointer;
+    color:#9ca3af;transition:background .15s,color .15s;
+  }
+  .icon-btn:hover{background:#f3f4f6;color:#374151;}
+  .header-right{display:flex;gap:4px;}
+
+  /* ── main stage ── */
+  main{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    padding:0 32px;overflow:hidden;
+  }
+  .stage{
+    max-width:680px;width:100%;
+    transition:opacity .3s ease, transform .3s ease;
+  }
+  .stage.hidden{opacity:0;transform:translateY(10px);}
+
+  .stage-chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:#f3f4f6;color:#374151;
+    font-size:13px;font-weight:600;
+    padding:6px 12px;border-radius:8px;
+    margin-bottom:20px;
+  }
+  .stage-chip .chip-temp{font-size:9px;font-family:monospace;color:#9ca3af;font-weight:400;}
+
+  .fix-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
+  .fix-text{font-size:16px;font-weight:600;color:#374151;margin-bottom:28px;}
+
+  .lesson-body{font-size:20px;line-height:1.65;color:#1f2937;}
+  .lesson-body .w-spoken{opacity:.35;}
+  .lesson-body .w-current{background:var(--highlight);border-radius:3px;padding:0 2px;}
+  .lesson-body .w-unspoken{}
+
+  /* ── Q&A panel ── */
+  .qa-panel{
+    margin-top:28px;border:1px solid #e5e7eb;border-radius:16px;
+    padding:20px;background:#f9fafb;
+  }
+  .qa-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af;margin-bottom:10px;}
+  .qa-form{display:flex;gap:8px;}
+  .qa-input{
+    flex:1;font-size:14px;border:1px solid #e5e7eb;border-radius:12px;
+    padding:9px 13px;outline:none;font-family:inherit;background:#fff;
+    transition:box-shadow .15s;
+  }
+  .qa-input:focus{box-shadow:0 0 0 2px #d1d5db;}
+  .qa-send{
+    font-size:14px;padding:9px 16px;background:#111827;color:#fff;
+    border:none;border-radius:12px;cursor:pointer;font-family:inherit;font-weight:600;
+    transition:background .15s;
+  }
+  .qa-send:hover{background:#374151;}
+  .qa-q-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
+  .qa-q-text{font-size:14px;color:#374151;font-style:italic;margin-bottom:14px;}
+  .qa-a-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af;margin-bottom:4px;}
+  .qa-a-text{font-size:14px;color:#374151;}
+  .qa-a-thinking{font-size:14px;color:#9ca3af;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .qa-resume{
+    margin-top:14px;font-size:12px;color:#9ca3af;background:none;border:none;
+    cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+    font-family:inherit;transition:color .15s;padding:0;
+  }
+  .qa-resume:hover{color:#374151;}
+
+  /* ── ask button ── */
+  .ask-bar{flex-shrink:0;display:flex;justify-content:center;padding-bottom:10px;}
+  .ask-btn{
+    font-size:12px;color:#9ca3af;border:1px solid #e5e7eb;border-radius:999px;
+    padding:6px 16px;background:none;cursor:pointer;font-family:inherit;
+    transition:color .15s,border-color .15s;
+  }
+  .ask-btn:hover{color:#374151;border-color:#9ca3af;}
+
+  /* ── footer ── */
+  footer{flex-shrink:0;padding:6px 24px 24px;}
+  .footer-in{display:flex;align-items:center;gap:14px;}
+
+  .mascot-area{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .mascot{
+    width:40px;height:40px;border-radius:11px;background:#f3f4f6;
+    border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  .chat-toggle{
+    font-size:12px;color:#6b7280;border:1px solid #e5e7eb;border-radius:999px;
+    padding:4px 12px;background:none;cursor:pointer;font-family:inherit;
+    transition:color .15s,border-color .15s;
+  }
+  .chat-toggle:hover{color:#374151;border-color:#9ca3af;}
+
+  .bars{flex:1;display:flex;gap:8px;align-items:flex-end;}
+  .bar-wrap{flex:1;position:relative;cursor:pointer;}
+  .bar-track{height:4px;background:#e5e7eb;border-radius:99px;overflow:hidden;}
+  .bar-fill{height:100%;background:#111827;border-radius:99px;transition:width .1s linear;}
+  .bar-tooltip{
+    position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+    background:#111827;color:#fff;font-size:11px;border-radius:8px;
+    padding:4px 10px;white-space:nowrap;pointer-events:none;z-index:10;
+    opacity:0;transition:opacity .12s;
+  }
+  .bar-tooltip::after{
+    content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    border:4px solid transparent;border-top-color:#111827;
+  }
+  .bar-wrap:hover .bar-tooltip{opacity:1;}
+
+  /* ── chat drawer ── */
+  .chat-drawer{
+    position:fixed;bottom:80px;left:24px;width:300px;max-height:340px;
+    background:#fff;border:1px solid #e5e7eb;border-radius:16px;
+    box-shadow:0 8px 32px -8px rgba(14,42,71,.18);
+    display:flex;flex-direction:column;overflow:hidden;
+    transform:translateY(12px);opacity:0;pointer-events:none;
+    transition:transform .22s ease,opacity .22s ease;z-index:30;
+  }
+  .chat-drawer.open{transform:translateY(0);opacity:1;pointer-events:all;}
+  .chat-head{
+    padding:12px 16px;border-bottom:1px solid #f3f4f6;
+    font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;
+  }
+  .chat-head .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;}
+  .chat-msgs{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+  .cmsg{font-size:13px;line-height:1.5;padding:8px 11px;border-radius:11px;max-width:90%;}
+  .cmsg.bot{background:#f3f4f6;color:#374151;align-self:flex-start;}
+  .cmsg.user{background:var(--ink);color:#fff;align-self:flex-end;}
+  .chat-form{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #f3f4f6;}
+  .chat-inp{
+    flex:1;font-size:13px;border:1px solid #e5e7eb;border-radius:99px;
+    padding:7px 12px;outline:none;font-family:inherit;
+  }
+  .chat-inp:focus{border-color:#9ca3af;}
+  .chat-submit{
+    width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;transition:background .15s;
+  }
+  .chat-submit:hover{background:#284b74;}
+</style>
+</head>
+<body>
+
+<!-- ── top bar ─────────────────────────────────────────────────── -->
+<header>
+  <div class="cat-chip">
+    <span id="topCat">Quantified Impact</span>
+    <span class="badge-placeholder">DEMO</span>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" title="Report an issue" aria-label="Report">
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18m0-13h14l-2 4 2 4H3"/>
+      </svg>
+    </button>
+    <a href="index.html" class="icon-btn" title="Exit lessons" aria-label="Exit">
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<!-- ── main stage ──────────────────────────────────────────────── -->
+<main>
+  <div class="stage" id="stage">
+    <div class="stage-chip">
+      <span id="stageCat">Quantified Impact</span>
+      <span class="chip-temp">[DEMO]</span>
+    </div>
+    <p class="fix-label">The fix</p>
+    <p class="fix-text" id="fixText">Add a number to every bullet that describes work you did.</p>
+    <p class="lesson-body" id="lessonBody"></p>
+
+    <div class="qa-panel" id="qaPanel" style="display:none"></div>
+  </div>
+</main>
+
+<!-- ── ask button ──────────────────────────────────────────────── -->
+<div class="ask-bar">
+  <button class="ask-btn" id="askBtn">Ask a question</button>
+</div>
+
+<!-- ── footer ─────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-in">
+    <div class="mascot-area">
+      <div class="mascot">🎓</div>
+      <button class="chat-toggle" id="chatToggle">Open chat</button>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+</footer>
+
+<!-- ── chat drawer ─────────────────────────────────────────────── -->
+<div class="chat-drawer" id="chatDrawer">
+  <div class="chat-head"><span class="dot"></span>HirED Coach</div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="cmsg bot">Hi! Ask me anything about this lesson or your resume.</div>
+  </div>
+  <form class="chat-form" id="chatForm">
+    <input class="chat-inp" id="chatInp" placeholder="Ask anything…" autocomplete="off" />
+    <button class="chat-submit" type="submit" aria-label="Send">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </button>
+  </form>
+</div>
+
+<script>
+// ── Lesson data ─────────────────────────────────────────────────────────────
+const LESSONS = [
+  {
+    id: 'l1',
+    category: 'Quantified Impact',
+    fix: 'Add a number to every bullet that describes work you did.',
+    text: 'Your bullets describe what you did, but not at what scale. Recruiters need magnitude to understand your impact. "Managed a team" becomes "Managed an eight-person team that shipped three features in Q2." Every action you describe should have a number that proves its scope. You already have those numbers in your head — pull them out and put them on the page.',
+  },
+  {
+    id: 'l2',
+    category: 'Skills Match',
+    fix: 'Mirror the exact keywords from the job description.',
+    text: 'Applicant tracking systems scan for exact phrases before a human ever reads your resume. If the job posting says "cross-functional collaboration" and your resume says "worked with other teams," you become invisible to the first filter. Lift their language precisely — do not paraphrase it. Open the job description next to your resume and match terms word for word.',
+  },
+  {
+    id: 'l3',
+    category: 'Clarity',
+    fix: 'Lead every bullet with a strong past-tense action verb.',
+    text: 'Phrases like "responsible for" or "assisted with" read as passive and waste precious characters. Start each bullet with Built, Led, Reduced, or Launched. Recruiters spend roughly six seconds on a resume during the first pass — every single word must earn its place on the page. Strong verbs signal confidence and ownership before the reader even gets to the detail.',
+  },
+];
+
+// Demo Q&A answers keyed loosely by question content
+const DEMO_ANSWERS = {
+  default: "Great question. Focus on the most recent role where you made a measurable difference — even small numbers count. \"Served 80 customers daily\" is better than \"Served customers.\" Start there and work backwards through your experience.",
+  number: "Any number works: customers helped, hours saved, dollars processed, units sold, team size, percentage improvement. If you truly have no metric, describe the scope instead — \"across 3 locations\" or \"in a team of 12\" still gives magnitude.",
+  keyword: "Copy the exact phrase from the job posting into your resume. If they write \"stakeholder management,\" use those exact words — not \"working with stakeholders.\" ATS systems match strings, not concepts.",
+  verb: "Strong verbs: Built, Led, Reduced, Launched, Designed, Delivered, Managed, Increased, Automated, Trained. Avoid: Helped, Assisted, Responsible for, Worked on, Involved in.",
+};
+
+function demoAnswer(q) {
+  const lc = q.toLowerCase();
+  if (/number|metric|measure|quantif/.test(lc)) return DEMO_ANSWERS.number;
+  if (/keyword|ats|match|phrase/.test(lc)) return DEMO_ANSWERS.keyword;
+  if (/verb|word|bullet/.test(lc)) return DEMO_ANSWERS.verb;
+  return DEMO_ANSWERS.default;
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+let idx = 0;
+let spokenChar = 0;
+let pausedAt = 0;
+let barProgress = LESSONS.map(() => 0);
+let qaState = 'closed'; // closed | open | answered
+let chatOpen = false;
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+// ── DOM refs ────────────────────────────────────────────────────────────────
+const stage    = document.getElementById('stage');
+const topCat   = document.getElementById('topCat');
+const stageCat = document.getElementById('stageCat');
+const fixText  = document.getElementById('fixText');
+const lessonBody = document.getElementById('lessonBody');
+const qaPanel  = document.getElementById('qaPanel');
+const askBtn   = document.getElementById('askBtn');
+const barsEl   = document.getElementById('bars');
+const chatToggle = document.getElementById('chatToggle');
+const chatDrawer = document.getElementById('chatDrawer');
+const chatMsgs   = document.getElementById('chatMsgs');
+const chatForm   = document.getElementById('chatForm');
+const chatInp    = document.getElementById('chatInp');
+
+// ── Word renderer ───────────────────────────────────────────────────────────
+function renderWords(text, spoken) {
+  const re = /(\S+|\s+)/g;
+  let html = '';
+  let m, cursor = 0;
+  while ((m = re.exec(text)) !== null) {
+    const start = m.index;
+    const end = start + m[0].length;
+    const isWord = /\S/.test(m[0]);
+    if (!isWord) { html += m[0]; continue; }
+    const cls = end <= spoken ? 'w-spoken' : start <= spoken && end > spoken ? 'w-current' : 'w-unspoken';
+    html += `<span class="${cls}">${m[0]}</span>`;
+  }
+  return html;
+}
+
+function refreshWords() {
+  lessonBody.innerHTML = renderWords(LESSONS[idx].text, spokenChar);
+}
+
+// ── Lesson render ───────────────────────────────────────────────────────────
+function loadLesson(i, animate) {
+  idx = i;
+  spokenChar = 0;
+  pausedAt = 0;
+  qaState = 'closed';
+  qaPanel.style.display = 'none';
+  askBtn.textContent = 'Ask a question';
+
+  const l = LESSONS[i];
+  topCat.textContent = l.category;
+  stageCat.textContent = l.category;
+  fixText.textContent = l.fix;
+  refreshWords();
+  renderBars();
+
+  if (animate && !reduce) {
+    stage.classList.add('hidden');
+    setTimeout(() => stage.classList.remove('hidden'), 50);
+  }
+
+  speak(0);
+}
+
+// ── Speech ──────────────────────────────────────────────────────────────────
+let utt = null;
+let autoAdvanceTimer = null;
+
+function speak(fromChar) {
+  window.speechSynthesis.cancel();
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  if (reduce) return;
+
+  const text = LESSONS[idx].text;
+  const slice = text.substring(fromChar);
+  if (!slice.trim()) return;
+
+  const currentIdx = idx;
+  utt = new SpeechSynthesisUtterance(slice);
+
+  utt.onboundary = (e) => {
+    if (idx !== currentIdx) return;
+    const abs = fromChar + e.charIndex;
+    spokenChar = abs;
+    barProgress[currentIdx] = Math.min(1, abs / text.length);
+    refreshWords();
+    renderBars();
+  };
+
+  utt.onend = () => {
+    if (idx !== currentIdx) return;
+    barProgress[currentIdx] = 1;
+    spokenChar = text.length;
+    refreshWords();
+    renderBars();
+    autoAdvanceTimer = setTimeout(() => {
+      if (currentIdx < LESSONS.length - 1) {
+        loadLesson(currentIdx + 1, true);
+      }
+    }, 1500);
+  };
+
+  window.speechSynthesis.speak(utt);
+}
+
+// ── Progress bars ───────────────────────────────────────────────────────────
+function renderBars() {
+  barsEl.innerHTML = '';
+  LESSONS.forEach((l, i) => {
+    const pct = i < idx ? 1 : i === idx ? barProgress[i] : 0;
+    const wrap = document.createElement('div');
+    wrap.className = 'bar-wrap';
+    wrap.innerHTML = `
+      <div class="bar-tooltip">${l.category}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct*100}%"></div></div>`;
+    wrap.addEventListener('click', () => {
+      if (i === idx) return;
+      loadLesson(i, true);
+    });
+    barsEl.appendChild(wrap);
+  });
+}
+
+// ── Q&A panel ───────────────────────────────────────────────────────────────
+function openQA() {
+  window.speechSynthesis.cancel();
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  pausedAt = spokenChar;
+  qaState = 'open';
+  askBtn.textContent = 'Question panel is open ↑';
+  qaPanel.style.display = 'block';
+  qaPanel.innerHTML = `
+    <p class="qa-label">Ask about this lesson</p>
+    <form class="qa-form" id="qaForm">
+      <input class="qa-input" id="qaInput" placeholder="What would you like to know?" autofocus />
+      <button type="submit" class="qa-send">Send</button>
+    </form>`;
+  document.getElementById('qaForm').addEventListener('submit', submitQ);
+}
+
+function submitQ(e) {
+  e.preventDefault();
+  const q = document.getElementById('qaInput').value.trim();
+  if (!q) return;
+  qaState = 'answered';
+  qaPanel.innerHTML = `
+    <p class="qa-q-label">Your question</p>
+    <p class="qa-q-text">"${q}"</p>
+    <p class="qa-a-label">Answer</p>
+    <p class="qa-a-thinking" id="qaThinking">thinking…</p>
+    <button class="qa-resume" id="qaResume" style="display:none">Resume lesson →</button>`;
+  setTimeout(() => {
+    document.getElementById('qaThinking').className = 'qa-a-text';
+    document.getElementById('qaThinking').textContent = demoAnswer(q);
+    document.getElementById('qaResume').style.display = 'inline';
+    document.getElementById('qaResume').addEventListener('click', dismissQA);
+  }, reduce ? 0 : 1400);
+}
+
+function dismissQA() {
+  qaState = 'closed';
+  qaPanel.style.display = 'none';
+  askBtn.textContent = 'Ask a question';
+  speak(pausedAt);
+}
+
+askBtn.addEventListener('click', () => {
+  if (qaState === 'closed') openQA();
+});
+
+// ── Chat drawer ─────────────────────────────────────────────────────────────
+const CHAT_REPLIES = [
+  "Quantifying your impact is the single highest-ROI change you can make to a resume. Recruiters screen for numbers in the first six seconds.",
+  "A great rule of thumb: if you can answer \"how many?\", \"how much?\", or \"how often?\" — add that number.",
+  "The best way to find metrics is to look at old performance reviews, emails, or just estimate conservatively. A conservative number beats no number.",
+];
+let chatReplyIdx = 0;
+
+function addChatMsg(text, who) {
+  const d = document.createElement('div');
+  d.className = `cmsg ${who}`;
+  d.textContent = text;
+  chatMsgs.appendChild(d);
+  chatMsgs.scrollTop = chatMsgs.scrollHeight;
+}
+
+chatToggle.addEventListener('click', () => {
+  chatOpen = !chatOpen;
+  chatDrawer.classList.toggle('open', chatOpen);
+  chatToggle.textContent = chatOpen ? 'Close chat' : 'Open chat';
+});
+
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = chatInp.value.trim();
+  if (!t) return;
+  addChatMsg(t, 'user');
+  chatInp.value = '';
+  setTimeout(() => {
+    addChatMsg(CHAT_REPLIES[chatReplyIdx % CHAT_REPLIES.length], 'bot');
+    chatReplyIdx++;
+  }, reduce ? 0 : 900);
+});
+
+// ── Init ────────────────────────────────────────────────────────────────────
+loadLesson(0, false);
+</script>
+</body>
+</html>
