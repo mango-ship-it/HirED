@@ -119,21 +119,13 @@ def _role(context) -> str:
 
 @router.post("/resources", response_model=ResourcesResponse)
 async def resources(request: ResourcesRequest) -> ResourcesResponse:
-    """Role-specific free resources. The Redis vector index (which GROWS from every Exa
-    search) is tried first; on a miss we fetch fresh from Exa and index it for next time."""
+    """Role-specific free resources. EXA FIRST — real, exact courses that work for ANY job —
+    and we index every result so the Redis vector index grows into a knowledge base used as
+    the fallback once it's rich. Order: Exa -> Redis index -> agent -> static."""
     role = _role(request.context)
-    query = f"{request.gap_category.replace('_', ' ')} for a {role}".strip()
 
-    # 1. Redis vector index FIRST — a real, GROWING knowledge base. A tight distance
-    #    threshold keeps results role-relevant (a golf query never returns a tech resource),
-    #    and a later "golf instructor" reuses a prior "golf coach" search for free.
-    indexed = await vector_search(query, k=4, max_distance=0.35)
-    if indexed and len(indexed) >= 3:
-        return ResourcesResponse(
-            resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
-        )
-
-    # 2. Exa — REAL role-specific fetch; index the results so Redis serves them next time.
+    # 1. Exa FIRST — real, exact, role-specific resources for ANY job. Index the results
+    #    (best-effort) so the Redis vector index keeps growing for the fallback below.
     if has_exa() and role:
         try:
             hits = await resources_for_gap(request.gap_category, role)
@@ -148,11 +140,17 @@ async def resources(request: ResourcesRequest) -> ResourcesResponse:
         except Exception as exc:
             logger.warning("Exa resources failed (%s); falling back", exc)
 
-    # 3. Any weaker indexed hits, then 4. the Fetch.ai agent, then 5. the static list.
+    # 2. Redis vector index — the GROWN knowledge base, used only when Exa is off/capped/failed.
+    #    The distance threshold keeps it role-focused even as it accumulates many roles.
+    indexed = await vector_search(
+        f"{request.gap_category.replace('_', ' ')} for a {role}".strip(), k=4, max_distance=0.35
+    )
     if indexed:
         return ResourcesResponse(
             resources=[Resource(name=h["name"], url=h["url"], description=h["description"]) for h in indexed]
         )
+
+    # 3. Fetch.ai resource uAgent, then 4. static fallback.
     try:
         reply = await ask_agent(
             resource_agent_address(),
