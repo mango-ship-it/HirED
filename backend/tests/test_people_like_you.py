@@ -1,39 +1,47 @@
-"""'People like you' — vector-cohort endpoint + graceful degradation.
+"""'People like you' — vector-cohort endpoint contract.
 
-The RedisVL profile index needs Redis; the test env has none, so these verify the
-endpoint returns a clean `available:false` shape (never a 500) when the index is down.
-The live KNN ranking is verified separately against real Redis.
+The endpoint must return a well-formed payload whether or not the RedisVL profile index
+is up (it depends on Redis + the background build, which may or may not be ready in a
+given env), and 404 for an unknown user. The live KNN ranking is verified against real Redis.
 """
 
 from __future__ import annotations
 
-import json
+import asyncio
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.store import save_profile
 
 client = TestClient(app)
-
-_TARGET = json.dumps({"type": "role", "value": "Data Analyst"})
 
 
 def test_people_like_you_404_for_unknown_user():
     assert client.get("/people-like-you/nope-nobody-here").status_code == 404
 
 
-def test_people_like_you_degrades_gracefully_without_index():
-    # A profile exists (scored), but without Redis the vector index is unavailable — the
-    # endpoint must return a clean empty/available:false payload, not a 500.
-    client.post(
-        "/score",
-        data={
-            "user_id": "ply1",
-            "target": _TARGET,
-            "resume_text": "Python and SQL developer, 4 years experience, BS in Computer Science.",
-        },
+def test_people_like_you_returns_valid_shape():
+    # Inject a profile directly (deterministic — avoids the persistent score cache that can
+    # skip save_profile on a hit). Whether or not the vector index is up in this env, the
+    # endpoint must return a well-formed payload (never a 500), with count == len(peers).
+    asyncio.run(
+        save_profile(
+            "ply1",
+            {
+                "user_id": "ply1",
+                "target": {"type": "role", "value": "Data Analyst"},
+                "score": 61,
+                "missing_skills": ["SQL", "Tableau", "statistics"],
+            },
+        )
     )
     body = client.get("/people-like-you/ply1").json()
-    assert body["available"] is False
-    assert body["count"] == 0
-    assert body["peers"] == []
+    assert isinstance(body["available"], bool)
+    assert isinstance(body["peers"], list)
+    assert body["count"] == len(body["peers"])
+    if body["available"]:
+        for peer in body["peers"]:
+            assert {"target", "score", "shared_gaps", "similarity"} <= peer.keys()
+    else:
+        assert body["count"] == 0
