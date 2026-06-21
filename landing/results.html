@@ -220,8 +220,9 @@
   .res-bench-loading{font-size:14px;color:#9fb0c9;text-align:center;padding:8px 0;}
   .res-bench-content{display:none;}
   .res-bench-label{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9fb0c9;margin-bottom:8px;}
-  .res-bench-big{font-family:"Fraunces",serif;font-size:40px;font-weight:700;line-height:1;margin-bottom:22px;}
-  .res-bench-big span{font-size:16px;color:#9fb0c9;font-family:"Hanken Grotesk",sans-serif;font-weight:500;}
+  .res-bench-big{font-family:"Fraunces",serif;font-size:28px;font-weight:700;line-height:1;margin-bottom:14px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+  .res-bench-big #benchPct{font-size:64px;font-weight:700;color:var(--highlight);line-height:1;}
+  .res-bench-big span:last-child{font-size:16px;color:#9fb0c9;font-family:"Hanken Grotesk",sans-serif;font-weight:500;}
   /* zone bar */
   .res-bench-zone-wrap{margin-bottom:16px;}
   .res-bench-zone-bar{
@@ -258,7 +259,7 @@
     display:inline-block;font-size:13px;font-weight:700;
     padding:5px 14px;border-radius:99px;margin-bottom:10px;
   }
-  .res-bench-sub{font-size:14px;color:#9fb0c9;}
+  .res-bench-sub{font-size:14px;color:#9fb0c9;margin-top:6px;}
 
   /* ---- roadmap ---- */
   .rm-progress-bar{height:3px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden;}
@@ -308,6 +309,65 @@
   .empty h1{font-size:30px;margin-bottom:14px;}
   .empty p{color:var(--ink-soft);margin-bottom:24px;}
 
+  /* ---- breakdown two-panel layout ---- */
+  /* shift layout right to clear the fixed sidebar (220px) with 24px gap */
+  .results-layout--bd{
+    justify-content:flex-start;
+    padding-left:252px;
+    padding-right:20px;
+  }
+  /* expand panel to fill remaining viewport width */
+  .rpanel--bd{
+    max-width:none;
+    width:100%;
+    height:calc(100vh - 62px - 44px);
+    min-height:0;
+  }
+  .rpanel--bd .rpanel-inner{
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  /* two columns inside rpanel-inner */
+  .bd-split{
+    flex:1;min-height:0;
+    display:flex;gap:16px;
+    overflow:hidden;
+  }
+  .bd-left{
+    width:45%;flex-shrink:0;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .bd-right{
+    flex:1;
+    overflow-y:auto;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 20px;
+  }
+  .bd-resume-label{
+    font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:10px;
+  }
+  .bd-resume-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .bd-legend-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;
+    background:var(--paper-2);border:1px solid var(--line);color:var(--ink-soft);
+  }
+  .bd-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .bd-resume-body{
+    font-size:12.5px;line-height:1.75;color:var(--ink);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .bd-resume-empty{
+    font-size:13px;color:var(--ink-soft);font-style:italic;
+    text-align:center;padding:48px 0;
+  }
+
   /* ---- responsive ---- */
   @media(max-width:820px){
     .results-layout{flex-direction:column;align-items:stretch;}
@@ -319,6 +379,12 @@
     .rtab{width:auto;flex-shrink:0;white-space:nowrap;}
     .rt-label{max-width:140px;}
     .rpanel{min-height:auto;max-width:100%;}
+    .results-layout--bd{padding-left:clamp(16px,4vw,40px);padding-right:clamp(16px,4vw,40px);}
+    .rpanel--bd{width:100%;height:auto;}
+    .rpanel--bd .rpanel-inner{overflow:visible;}
+    .bd-split{flex-direction:column;overflow:visible;height:auto;min-height:0;}
+    .bd-left{width:100%;overflow-y:visible;padding-right:0;}
+    .bd-right{min-height:240px;}
   }
   @media(prefers-reduced-motion:reduce){
     *{transition:none!important;animation:none!important;}
@@ -353,6 +419,8 @@
     sessionStorage.setItem('hired_uid', id);
     return id;
   })();
+
+  const resumeText = sessionStorage.getItem('hired_resume') || '';
 
   const root = document.getElementById('root');
 
@@ -432,6 +500,7 @@
   if(Object.keys(cats).length){
     sections.push({
       label: 'Breakdown',
+      _isBreakdown: true,
       render(){
         const rows = Object.entries(cats).map(([k,cat]) => {
           const label = CAT_LABELS[k]||k, color = scoreColor(cat.score);
@@ -447,10 +516,30 @@
             <div class="res-cat-bar"><div class="res-cat-fill" data-w="${cat.score}" style="background:${color}"></div></div>
           </div>`;
         }).join('');
-        return `<div class="rsec">
-          <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;">Skill Breakdown</h2>
-          <p class="rsec-sub">Five areas scored individually — fix the lowest one first.</p>
-          <div class="res-cats">${rows}</div>
+
+        const legend = Object.entries(cats).map(([k,cat]) => `
+          <span class="bd-legend-chip">
+            <span class="bd-chip-dot" style="background:${scoreColor(cat.score)}"></span>
+            ${esc(CAT_LABELS[k]||k)} · ${cat.score}
+          </span>`).join('');
+
+        const resumeBody = resumeText
+          ? `<div class="bd-resume-body">${esc(resumeText)}</div>`
+          : `<div class="bd-resume-empty">Paste your resume on the upload screen to preview it here alongside your scores.</div>`;
+
+        return `<div class="bd-split">
+          <div class="bd-left">
+            <div class="rsec">
+              <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;">Skill Breakdown</h2>
+              <p class="rsec-sub">Five areas scored — fix the lowest one first.</p>
+              <div class="res-cats">${rows}</div>
+            </div>
+          </div>
+          <div class="bd-right">
+            <div class="bd-resume-label">Your resume</div>
+            <div class="bd-resume-legend">${legend}</div>
+            ${resumeBody}
+          </div>
         </div>`;
       },
       onShow(){
@@ -485,8 +574,8 @@
       label: 'How you compare',
       render(){
         return `<div class="rsec">
-          <h2 class="rsec-title">How prepared are you, really?</h2>
-          <p class="rsec-sub">Benchmarked against real candidates targeting this role.</p>
+          <h2 class="rsec-title" style="font-weight:800;text-align:center;">How prepared are you, really?</h2>
+          <p class="rsec-sub" style="text-align:center;">Benchmarked against real candidates targeting this role.</p>
           <div class="res-bench">
             <div class="res-bench-loading" id="benchLoading">Benchmarking against real candidates…</div>
             <div class="res-bench-content" id="benchContent">
@@ -774,6 +863,11 @@
 
     inner.innerHTML = sections[i].render();
     if(sections[i].onShow) sections[i].onShow();
+
+    // two-panel wide layout for breakdown step
+    const isBd = !!sections[i]._isBreakdown;
+    document.querySelector('.results-layout').classList.toggle('results-layout--bd', isBd);
+    document.querySelector('.rpanel').classList.toggle('rpanel--bd', isBd);
 
     // tab states
     tabBtns.forEach((t, idx) => {
