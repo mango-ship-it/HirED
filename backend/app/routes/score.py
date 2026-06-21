@@ -41,6 +41,7 @@ from app.services.jobs import load_jobs
 from app.services.leaderboard import add_score as leaderboard_add
 from app.services.profile_vectors import add_profile
 from app.services.resume_guard import has_usable_resume
+from app.services import score_cache
 from app.services.scoring_engine import get_scorer
 from app.services.store import get_store, save_profile
 
@@ -167,6 +168,19 @@ async def score(
     if cached is not None:
         return ScoreResponse.model_validate(cached)
 
+    # Semantic cache fallback — catches near-identical resumes (PDF re-parse artifacts,
+    # whitespace) that missed the exact cache. Threshold 0.04 absorbs only trivial changes;
+    # meaningful edits always produce a fresh score.
+    semantic_key = f"{resume[:1500]}\n---TARGET---\n{target_obj.value}\n---JDS---\n{len(cached_jobs or [])}"
+    sem_cached = await score_cache.get_cached(semantic_key)
+    if sem_cached is not None:
+        sem_cached["resume_text"] = resume
+        for ann in sem_cached.get("annotations", []):
+            start, end = _locate(resume, ann.get("quote", ""))
+            ann["start"] = start
+            ann["end"] = end
+        return ScoreResponse.model_validate(sem_cached)
+
     profile = await extract_profile(resume, target_obj.value)
 
     # Accuracy bridge: enrich skills against the REAL postings + build a grounded lesson
@@ -273,6 +287,10 @@ async def score(
     )
     try:
         await get_store().set_json(cache_key, response.model_dump(), ttl=_SCORE_TTL)
+    except Exception:
+        pass
+    try:
+        await score_cache.set_cached(semantic_key, response.model_dump())
     except Exception:
         pass
     return response
