@@ -605,12 +605,13 @@
       .filter(a => !isNaN(a.start) && a.start >= 0 && !isNaN(a.end) && a.end > a.start)
       .sort((a, b) => a.start - b.start);
 
-    const makeMarkEl = (content, bg, col, catKey, score, reason) => {
+    const makeMarkEl = (content, bg, col, catKey, score, reason, sentiment) => {
       const catLabel = catKey ? (CAT_LABELS[catKey] || catKey) : null;
       const catAttr  = catLabel ? ` data-cat="${catLabel.replace(/"/g,'&quot;')}"` : '';
       const scoreAttr = (score != null) ? ` data-score="${score}"` : '';
+      const sentAttr  = sentiment ? ` data-sentiment="${sentiment}"` : '';
       const tip = reason ? ` title="${reason.replace(/"/g,'&quot;')}"` : '';
-      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${scoreAttr}${tip}>${content}</mark>`;
+      return `<mark style="background:${bg};color:${col};border-radius:4px;padding:1px 4px;font-weight:700;font-style:normal;cursor:help;box-shadow:0 0 0 1.5px ${bg};"${catAttr}${scoreAttr}${sentAttr}${tip}>${content}</mark>`;
     };
 
     // Fallback: backend didn't send char-offset annotations, so highlight by
@@ -633,7 +634,7 @@
         // Skills match is the most likely category for keyword hits
         const catKey = 'skills_match';
         const score = cats[catKey] ? cats[catKey].score : null;
-        return makeMarkEl(esc(part), bg, col, catKey, score, null);
+        return makeMarkEl(esc(part), bg, col, catKey, score, null, hit.sentiment);
       }).join('');
     }
 
@@ -648,7 +649,7 @@
       const col = s === 'positive' ? '#14532d'               : s === 'negative' ? '#991b1b'               : '#92400e';
       const catKey = ann.category || null;
       const score  = catKey && cats[catKey] ? cats[catKey].score : null;
-      parts.push(makeMarkEl(esc(snippet), bg, col, catKey, score, ann.reason || null));
+      parts.push(makeMarkEl(esc(snippet), bg, col, catKey, score, ann.reason || null, s));
       cursor = ann.end;
     }
     if(cursor < text.length) parts.push(esc(text.slice(cursor)));
@@ -667,10 +668,11 @@
       const mark = e.target.closest('mark[data-cat]');
       if(!mark) return;
       clearTimeout(hideTimer);
-      const cat   = mark.dataset.cat;
-      const score = mark.dataset.score;
-      const s     = score != null ? Number(score) : null;
-      const color = s != null ? (s < 40 ? '#F87171' : s < 70 ? '#FBBF24' : '#4ADE80') : '#fff';
+      const cat       = mark.dataset.cat;
+      const score     = mark.dataset.score;
+      const s         = score != null ? Number(score) : null;
+      const sentiment = mark.dataset.sentiment || '';
+      const color = sentiment === 'positive' ? '#4ADE80' : sentiment === 'negative' ? '#F87171' : '#FBBF24';
       tt.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:2px;">${cat}</div>`
         + (s != null ? `<div style="color:${color};font-weight:700;font-size:15px;">${s}<span style="font-size:10px;color:rgba(255,255,255,.5)">/100</span></div>` : '');
       tt.style.opacity = '1';
