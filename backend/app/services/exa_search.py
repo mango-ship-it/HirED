@@ -25,6 +25,7 @@ import re
 from datetime import datetime, timezone
 
 from app.config import get_settings
+from app.services.semantic_cache import get_cached as semantic_get, set_cached as semantic_set
 from app.services.store import get_store
 
 logger = logging.getLogger("hired.exa")
@@ -126,6 +127,18 @@ async def _search(
         cached = None
     if cached is not None:
         return cached
+    # Semantic layer (RedisVL SemanticCache): a PARAPHRASED query for the same intent
+    # ("free electrician courses" ~= "electrician training free") reuses a prior result, so
+    # we never spend the Exa budget twice on near-duplicate searches. Scoped by category +
+    # card_type so a courses search never collides with a people/events one.
+    sem_key = f"{category or ''}|{card_type}|{query}"
+    sem_hit = await semantic_get(sem_key)
+    if sem_hit is not None:
+        try:  # also populate the exact cache so the next identical call is instant + free
+            await get_store().set_json(cache_key, sem_hit, ttl=_CACHE_TTL)
+        except Exception:
+            pass
+        return sem_hit
     if not _can_call():
         logger.info("Exa daily call cap reached — falling back to search links")
         return []
@@ -153,6 +166,8 @@ async def _search(
         await get_store().set_json(cache_key, cards, ttl=_CACHE_TTL)
     except Exception:
         pass
+    if cards:  # seed the semantic cache so future paraphrases of this query reuse it
+        await semantic_set(sem_key, cards)
     return cards
 
 
