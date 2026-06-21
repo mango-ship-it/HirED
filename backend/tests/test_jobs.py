@@ -1,8 +1,11 @@
 """Tests for the JobSpy job-pull system (no network — normalize + endpoints mocked)."""
+import asyncio
+
 import pandas as pd
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.jd_skills import compare_to_market, top_skills_from_jobs
 from app.services.jobs import normalize
 
 client = TestClient(app)
@@ -56,3 +59,42 @@ def test_refresh_stores_then_get_reads(monkeypatch):
     assert posted.status_code == 200 and posted.json()["count"] == 1
     got = client.get("/jobs/swe")
     assert got.json()["count"] == 1 and got.json()["jobs"][0]["company"] == "Acme"
+
+
+def test_top_skills_ranks_by_posting_count():
+    jobs = [
+        {"title": "SWE", "description": "We use Python and AWS and Docker."},
+        {"title": "SWE", "description": "Python, AWS, Kubernetes."},
+        {"title": "SWE", "description": "Python only."},
+    ]
+    ranked = {r["skill"]: r["count"] for r in top_skills_from_jobs(jobs, limit=8)}
+    assert ranked["Python"] == 3  # in all 3 postings
+    assert ranked["AWS"] == 2
+
+
+def test_compare_to_market_splits_have_and_lack():
+    jobs = [{"title": "SWE", "description": "Python AWS Docker"}]
+    result = compare_to_market(jobs, ["Python"])
+    assert "Python" in result["you_have"]
+    assert "AWS" in result["you_lack"]
+
+
+def test_jobs_skills_endpoint_empty_without_cache():
+    response = client.get("/jobs/never-fetched-xyz/skills")
+    assert response.status_code == 200
+    assert response.json()["sample_size"] == 0
+
+
+def test_jobs_skills_endpoint_with_cached_jobs():
+    from app.services.jobs import jobs_key
+    from app.services.store import get_store
+
+    asyncio.run(
+        get_store().set_json(
+            jobs_key("analyst"),
+            [{"title": "Data Analyst", "description": "SQL Tableau Excel Python"}],
+        )
+    )
+    body = client.get("/jobs/analyst/skills").json()
+    assert body["sample_size"] == 1
+    assert any(m["skill"] == "SQL" for m in body["market_skills"])

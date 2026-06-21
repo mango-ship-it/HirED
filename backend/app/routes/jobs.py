@@ -10,7 +10,9 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.errors import ErrorCode, error_response
+from app.services.jd_skills import compare_to_market
 from app.services.jobs import DEFAULT_SITES, fetch_and_store_jobs, load_jobs
+from app.services.store import load_profile
 
 router = APIRouter()
 
@@ -33,3 +35,28 @@ async def refresh_jobs(body: dict):
 async def get_jobs(target: str):
     jobs = await load_jobs(target)
     return {"target": target, "count": len(jobs or []), "jobs": jobs or []}
+
+
+@router.get("/jobs/{target}/skills")
+async def jobs_skills(target: str, user_id: str | None = None):
+    """Real in-demand skills for a role (from cached JD postings) vs the user's skills.
+
+    Reinforces readiness with real market data: "N postings want X; you have/lack it."
+    Pass ?user_id=... to compare against that user's stored profile.
+    """
+    jobs = await load_jobs(target)
+    if not jobs:
+        return {
+            "target": target,
+            "sample_size": 0,
+            "market_skills": [],
+            "note": "No jobs cached for this target — call POST /jobs/refresh first.",
+        }
+    candidate_skills: list[str] = []
+    if user_id:
+        record = await load_profile(user_id)
+        if record:
+            candidate_skills = list(record.get("matched_skills") or [])
+    result = compare_to_market(jobs, candidate_skills)
+    result["target"] = target
+    return result
