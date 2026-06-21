@@ -32,4 +32,5 @@ striprtf==0.0.32                 # RTF text extraction (the frontend's upload ac
 
 # --- dev / test ---
 pytest==9.1.1
+pytest-asyncio>=0.24             # run async tests (benchmark pipeline uses @pytest.mark.asyncio)
 fpdf2==2.8.4                     # generate small PDF fixtures in tests (pure-python)
