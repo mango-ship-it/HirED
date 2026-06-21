@@ -127,6 +127,21 @@ def test_benchmark_falls_back_without_agent():
     assert isinstance(body["message"], str) and body["message"]
 
 
+def test_benchmark_response_includes_matches_field():
+    """Contract: /benchmark response always carries a `matches` array (empty on fallback)."""
+    response = client.post("/benchmark", json={
+        "user_id": "smoke-user",
+        "score": 60,
+        "target": {"type": "role", "value": "Software Engineering Internship"},
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert "matches" in data
+    assert isinstance(data["matches"], list)
+    # No agent running in the test → fallback path → empty list
+    assert data["matches"] == []
+
+
 def test_benchmark_requires_target_object():
     response = client.post("/benchmark", json={"user_id": "u1", "score": 70, "target": "Data Analyst"})
     assert response.status_code == 422

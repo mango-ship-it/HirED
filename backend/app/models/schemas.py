@@ -87,10 +87,22 @@ class BenchmarkRequest(BaseModel):
     target: Target
 
 
+class Match(BaseModel):
+    """One 2AFC head-to-head: a synthetic competitor and whether the user won."""
+
+    competitor_headline: str = Field(description="First line of the synthesized resume")
+    competitor_resume: str = Field(description="Full synthesized resume text — label as AI-generated on the FE")
+    user_won: bool
+
+
 class BenchmarkResponse(BaseModel):
     percentile: int = Field(ge=0, le=100)
     sample_size: int = Field(ge=0, description="Size of the comparison cohort")
     message: str = Field(description="Motivating, plain-language framing of the percentile")
+    matches: list[Match] = Field(
+        default_factory=list,
+        description="Per-2AFC results. Empty on agent-unavailable fallback.",
+    )
 
 
 # --------------------------------------------------------------------------- #
