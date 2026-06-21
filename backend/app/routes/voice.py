@@ -179,9 +179,11 @@ def _agent_settings(prompt: str, greeting: str) -> dict:
         },
         "agent": {
             "language": "en",
-            # endpointing: wait ~600ms of silence before the user's turn ends, so it lets them
-            # finish instead of talking over them. speed 0.9: slower, calmer TTS.
-            "listen": {"provider": {"type": "deepgram", "model": "nova-3", "endpointing": 600}},
+            # endpointing: wait ~1200ms of silence before the user's turn ends, so it lets them
+            # finish (and pause mid-thought) instead of jumping in. speed 0.9: slower, calmer TTS.
+            # NOTE: true "press start, ask, press stop, then answer" is push-to-talk = a FRONTEND
+            # pattern (only stream mic between start/stop) — this is just the continuous-mode nudge.
+            "listen": {"provider": {"type": "deepgram", "model": "nova-3", "endpointing": 1200}},
             "think": {"provider": {"type": "open_ai", "model": "gpt-4o-mini"}, "prompt": prompt},
             "speak": {"provider": {"type": "deepgram", "model": _AGENT_VOICE, "speed": 0.9}},
             "greeting": greeting,
