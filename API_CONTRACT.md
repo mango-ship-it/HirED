@@ -22,11 +22,11 @@ target: {
 {
   "score": 72,
   "categories": {
-    "skills_match":            { "score": 65, "weight": 0.35 },
-    "quantified_achievements": { "score": 40, "weight": 0.25 },
-    "experience":              { "score": 80, "weight": 0.20 },
-    "education":               { "score": 90, "weight": 0.10 },
-    "clarity":                 { "score": 70, "weight": 0.10 }
+    "skills_match":            { "score": 65, "weight": 0.35, "explanation": "You show 2 of ~5 skills this role looks for…" },
+    "quantified_achievements": { "score": 40, "weight": 0.25, "explanation": "1 of 4 bullets use concrete numbers." },
+    "experience":              { "score": 80, "weight": 0.20, "explanation": "~4 years of relevant experience." },
+    "education":               { "score": 90, "weight": 0.10, "explanation": "Detected education: a bachelor's degree." },
+    "clarity":                 { "score": 70, "weight": 0.10, "explanation": "Reflects action verbs, structure, concision." }
   },
   "lessons": [
     {
@@ -38,6 +38,15 @@ target: {
   ],
   "matched_skills": ["python", "sql"],
   "missing_skills": ["airflow", "dbt"],
+  "resume_text": "<full extracted resume text — render it on the breakdown page; highlight annotations against it>",
+  "annotations": [
+    {
+      "quote": "Reduced processing time 30%",
+      "category": "quantified_achievements",
+      "sentiment": "positive",
+      "reason": "Concrete metric showing measurable impact."
+    }
+  ],
   "status": {
     "scoring": "complete",
     "benchmark": "complete" | "pending" | "failed",
@@ -47,6 +56,8 @@ target: {
 ```
 
 **`matched_skills` / `missing_skills`** _(additive — added by backend, frontend please confirm)_: the target skills the candidate already has vs. lacks. `missing_skills` is the data source for the **"what the top tier has that you don't"** chips on the readiness/benchmark view (the landing page currently hardcodes these).
+
+**`resume_text` + `annotations`** _(new — breakdown-page resume highlighting)_: `resume_text` is the **full extracted resume text** (render it beside the score). `annotations` are VERBATIM `quote`s from that text, each tagged with `category` (one of the 5 scoring keys), `sentiment` (`"positive"` strengthens / `"negative"` is a gap), and `reason`. To highlight: find each `quote` inside `resume_text` and mark it (e.g. green = positive, red = negative). `annotations` is empty on the heuristic path (no `ANTHROPIC_API_KEY`). Each `categories[*]` entry also carries an `explanation` string (why it scored that — for the breakdown bars).
 
 **Why `status` exists:** scoring now pulls data from multiple agents (Fetch.ai + scoring agent) running in parallel. Per decision on #6, a slow/failed agent does NOT fail the whole request — `/score` still returns what it has. Frontend reads `status` and conditionally renders the benchmark/resources sections instead of assuming they're always present. If `"pending"`, frontend can poll or just show a "still calculating" state for that section; if `"failed"`, hide that section gracefully rather than showing broken/empty data.
 

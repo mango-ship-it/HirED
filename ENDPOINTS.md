@@ -37,10 +37,15 @@ Multipart form:
   ],
   "matched_skills": ["…"],
   "missing_skills": ["…"],
+  "resume_text": "<full extracted resume text>",   // page 2: render the resume beside the score
+  "annotations": [                                  // highlight each quote inside resume_text
+    { "quote": "Reduced processing time 30%", "category": "quantified_achievements",
+      "sentiment": "positive", "reason": "Concrete metric showing measurable impact." }
+  ],
   "status": { "scoring": "complete", "benchmark": "pending", "resources": "pending" }
 }
 ```
-> Same input always returns the same score (deterministic + cached).
+> Same input always returns the same score (deterministic + cached). `annotations` is empty on the no-key heuristic path. To highlight: find each `quote` in `resume_text`, color by `sentiment` (positive/negative).
 
 ### `POST /resources`  — "free ways to close this gap" (pages 3–5)
 Body: `{ "gap_category": "education", "context": "Bus Driver", "user_id": "…" }`  — `context` is the **role string**; `gap_category` is one of the 5 category keys. **Send `user_id`** so each `description` is personalized to the user's own resume gaps (e.g. a CNA targeting RN gets why-it-helps about fast-track RN training), not a generic role blurb.

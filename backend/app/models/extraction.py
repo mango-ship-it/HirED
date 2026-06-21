@@ -64,6 +64,12 @@ class ExtractedProfile(BaseModel):
         default="", description="One-line summary of the parsed target role"
     )
 
+    # Exact resume quotes the score references (powers the breakdown-page highlight feature).
+    annotations: list[dict] = Field(
+        default_factory=list,
+        description="[{quote, category, sentiment, reason}] — verbatim resume excerpts",
+    )
+
 
 # JSON Schema fed to Claude's structured-output (output_config.format). Kept here
 # so the extraction shape and the prompt schema can't drift apart.
@@ -85,6 +91,26 @@ EXTRACTION_JSON_SCHEMA: dict = {
         },
         "clarity_signal": {"type": "number"},
         "target_summary": {"type": "string"},
+        "annotations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "quote": {"type": "string"},
+                    "category": {
+                        "type": "string",
+                        "enum": [
+                            "skills_match", "quantified_achievements",
+                            "experience", "education", "clarity",
+                        ],
+                    },
+                    "sentiment": {"type": "string", "enum": ["positive", "negative"]},
+                    "reason": {"type": "string"},
+                },
+                "required": ["quote", "category", "sentiment", "reason"],
+                "additionalProperties": False,
+            },
+        },
     },
     "required": [
         "required_skills",
@@ -96,6 +122,7 @@ EXTRACTION_JSON_SCHEMA: dict = {
         "education_level",
         "clarity_signal",
         "target_summary",
+        "annotations",
     ],
     "additionalProperties": False,
 }

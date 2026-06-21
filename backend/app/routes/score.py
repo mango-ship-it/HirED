@@ -22,6 +22,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 
 from app.errors import ErrorCode, error_response
 from app.models.schemas import (
+    Annotation,
     CategoryBreakdown,
     ScoreResponse,
     ScoreStatus,
@@ -122,7 +123,7 @@ async def score(
 
     # Consistency: identical (resume, target, JD-state) -> identical score, served from cache,
     # so the same input never yields a different number (Claude extraction can vary per run).
-    cache_key = "score:" + hashlib.sha256(
+    cache_key = "score:v2:" + hashlib.sha256(
         f"{resume}\n{target_obj.value}\n{len(cached_jobs or [])}".encode()
     ).hexdigest()[:24]
     try:
@@ -190,6 +191,19 @@ async def score(
     except Exception:
         logger.exception("failed to save profile for %s", user_id)
 
+    # Resume highlight annotations (Claude path only; empty on the heuristic path). Built
+    # defensively so a malformed item never breaks the score.
+    annotations = [
+        Annotation(
+            quote=a.get("quote", ""),
+            category=a.get("category", ""),
+            sentiment=a.get("sentiment", ""),
+            reason=a.get("reason", ""),
+        )
+        for a in profile.annotations
+        if isinstance(a, dict) and a.get("quote")
+    ]
+
     # benchmark/resources are fetched from their own endpoints -> still "pending" here.
     response = ScoreResponse(
         score=outcome.score,
@@ -197,6 +211,8 @@ async def score(
         lessons=lessons,
         matched_skills=list(profile.matched_skills),
         missing_skills=list(profile.missing_skills),
+        resume_text=resume,  # full text so the frontend can render + highlight against it
+        annotations=annotations,
         status=ScoreStatus(scoring="complete", benchmark="pending", resources="pending"),
     )
     try:

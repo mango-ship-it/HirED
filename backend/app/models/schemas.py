@@ -55,6 +55,15 @@ class ScoreStatus(BaseModel):
     resources: str = "pending"
 
 
+class Annotation(BaseModel):
+    """A resume excerpt the score references — powers breakdown-page highlighting."""
+
+    quote: str = Field(description="VERBATIM text from the resume; match against resume_text to highlight")
+    category: str = Field(description="Which scoring category it affects (snake_case)")
+    sentiment: str = Field(description='"positive" (strengthens) or "negative" (a gap)')
+    reason: str = Field(default="", description="Short why")
+
+
 class ScoreResponse(BaseModel):
     """Output of /score (API_CONTRACT.md).
 
@@ -73,6 +82,14 @@ class ScoreResponse(BaseModel):
     missing_skills: list[str] = Field(
         default_factory=list,
         description="Target skills the candidate lacks — powers 'what the top tier has that you don't'",
+    )
+    resume_text: str = Field(
+        default="",
+        description="Full extracted resume text — the frontend renders it and matches annotations against it",
+    )
+    annotations: list[Annotation] = Field(
+        default_factory=list,
+        description="Verbatim resume excerpts the score references (breakdown-page highlighting)",
     )
     status: ScoreStatus = Field(default_factory=ScoreStatus)
 

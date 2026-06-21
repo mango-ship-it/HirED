@@ -59,7 +59,14 @@ _EXTRACTION_SYSTEM = (
     "candidate has it; every other skill the target needs goes in missing_skills. "
     "Count quantified_achievement_count only for bullets that contain real numbers or "
     "metrics they actually wrote. Do NOT score, rank, or editorialize — only extract "
-    "stated facts into the required JSON shape."
+    "stated facts into the required JSON shape. "
+    "Also produce `annotations`: 3-8 EXACT verbatim quotes from the resume that most drive "
+    "each category's score. Each annotation has `quote` (copied character-for-character from "
+    "the resume so the UI can find and highlight it — NEVER paraphrase, shorten, or fix "
+    "typos), `category` (one of skills_match, quantified_achievements, experience, education, "
+    "clarity), `sentiment` ('positive' if the quote strengthens that category, 'negative' if "
+    "it's a gap or weakness), and `reason` (a short phrase). Include both strengths and "
+    "weaknesses; if the resume is empty, return an empty annotations list."
 )
 
 _LESSONS_SYSTEM = (
