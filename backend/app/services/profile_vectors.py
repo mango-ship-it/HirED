@@ -48,9 +48,11 @@ _SEED = [
     {"user_id": "seed-hha-ma", "target": "Medical Assistant", "score": 66, "gaps": "CMA certification, phlebotomy, EHR systems"},
 ]
 
+_TIMEOUTS = {"socket_connect_timeout": 5, "socket_timeout": 5}  # match store.py for remote Redis/TLS
 _index = None  # AsyncSearchIndex when ready
 _model = None  # shared fastembed model
 _status = "not_built"  # not_built | building | ready | failed
+_bg_tasks: set = set()  # strong refs so background build tasks aren't GC'd mid-flight
 
 
 def status() -> str:
@@ -87,8 +89,12 @@ async def build_index() -> None:
         model = await get_model()
         if model is None:
             raise RuntimeError("embedder unavailable")
-        index = AsyncSearchIndex.from_dict(_SCHEMA, redis_url=get_settings().redis_url)
-        await index.create(overwrite=True, drop=True)
+        index = AsyncSearchIndex.from_dict(
+            _SCHEMA, redis_url=get_settings().redis_url, connection_kwargs=_TIMEOUTS
+        )
+        # overwrite the schema but KEEP existing data (drop=False) so real user profiles added
+        # via add_profile() survive restarts — the cohort genuinely grows. Seeds upsert by id.
+        await index.create(overwrite=True, drop=False)
         records = [await _record(model, p) for p in _SEED]
         await index.load(records, id_field="user_id")
         _index, _model, _status = index, model, "ready"
@@ -100,9 +106,11 @@ async def build_index() -> None:
 
 def start_build_in_background() -> None:
     try:
-        asyncio.get_running_loop().create_task(build_index())
+        task = asyncio.get_running_loop().create_task(build_index())
+        _bg_tasks.add(task)  # strong ref: the loop only weakly references tasks (GC footgun)
+        task.add_done_callback(_bg_tasks.discard)
     except RuntimeError:
-        pass
+        pass  # no running loop (e.g. import-time / tests)
 
 
 async def add_profile(user_id: str, target: str, score: int, gaps: str) -> None:
@@ -121,19 +129,23 @@ def _insight(peers: list[dict], gaps: str) -> str:
     if not peers:
         return ""
     target = Counter(p["target"] for p in peers if p.get("target")).most_common(1)
-    gap_words = Counter()
+    gap_words: Counter = Counter()
+    for g in (gaps or "").split(","):  # include the user's own gaps so a shared one can surface
+        g = g.strip().lower()
+        if g:
+            gap_words[g] += 1
     for p in peers:
-        for g in (p.get("gaps") or "").split(","):
-            g = g.strip()
+        for g in p.get("shared_gaps") or []:  # peer gaps are a LIST under "shared_gaps"
+            g = (g or "").strip().lower()
             if g:
-                gap_words[g.lower()] += 1
+                gap_words[g] += 1
     common_gap = gap_words.most_common(1)
     parts = [f"{len(peers)} learner(s) with a background like yours"]
     if target:
         parts.append(f"also worked toward {target[0][0]}")
     line = " ".join(parts) + "."
     if common_gap and common_gap[0][1] > 1:
-        line += f" A gap many of them shared: {common_gap[0][0]} — you're not alone in closing it."
+        line += f" A gap many of you share: {common_gap[0][0]} — you're not alone in closing it."
     return line
 
 
@@ -162,7 +174,7 @@ async def people_like_you(
                 "target": r.get("target", ""),
                 "score": int(float(r.get("score", 0))),
                 "shared_gaps": [g.strip() for g in (r.get("gaps") or "").split(",") if g.strip()][:3],
-                "similarity": round(1 - float(r.get("vector_distance", 1)), 2),
+                "similarity": max(0.0, round(1 - float(r.get("vector_distance", 1)), 2)),
             }
             for r in results
             if r.get("user_id") != exclude_user_id

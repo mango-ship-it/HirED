@@ -26,19 +26,18 @@ def _key(user_id: str) -> str:
 
 async def append_turn(user_id: str, role: str, content: str) -> int:
     """Append one {role, content} turn (role normalized to user|assistant). Returns the new
-    turn count. Best-effort read-modify-write — a single voice session is sequential."""
+    turn count. ATOMIC (Redis RPUSH+LTRIM+EXPIRE) — concurrent per-turn POSTs can't lose a turn."""
     content = (content or "").strip()
     if not user_id or not content:
         return 0
     role = "user" if role == "user" else "assistant"
-    turns = await get_turns(user_id)
-    turns.append({"role": role, "content": content[:_MAX_CONTENT]})
-    turns = turns[-_MAX_TURNS:]
     try:
-        await get_store().set_json(_key(user_id), turns, ttl=_TTL)
+        return await get_store().list_push(
+            _key(user_id), {"role": role, "content": content[:_MAX_CONTENT]}, max_len=_MAX_TURNS, ttl=_TTL
+        )
     except Exception as exc:
         logger.debug("voice memory store failed (%s)", exc)
-    return len(turns)
+        return 0
 
 
 async def get_turns(user_id: str) -> list[dict]:
@@ -46,14 +45,15 @@ async def get_turns(user_id: str) -> list[dict]:
     if not user_id:
         return []
     try:
-        return await get_store().get_json(_key(user_id)) or []
+        turns = await get_store().list_range(_key(user_id))
+        return [t for t in turns if isinstance(t, dict)]
     except Exception:
         return []
 
 
 async def clear(user_id: str) -> None:
     try:
-        await get_store().set_json(_key(user_id), [], ttl=_TTL)
+        await get_store().delete(_key(user_id))
     except Exception:
         pass
 

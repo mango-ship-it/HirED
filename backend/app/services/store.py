@@ -97,6 +97,65 @@ class Store:
         except json.JSONDecodeError:
             return None
 
+    async def list_push(self, key: str, value: Any, *, max_len: int, ttl: int | None = _DEFAULT_TTL) -> int:
+        """Append `value` to a Redis LIST, trim to the last `max_len`, set TTL — ATOMIC via a
+        pipeline (no read-modify-write race). Returns the resulting length. Memory fallback is
+        a plain list (single-process; no concurrency to race)."""
+        data = json.dumps(value)
+        if self._redis is not None:
+            try:
+                pipe = self._redis.pipeline()
+                pipe.rpush(key, data)
+                pipe.ltrim(key, -max_len, -1)
+                if ttl is not None:
+                    pipe.expire(key, ttl)
+                pipe.llen(key)
+                results = await pipe.execute()
+                return int(results[-1])
+            except Exception as exc:
+                logger.warning("Store: Redis list_push failed (%s); using memory.", exc)
+        items = self._mem_list(key)
+        items.append(data)
+        del items[:-max_len]
+        self._mem[key] = json.dumps(items)
+        return len(items)
+
+    async def list_range(self, key: str) -> list[Any]:
+        """Return all elements of a Redis LIST (oldest first), JSON-decoded. [] if absent/down."""
+        rows: list[str] | None = None
+        if self._redis is not None:
+            try:
+                rows = await self._redis.lrange(key, 0, -1)
+            except Exception as exc:
+                logger.warning("Store: Redis list_range failed (%s); using memory.", exc)
+        if rows is None:
+            rows = self._mem_list(key)
+        out = []
+        for r in rows:
+            try:
+                out.append(json.loads(r))
+            except (json.JSONDecodeError, TypeError):
+                continue
+        return out
+
+    async def delete(self, key: str) -> None:
+        if self._redis is not None:
+            try:
+                await self._redis.delete(key)
+            except Exception as exc:
+                logger.warning("Store: Redis delete failed (%s); using memory.", exc)
+        self._mem.pop(key, None)
+
+    def _mem_list(self, key: str) -> list[str]:
+        raw = self._mem.get(key)
+        if not raw:
+            return []
+        try:
+            val = json.loads(raw)
+            return val if isinstance(val, list) else []
+        except json.JSONDecodeError:
+            return []
+
 
 _store = Store()
 

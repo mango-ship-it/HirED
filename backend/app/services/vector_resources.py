@@ -22,6 +22,7 @@ from typing import Optional
 
 from app.config import get_settings
 from app.data.resources import RESOURCE_CORPUS
+from app.services.embeddings import embed_one, get_model
 
 logger = logging.getLogger("hired.resources.vector")
 
@@ -46,24 +47,15 @@ _SCHEMA = {
     ],
 }
 
+_TIMEOUTS = {"socket_connect_timeout": 5, "socket_timeout": 5}  # match store.py for remote Redis/TLS
 _index = None  # AsyncSearchIndex when ready
 _embed = None  # callable: str -> list[float]
 _status = "not_built"  # not_built | building | ready | failed
+_bg_tasks: set = set()  # strong refs so the background build task isn't GC'd mid-flight
 
 
 def status() -> str:
     return _status
-
-
-def _build_embedder():
-    from fastembed import TextEmbedding
-
-    model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")  # downloads ~67MB once
-
-    def embed(text: str) -> list[float]:
-        return next(iter(model.embed([text]))).tolist()
-
-    return embed
 
 
 async def build_index() -> None:
@@ -76,8 +68,16 @@ async def build_index() -> None:
         import numpy as np
         from redisvl.index import AsyncSearchIndex
 
-        embed = await asyncio.to_thread(_build_embedder)  # model load is blocking
-        index = AsyncSearchIndex.from_dict(_SCHEMA, redis_url=get_settings().redis_url)
+        model = await get_model()  # SHARED fastembed model — loaded once across all features
+        if model is None:
+            raise RuntimeError("shared embedder unavailable")
+
+        def embed(text: str) -> list[float]:
+            return embed_one(model, text)
+
+        index = AsyncSearchIndex.from_dict(
+            _SCHEMA, redis_url=get_settings().redis_url, connection_kwargs=_TIMEOUTS
+        )
         # drop=True: clear old docs so a restart rebuilds clean (no duplicate corpus).
         await index.create(overwrite=True, drop=True)
         records = [
@@ -105,7 +105,9 @@ async def build_index() -> None:
 def start_build_in_background() -> None:
     """Kick off build_index() without blocking startup (no-op if no event loop)."""
     try:
-        asyncio.get_running_loop().create_task(build_index())
+        task = asyncio.get_running_loop().create_task(build_index())
+        _bg_tasks.add(task)  # strong ref (loop only weakly references tasks — GC footgun)
+        task.add_done_callback(_bg_tasks.discard)
     except RuntimeError:
         pass  # no running loop (e.g. import-time / tests)
 

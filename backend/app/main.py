@@ -31,6 +31,8 @@ from app.routes import voice as voice_routes
 from app.services.exa_search import has_exa
 from app.services.pika_video import has_fal
 from app.services.store import get_store
+from app.services.profile_vectors import status as _profile_index_status
+from app.services.semantic_cache import status as _semantic_cache_status
 from app.services.vector_resources import status as vector_index_status
 
 logging.basicConfig(level=logging.INFO)
@@ -121,6 +123,8 @@ async def health() -> dict[str, object]:
         "benchmark_agent_configured": bool(settings.benchmark_agent_address),
         "store": get_store().backend,
         "vector_index": vector_index_status(),
+        "semantic_cache": _semantic_cache_status(),
+        "profile_index": _profile_index_status(),
         "exa_configured": has_exa(),
         "fal_configured": has_fal(),
     }

@@ -21,13 +21,18 @@ from app.services.embeddings import embed_one, get_model
 
 logger = logging.getLogger("hired.semantic_cache")
 
-# Cosine distance (0 = identical). Same-role paraphrases land ~0.10-0.15; different roles/intents
-# sit at 0.3+. 0.15 catches rewordings of the same query without ever serving another role's data.
-_DISTANCE_THRESHOLD = 0.15
+# Cosine distance (0 = identical). CRITICAL: our queries are TEMPLATED, so the same role/intent
+# reworded lands near-identical (~0.03-0.05), while a DIFFERENT role in the same boilerplate
+# template (e.g. "...candidates for {Nurse}" vs "{Software Developer}") was measured as low as
+# ~0.12 — the long template dominates the embedding. 0.07 captures near-duplicate intents while
+# staying well below that cross-role floor, so we NEVER serve another role's cards.
+_DISTANCE_THRESHOLD = 0.07
 _TTL = 30 * 24 * 3600  # match the Exa exact-cache horizon
+_TIMEOUTS = {"socket_connect_timeout": 5, "socket_timeout": 5}  # match store.py for remote Redis/TLS
 
 _cache = None
 _status = "not_built"  # not_built | ready | failed
+_lock = asyncio.Lock()
 
 
 async def _get_cache():
@@ -37,31 +42,37 @@ async def _get_cache():
         return _cache
     if _status == "failed":
         return None
-    try:
-        model = await get_model()
-        if model is None:
-            _status = "failed"
-            return None
-        from redisvl.extensions.cache.llm import SemanticCache
-        from redisvl.utils.vectorize import CustomTextVectorizer
+    async with _lock:  # double-checked: only ONE concurrent first-caller builds the cache
+        if _cache is not None or _status == "failed":
+            return _cache
+        try:
+            model = await get_model()
+            if model is None:
+                _status = "failed"
+                return None
+            from redisvl.extensions.cache.llm import SemanticCache
+            from redisvl.utils.vectorize import CustomVectorizer
 
-        # Bridge our fastembed embedder into RedisVL (no PyTorch) via CustomTextVectorizer.
-        vectorizer = CustomTextVectorizer(embed=lambda t: embed_one(model, t), dtype="float32")
-        _cache = await asyncio.to_thread(
-            lambda: SemanticCache(
-                name="hired_exa_cache",
-                vectorizer=vectorizer,
-                distance_threshold=_DISTANCE_THRESHOLD,
-                ttl=_TTL,
-                redis_url=get_settings().redis_url,
-            )
-        )
-        _status = "ready"
-        logger.info("semantic cache ready (Exa layer, threshold=%.2f)", _DISTANCE_THRESHOLD)
-    except Exception as exc:  # no redisvl / no Redis / no search module
-        _status = "failed"
-        logger.info("semantic cache unavailable (%s) — exact cache still applies", exc)
-        return None
+            def build():
+                # Bridge our fastembed embedder into RedisVL (no PyTorch). Built INSIDE the
+                # thread so the vectorizer's one-shot dims-probe embed runs off the event loop.
+                vectorizer = CustomVectorizer(embed=lambda t: embed_one(model, t), dtype="float32")
+                return SemanticCache(
+                    name="hired_exa_cache",
+                    vectorizer=vectorizer,
+                    distance_threshold=_DISTANCE_THRESHOLD,
+                    ttl=_TTL,
+                    redis_url=get_settings().redis_url,
+                    connection_kwargs=_TIMEOUTS,
+                )
+
+            _cache = await asyncio.to_thread(build)
+            _status = "ready"
+            logger.info("semantic cache ready (Exa layer, threshold=%.2f)", _DISTANCE_THRESHOLD)
+        except Exception as exc:  # no redisvl / no Redis / no search module
+            _status = "failed"
+            logger.info("semantic cache unavailable (%s) — exact cache still applies", exc)
+            return None
     return _cache
 
 
