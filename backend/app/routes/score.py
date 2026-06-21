@@ -170,7 +170,7 @@ async def score(
     # Semantic cache fallback — catches near-identical resumes (PDF re-parse artifacts,
     # whitespace) that missed the exact cache. Threshold 0.04 absorbs only trivial changes;
     # meaningful edits always produce a fresh score.
-    semantic_key = f"{resume[:1500]}\n---TARGET---\n{target_obj.value}"
+    semantic_key = f"{resume[:1500]}\n---TARGET---\n{target_obj.value}\n---JDS---\n{len(cached_jobs or [])}"
     sem_cached = await score_cache.get_cached(semantic_key)
     if sem_cached is not None:
         sem_cached["resume_text"] = resume
@@ -282,5 +282,8 @@ async def score(
         await get_store().set_json(cache_key, response.model_dump(), ttl=_SCORE_TTL)
     except Exception:
         pass
-    await score_cache.set_cached(semantic_key, response.model_dump())
+    try:
+        await score_cache.set_cached(semantic_key, response.model_dump())
+    except Exception:
+        pass
     return response
