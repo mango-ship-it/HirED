@@ -191,6 +191,42 @@
   }
   .action::before{content:"→";color:var(--rise);flex-shrink:0;font-weight:700;}
 
+  /* ---- gap: TL;DR + expand ---- */
+  .gap-cat-chip{
+    display:inline-flex;align-items:center;gap:6px;align-self:center;
+    font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--rise);background:rgba(42,125,225,.08);
+    padding:5px 12px;border-radius:99px;margin-bottom:12px;
+  }
+  .gap-takeaway{
+    font-family:"Fraunces",Georgia,serif;font-weight:700;
+    font-size:clamp(18px,2.3vw,23px);line-height:1.25;color:var(--ink);
+    text-align:center;margin-bottom:16px;
+  }
+  .gap-why{margin-top:14px;border-top:1px solid var(--line);}
+  .gap-why summary{
+    list-style:none;cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:7px;
+    font-size:13px;font-weight:600;color:var(--ink-soft);
+    padding:12px 2px 0;transition:color .15s;
+  }
+  .gap-why summary::-webkit-details-marker{display:none;}
+  .gap-why summary:hover{color:var(--ink);}
+  .gap-why summary .chev{
+    width:14px;height:14px;flex-shrink:0;color:var(--rise);
+    transition:transform .2s ease;
+  }
+  .gap-why[open] summary .chev{transform:rotate(90deg);}
+  .gap-why-body{
+    font-size:14px;color:var(--ink-soft);line-height:1.55;
+    padding:10px 2px 4px;animation:slideUp .3s cubic-bezier(.16,1,.3,1);
+  }
+  .gap-why-body .gap-ex{
+    display:block;margin-top:8px;padding:10px 12px;
+    background:var(--paper);border:1px solid var(--line);border-radius:12px;
+    color:var(--ink);font-size:13px;
+  }
+
   /* ---- resource bubbles ---- */
   .res-resblock{margin-top:18px;}
   .rsec-reslabel{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;}
@@ -548,6 +584,15 @@
     });
   }
 
+  // Punchy one-line takeaway per category — the scannable headline for each gap.
+  const GAP_TAKEAWAY = {
+    skills_match: 'Match more of the job’s must-have skills.',
+    quantified_achievements: 'Put real numbers on your wins.',
+    experience: 'Make your experience clearly relevant.',
+    education: 'Line your education up with the role.',
+    clarity: 'Make your resume easy to skim.'
+  };
+
   // Build up to 3 gaps. Start with the AI lessons, then top up from the
   // lowest-scoring categories not already covered, so a third gap always
   // shows even when the backend returns fewer than 3 lessons.
@@ -577,11 +622,23 @@
     sections.push({
       label: `Gap ${i+1} · ${CAT_LABELS[l.category]||l.category}`,
       render(){
-        const shortExample = l.example ? esc((l.example||'').split(/[.!?]/)[0].trim() + '.') : '';
+        const catLabel = CAT_LABELS[l.category] || l.category || 'Gap';
+        const takeaway = GAP_TAKEAWAY[l.category] || l.principle || catLabel;
+        const hasDetail = !!(l.principle || l.example);
+        const chev = `<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`;
         return `<div class="rsec">
-          <h2 class="rsec-title" style="font-weight:800;margin-bottom:6px;text-align:center;">Gap ${i+1}</h2>
-          <p class="rsec-sub" style="margin-bottom:12px;">${esc(l.principle)}${shortExample ? ' ' + shortExample : ''}</p>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <span class="gap-cat-chip">Gap ${i+1} · ${esc(catLabel)}</span>
+          </div>
+          <div class="gap-takeaway">${esc(takeaway)}</div>
           ${l.action ? `<div class="action">${esc(l.action)}</div>` : ''}
+          ${hasDetail ? `<details class="gap-why">
+            <summary>${chev}Why this matters</summary>
+            <div class="gap-why-body">
+              ${l.principle ? esc(l.principle) : ''}
+              ${l.example ? `<span class="gap-ex">${esc(l.example)}</span>` : ''}
+            </div>
+          </details>` : ''}
           <div class="res-resblock">
             <div class="rsec-reslabel">Top resources for this gap</div>
             <div class="res-resources" id="resbox-${i}">

@@ -280,7 +280,8 @@
   .drop-zone:hover,.drop-zone.over{
     border-color:var(--rise);background:rgba(42,125,225,.04);
   }
-  .drop-zone .dz-ic{font-size:28px;display:block;margin-bottom:8px;}
+  .drop-zone .dz-ic{display:block;width:30px;height:30px;margin:0 auto 10px;color:var(--ink-soft);transition:color .18s ease,transform .2s ease;}
+  .drop-zone:hover .dz-ic,.drop-zone.over .dz-ic{color:var(--rise);transform:translateY(-2px);}
   .drop-zone p{font-size:14px;color:var(--ink-soft);}
   .drop-zone p b{color:var(--rise);}
   .drop-zone .dz-sub{font-size:12px;color:var(--ink-soft);margin-top:4px;}
@@ -668,7 +669,11 @@
   </div>
 
   <div class="drop-zone" id="dropZone">
-    <span class="dz-ic">📄</span>
+    <svg class="dz-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 15V4"/>
+      <path d="M8 8l4-4 4 4"/>
+      <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>
+    </svg>
     <p><b>Click to upload</b> or drag &amp; drop your resume</p>
     <p class="dz-sub">PDF, DOCX, TXT · up to 10 MB</p>
   </div>
