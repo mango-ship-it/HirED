@@ -98,12 +98,12 @@ _COURSE_DOMAINS = ["coursera.org", "edx.org", "udemy.com", "khanacademy.org", "c
 
 async def _search(
     query: str, *, card_type: str, why: str, include_domains: list[str] | None = None,
-    num_results: int = _NUM_RESULTS,
+    num_results: int = _NUM_RESULTS, category: str | None = None,
 ) -> list[dict]:
     """One cached, cost-capped Exa search -> resource cards. [] on no-key/cap/failure."""
     if not has_exa():
         return []
-    digest = hashlib.sha1(f"{query}|{include_domains}|{num_results}".encode()).hexdigest()[:16]
+    digest = hashlib.sha1(f"{query}|{include_domains}|{num_results}|{category}".encode()).hexdigest()[:16]
     cache_key = f"exa:{digest}"
     try:
         cached = await get_store().get_json(cache_key)
@@ -118,7 +118,7 @@ async def _search(
         _calls["count"] += 1
         resp = await _get_client().search(
             query, type="auto", num_results=num_results,
-            include_domains=include_domains, contents=False,
+            include_domains=include_domains, category=category, contents=False,
         )
     except Exception as exc:
         logger.info("Exa search failed (%s) — falling back", exc)
@@ -164,6 +164,15 @@ async def scholarships(role: str) -> list[dict]:
     return await _search(_scholarships_query(role), card_type="scholarship", why="Funding to learn for free")
 
 
+async def people_to_connect(role: str, location: str = "") -> list[dict]:
+    """Real people/mentors to connect with for the role (Exa 'people' category)."""
+    where = f" in {location}" if location else ""
+    return await _search(
+        f"Profiles of {role} professionals, mentors, and industry leaders to learn from and connect with{where}:",
+        card_type="person", why="Person to connect with", category="people",
+    )
+
+
 async def exa_resources_by_skill(skills: list[str], role: str, *, max_skills: int = 3) -> dict[str, list[dict]]:
     """Real course resources per skill for build_plan(resources_by_skill=...). <=max_skills searches."""
     if not has_exa() or not skills:
@@ -182,10 +191,11 @@ async def full_roadmap(role: str, skills: list[str], location: str, *, max_skill
         asyncio.gather(courses_for_skill(s, role), practice_for_skill(s, role)) for s in chosen
     ]
     role_tasks = asyncio.gather(
-        events(role, location), networking(role), certifications(role), scholarships(role)
+        events(role, location), networking(role), certifications(role),
+        scholarships(role), people_to_connect(role, location),
     )
     per_skill_results = await asyncio.gather(*per_skill_tasks) if per_skill_tasks else []
-    events_r, networking_r, certs_r, schol_r = await role_tasks
+    events_r, networking_r, certs_r, schol_r, people_r = await role_tasks
     return {
         "role": role,
         "location": location,
@@ -195,6 +205,7 @@ async def full_roadmap(role: str, skills: list[str], location: str, *, max_skill
         },
         "events": events_r,
         "networking": networking_r,
+        "people": people_r,
         "certifications": certs_r,
         "scholarships": schol_r,
     }

@@ -45,3 +45,7 @@ def test_roadmap_endpoint_requires_input():
 
 def test_health_reports_exa_configured_false_in_tests():
     assert client.get("/health").json()["exa_configured"] is False
+
+
+def test_people_to_connect_graceful_without_key():
+    assert asyncio.run(exa_search.people_to_connect("Software Engineer", "SF")) == []

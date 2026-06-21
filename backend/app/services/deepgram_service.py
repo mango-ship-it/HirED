@@ -32,6 +32,45 @@ AUDIO_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "audio"
 _TTS_MODEL = "aura-2-asteria-en"  # Aura 2 voice
 _STT_MODEL = "nova-3"
 
+# Career-domain custom topics/intents for Text Intelligence — passed to the API (NOT
+# hardcoded in the playground), and overridable per request so the frontend stays flexible.
+_CAREER_TOPICS = [
+    "career goals", "technical skills", "soft skills", "work experience",
+    "education", "certifications", "leadership", "skill gaps",
+]
+_CAREER_INTENTS = [
+    "find a job", "learn a new skill", "get certified", "switch careers",
+    "build experience", "network with people", "improve resume",
+]
+
+
+def _parse_intelligence(resp) -> dict:
+    """Defensively pull summary/topics/intents/sentiment out of a Deepgram read response."""
+    try:
+        data = resp.model_dump() if hasattr(resp, "model_dump") else (
+            resp.to_dict() if hasattr(resp, "to_dict") else dict(resp)
+        )
+    except Exception:
+        data = {}
+    results = data.get("results") or {}
+
+    def _flatten(section: str, key: str) -> list[str]:
+        out: list[str] = []
+        for seg in (results.get(section) or {}).get("segments") or []:
+            for item in seg.get(section) or seg.get(key + "s") or []:
+                val = item.get(key) if isinstance(item, dict) else None
+                if val and val not in out:
+                    out.append(val)
+        return out
+
+    avg = (results.get("sentiments") or {}).get("average") or {}
+    return {
+        "summary": ((results.get("summary") or {}).get("text")) or "",
+        "topics": _flatten("topics", "topic"),
+        "intents": _flatten("intents", "intent"),
+        "sentiment": {"label": avg.get("sentiment"), "score": avg.get("sentiment_score")} if avg else {},
+    }
+
 
 class DeepgramService:
     """Thin wrapper over the Deepgram client for HirED's voice features."""
@@ -69,6 +108,34 @@ class DeepgramService:
 
         await asyncio.to_thread(_synthesize)
         return url
+
+    async def analyze_text(
+        self, text: str, *, custom_topics: list[str] | None = None,
+        custom_intents: list[str] | None = None,
+    ) -> dict:
+        """Deepgram Text Intelligence: summary + topics + intents + sentiment on the text.
+
+        Runs the /read endpoint with career-domain custom topics/intents (overridable)
+        so the frontend gets structured signals to visualize — no hardcoded playground.
+        """
+        topics = custom_topics or _CAREER_TOPICS
+        intents = custom_intents or _CAREER_INTENTS
+
+        def _analyze():
+            return self._client.read.v1.text.analyze(
+                request={"text": text[:90000]},  # Deepgram read text cap
+                summarize="v2",
+                topics=True,
+                intents=True,
+                sentiment=True,
+                custom_topic=topics,
+                custom_topic_mode="extended",
+                custom_intent=intents,
+                custom_intent_mode="extended",
+            )
+
+        resp = await asyncio.to_thread(_analyze)
+        return _parse_intelligence(resp)
 
     async def transcribe(self, audio_bytes: bytes) -> str:
         """Transcribe raw audio bytes to text and return the transcript."""
