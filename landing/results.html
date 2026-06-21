@@ -340,31 +340,65 @@
   }
   .res-bench-sub{font-size:13px;color:#9fb0c9;margin-bottom:16px;}
 
-  /* ---- roadmap ---- */
-  .rm-progress-bar{height:3px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden;}
-  .rm-progress-fill{height:100%;border-radius:99px;background:var(--rise);transition:width .6s cubic-bezier(.16,1,.3,1);}
-  .rm-steps{position:relative;display:flex;flex-direction:column;}
-  .rm-connector{position:absolute;left:21px;top:44px;bottom:44px;width:2px;background:var(--line);z-index:0;}
-  .rm-step{display:flex;align-items:flex-start;gap:14px;position:relative;z-index:1;padding-bottom:16px;opacity:0;transform:translateY(18px);transition:opacity .45s cubic-bezier(.16,1,.3,1),transform .45s cubic-bezier(.16,1,.3,1);}
-  .rm-step.rm-visible{opacity:1;transform:translateY(0);}
-  .rm-icon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;position:relative;z-index:2;cursor:pointer;background:var(--paper);border:2px solid var(--rise);color:var(--rise);transition:transform .18s cubic-bezier(.16,1,.3,1),background .2s,border-color .2s;}
-  .rm-icon:hover{transform:scale(1.08);}
-  .rm-icon:active{transform:scale(.95);}
-  .rm-icon.rm-done{background:#dcfce7;border-color:#22c55e;color:#16a34a;animation:rmPop .3s cubic-bezier(.34,1.56,.64,1);}
-  @keyframes rmPop{0%{transform:scale(.7);}60%{transform:scale(1.15);}100%{transform:scale(1);}}
-  .rm-card{flex:1;border-radius:12px;padding:13px 16px;border:1px solid var(--line);background:var(--paper-2);position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s;}
-  .rm-card:hover{border-color:rgba(42,125,225,.3);}
-  .rm-card.rm-card-done{border-color:rgba(34,197,94,.3);}
-  .rm-glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(42,125,225,.07) 0%,transparent 70%);transition:opacity .3s;}
-  .rm-glow-done{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 0% 50%,rgba(34,197,94,.07) 0%,transparent 70%);opacity:0;transition:opacity .3s;}
-  .rm-card-done .rm-glow{opacity:0;}
-  .rm-card-done .rm-glow-done{opacity:1;}
-  .rm-tag{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--rise);display:flex;align-items:center;gap:5px;margin-bottom:4px;}
-  .rm-dot{width:5px;height:5px;border-radius:50%;background:var(--rise);display:inline-block;}
-  .rm-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px;transition:color .2s;}
-  .rm-card-done .rm-title{text-decoration:line-through;color:var(--ink-soft);}
-  .rm-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;}
-  .rm-hint{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:6px;opacity:.6;}
+  /* ---- roadmap one-at-a-time ---- */
+  .rm-solo-wrap{display:grid;margin-bottom:10px;}
+  .rm-solo-item{
+    grid-area:1/1;
+    border:1px solid #e5e7eb;border-radius:16px;padding:20px 18px;
+    background:#f9fafb;display:flex;align-items:flex-start;gap:14px;
+    opacity:0;transform:translateY(14px);
+    transition:opacity .35s ease,transform .35s cubic-bezier(.16,1,.3,1);
+    pointer-events:none;visibility:hidden;
+  }
+  .rm-solo-item.rm-item-visible{opacity:1;transform:translateY(0);pointer-events:auto;visibility:visible;}
+  .rm-solo-item.rm-item-exit{
+    opacity:0;transform:translateY(-14px);
+    transition:opacity .28s ease,transform .28s ease;
+    pointer-events:none;visibility:visible;
+  }
+  .rm-solo-circle{
+    width:38px;height:38px;border-radius:50%;border:2px solid #9ca3af;background:#fff;
+    flex-shrink:0;cursor:pointer;position:relative;
+    transition:border-color .15s,background .15s;
+  }
+  .rm-solo-circle:hover{border-color:#4b5563;}
+  .rm-solo-circle.rm-circle-done{border-color:#16a34a;background:#16a34a;}
+  .rm-solo-circle.rm-circle-done::after{
+    content:'';position:absolute;top:50%;left:50%;
+    width:11px;height:7px;
+    border-left:2.5px solid #fff;border-bottom:2.5px solid #fff;
+    transform:translate(-50%,-65%) rotate(-45deg);
+    display:block;
+  }
+  .rm-solo-text{flex:1;min-width:0;}
+  .rm-priority-label{
+    font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:#6b7280;margin-bottom:5px;
+  }
+  .rm-solo-title{font-size:15px;font-weight:600;color:#1f2937;line-height:1.4;}
+  .rm-counter{
+    font-size:12px;color:#9ca3af;text-align:center;
+    font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  }
+
+  /* ---- road visualization ---- */
+  .rm-road-outer{width:100%;max-width:520px;margin:0 auto 18px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;padding:12px 8px;}
+  .rm-road-svg{width:100%;height:auto;display:block;}
+  .rm-cp-g{cursor:pointer;}
+  .rm-cp-g:hover .rm-cp-ring{stroke:#4b5563;}
+  .rm-road-labels{display:flex;flex-direction:column;gap:8px;}
+  .rm-road-lbl{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;}
+  .rm-road-lbl-num{width:26px;height:26px;border-radius:50%;background:#f3f4f6;border:1.5px solid #e5e7eb;color:#6b7280;font-size:12px;font-weight:700;display:grid;place-items:center;flex-shrink:0;}
+  .rm-road-lbl-body{flex:1;min-width:0;}
+  .rm-road-lbl-pri{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:3px;}
+  .rm-road-lbl-txt{font-size:14px;font-weight:600;color:#374151;line-height:1.35;}
+  .rm-road-lbl-done .rm-road-lbl-num{background:#f0fdf4;border-color:#bbf7d0;color:#16a34a;}
+  .rm-road-lbl-done .rm-road-lbl-txt{text-decoration:line-through;color:#9ca3af;}
+  .rm-road-lbl-desc{
+    font-family:"Fraunces",Georgia,serif;font-style:italic;
+    font-size:12px;color:#9ca3af;line-height:1.4;margin-top:3px;
+    display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
 
   /* ---- bottom nav ---- */
   .rnav{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -475,6 +509,59 @@
   @media(prefers-reduced-motion:reduce){
     *{transition:none!important;animation:none!important;}
   }
+
+  /* ===== AI Coach character ===== */
+  #hv-char {
+    position: fixed; right: 28px; bottom: 0; z-index: 9999;
+    height: 200px; width: auto; display: block;
+    cursor: pointer; user-select: none;
+    transition: transform .15s;
+  }
+  #hv-char:hover { transform: scale(1.04) translateY(-4px); }
+
+  /* Speech bubble panel — sits above the character */
+  #hv {
+    position: fixed; right: 28px; bottom: 168px; z-index: 9998;
+    font-family: inherit;
+    --accent: #5b8cff; --accent2: #8a6bff; --gold: #f5b54a;
+  }
+  #hv-bubble {
+    width: 300px; max-width: calc(100vw - 60px);
+    background: #fff; border: 1px solid #e5e7eb;
+    border-radius: 18px; box-shadow: 0 8px 32px rgba(0,0,0,.10);
+    overflow: visible;
+    animation: hv-in .16s ease-out;
+  }
+  #hv-bubble[hidden] { display: none; }
+  @keyframes hv-in { from{opacity:0; transform:translateY(8px) scale(.97);} to{opacity:1; transform:none;} }
+  /* Speech bubble tail pointing down-right toward character */
+  #hv-bubble::before {
+    content: ''; position: absolute; width: 0; height: 0;
+    right: 40px; bottom: -15px;
+    border-top: 15px solid #e5e7eb;
+    border-left: 12px solid transparent;
+  }
+  #hv-bubble::after {
+    content: ''; position: absolute; width: 0; height: 0;
+    right: 41px; bottom: -13px;
+    border-top: 13px solid #fff;
+    border-left: 10px solid transparent;
+  }
+  .hv-head { display:flex; justify-content:space-between; align-items:center; padding:13px 14px 4px; }
+  .hv-head b { font-size:14px; color:#111827; }
+  .hv-head small { color:#9ca3af; display:block; font-size:11px; font-weight:400; }
+  .hv-x { background:transparent; border:0; color:#9ca3af; font-size:16px; cursor:pointer; line-height:1; padding:2px; }
+  #hv-orb { width:100%; height:100px; display:block; }
+  .hv-state { text-align:center; font-size:12px; color:#6b7280; font-weight:600; min-height:16px; margin:-4px 0 8px; padding:0 14px; }
+  #hv-transcript { max-height:140px; overflow:auto; padding:0 12px; display:flex; flex-direction:column; gap:6px; }
+  .hv-turn { padding:7px 10px; border-radius:11px; font-size:13px; line-height:1.4; max-width:90%; }
+  .hv-user { align-self:flex-end; background:#f3f4f6; color:#111827; border-bottom-right-radius:3px; }
+  .hv-asst { align-self:flex-start; background:#fafafa; border:1px solid #f0f0f0; color:#374151; border-bottom-left-radius:3px; }
+  .hv-controls { display:flex; gap:8px; padding:10px 12px 14px; }
+  .hv-controls button { flex:1; border:0; border-radius:11px; padding:10px; font-size:14px; font-weight:650; cursor:pointer; font-family:inherit; }
+  .hv-talk { background:#1f2937; color:#fff; }
+  .hv-talk:disabled { opacity:.4; }
+  .hv-stop { flex:0 0 46px; background:#fef2f2; color:#ef4444; border:1px solid #fecaca; }
 </style>
 </head>
 <body>
@@ -786,94 +873,153 @@
   sections.push({
     label: 'Your roadmap',
     render(){
-      const steps = data.gaps && data.gaps.length ? data.gaps.map((g, i) => {
-        const icons = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
-        const icon = icons[i] || 'ti-arrow-right';
-        return `
-          <div class="rm-step" id="rms${i}" style="transition-delay:${i*110}ms">
-            <div class="rm-icon" onclick="rmToggle(${i})" title="Mark complete">
-              <i class="ti ${icon}" aria-hidden="true"></i>
-            </div>
-            <div class="rm-card" onclick="rmToggle(${i})">
-              <div class="rm-glow"></div>
-              <div class="rm-glow-done"></div>
-              <div class="rm-tag"><span class="rm-dot"></span><span>${g.category || 'Gap'}</span></div>
-              <div class="rm-title">${g.action || g.title || 'Next step'}</div>
-              <div class="rm-desc">${g.micro_step || g.description || ''}</div>
-            </div>
-          </div>`;
-      }) : [
-        `<div class="rm-step" id="rms0" style="transition-delay:0ms">
-          <div class="rm-icon" onclick="rmToggle(0)"><i class="ti ti-pencil" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(0)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Resume</span></div>
-            <div class="rm-title">Rewrite 1 bullet point</div>
-            <div class="rm-desc">Change "responsible for X" to "delivered X by doing Y."</div>
-          </div>
-        </div>`,
-        `<div class="rm-step" id="rms1" style="transition-delay:110ms">
-          <div class="rm-icon" onclick="rmToggle(1)"><i class="ti ti-message" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(1)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Interview</span></div>
-            <div class="rm-title">Answer 1 behavioral question</div>
-            <div class="rm-desc">Use STAR format on a question common for your role.</div>
-          </div>
-        </div>`,
-        `<div class="rm-step" id="rms2" style="transition-delay:220ms">
-          <div class="rm-icon" onclick="rmToggle(2)"><i class="ti ti-send" aria-hidden="true"></i></div>
-          <div class="rm-card" onclick="rmToggle(2)">
-            <div class="rm-glow"></div><div class="rm-glow-done"></div>
-            <div class="rm-tag"><span class="rm-dot"></span><span>Network</span></div>
-            <div class="rm-title">Send 1 cold message</div>
-            <div class="rm-desc">Find one alum or recruiter. Use a short template and send it.</div>
-          </div>
-        </div>`
+      const PRIORITY = [
+        'Highest priority — fix this first',
+        'Still important',
+        'Worth doing, lower priority'
       ];
-      const total = steps.length;
+      const raw = (data.roadmap || data.gaps || []).slice(0, 3);
+      const fallback = [
+        {title:'Rewrite 1 bullet point', desc:'Numbers and outcomes turn passive bullets into proof — this is the fastest single-line win.'},
+        {title:'Answer 1 behavioral question', desc:'Saying your answer out loud once is worth more than reading notes ten times.'},
+        {title:'Send 1 cold message', desc:'Most roles are filled through people, not postings — one message opens the door.'}
+      ];
+      const src = raw.length ? raw : fallback;
+      const items = src.slice(0,3);
+      // Road path — S-curve from lower-left to upper-right
+      const RD = 'M 30,210 C 60,100 160,290 240,160 C 320,30 400,230 470,120';
+      const lbls = items.map((item,i) => {
+        const why = item.desc || item.micro_step || item.description || item.reason || '';
+        return `
+        <div class="rm-road-lbl" id="rmRdLbl${i}">
+          <div class="rm-road-lbl-num">${i+1}</div>
+          <div class="rm-road-lbl-body">
+            <div class="rm-road-lbl-pri">${esc(PRIORITY[i])}</div>
+            <div class="rm-road-lbl-txt">${esc(item.action||item.title||'Next step')}</div>
+            ${why ? `<div class="rm-road-lbl-desc">${esc(why)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
       return `<div class="rsec">
         <h2 class="rsec-title" style="font-weight:800;text-align:center;">Your roadmap</h2>
-        <p class="rsec-sub" style="text-align:center;">Small steps — personalized to your gaps. Click each one when done.</p>
-        <div class="rm-progress-bar"><div class="rm-progress-fill" id="rmPbar" style="width:0%"></div></div>
-        <div class="rm-steps" id="rmSteps" data-total="${total}">
-          <div class="rm-connector"></div>
-          ${steps.join('')}
+        <p class="rsec-sub" style="text-align:center;">Click each stop to drive there.</p>
+        <div class="rm-road-outer">
+          <svg id="rmRoadSvg" viewBox="0 0 500 260" class="rm-road-svg" aria-hidden="true">
+            <!-- road border (darker outer edge) -->
+            <path d="${RD}" fill="none" stroke="#d1d5db" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- road surface -->
+            <path d="${RD}" fill="none" stroke="#f3f4f6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- center dashes -->
+            <path d="${RD}" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="13 10" stroke-linecap="round"/>
+            <!-- hidden path used for getPointAtLength() calculations -->
+            <path id="rmCalcPath" d="${RD}" fill="none" stroke="none" style="pointer-events:none;"/>
+            <!-- car (front faces +x; JS rotates to match tangent) -->
+            <g id="rmCar" style="pointer-events:none;" opacity="0">
+              <rect x="-13" y="-8" width="26" height="16" rx="4" fill="#374151"/>
+              <rect x="-3" y="-5" width="11" height="10" rx="2" fill="#4b5563" opacity="0.45"/>
+              <rect x="11" y="-4" width="3" height="8" rx="1.5" fill="#9ca3af"/>
+              <rect x="7"  y="-11" width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="7"  y="7"   width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="-13" y="-11" width="5" height="4" rx="1" fill="#111827"/>
+              <rect x="-13" y="7"   width="5" height="4" rx="1" fill="#111827"/>
+            </g>
+            <!-- checkpoint 1 -->
+            <g id="rmCp0" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">1</text>
+            </g>
+            <!-- checkpoint 2 -->
+            <g id="rmCp1" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">2</text>
+            </g>
+            <!-- checkpoint 3 -->
+            <g id="rmCp2" class="rm-cp-g" opacity="0">
+              <circle r="15" fill="#fff" stroke="#9ca3af" stroke-width="2.5" class="rm-cp-ring"/>
+              <text dy="0.35em" text-anchor="middle" font-size="11" font-weight="700" fill="#6b7280" class="rm-cp-txt">3</text>
+            </g>
+          </svg>
         </div>
-        <p class="rm-hint">Click any step to mark it complete</p>
+        <div class="rm-road-labels">${lbls}</div>
       </div>`;
     },
     onShow(){
-      requestAnimationFrame(()=>{
-        document.querySelectorAll('.rm-step').forEach(el => el.classList.add('rm-visible'));
+      var path = document.getElementById('rmCalcPath');
+      var car  = document.getElementById('rmCar');
+      if(!path||!car) return;
+
+      var total = path.getTotalLength();
+      var fracs  = [1/3, 2/3, 1];
+      var cpLens = fracs.map(function(f){ return f*total; });
+
+      // Position each checkpoint along the path, then reveal it
+      fracs.forEach(function(f,i){
+        var pt = path.getPointAtLength(f*total);
+        var el = document.getElementById('rmCp'+i);
+        if(el){ el.setAttribute('transform','translate('+pt.x+','+pt.y+')'); el.setAttribute('opacity','1'); }
       });
-      window._rmDone = window._rmDone || new Set();
+
+      // Get {x,y,angle} at a given path length
+      function posAt(len){
+        var p0 = path.getPointAtLength(len);
+        var p1 = path.getPointAtLength(Math.min(len+2, total));
+        return { x:p0.x, y:p0.y, a:Math.atan2(p1.y-p0.y, p1.x-p0.x)*180/Math.PI };
+      }
+
+      // Place car at path start and reveal
+      (function(){
+        var pa = posAt(0);
+        car.setAttribute('transform','translate('+pa.x+','+pa.y+') rotate('+pa.a+')');
+        car.setAttribute('opacity','1');
+      })();
+
+      var curLen=0, animating=false, nextCp=0;
+
+      function eio(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+      function animateTo(targetLen, onDone){
+        animating = true;
+        var from=curLen, dur=1400, t0=performance.now();
+        function frame(now){
+          var raw = Math.min(1,(now-t0)/dur);
+          var pa  = posAt(from+(targetLen-from)*eio(raw));
+          car.setAttribute('transform','translate('+pa.x+','+pa.y+') rotate('+pa.a+')');
+          if(raw<1){ requestAnimationFrame(frame); }
+          else{ curLen=targetLen; animating=false; if(onDone) onDone(); }
+        }
+        requestAnimationFrame(frame);
+      }
+
+      // Bind click handlers — only in-order clicks trigger animation
+      for(var i=0;i<3;i++){
+        (function(idx){
+          var cp=document.getElementById('rmCp'+idx);
+          if(!cp) return;
+          cp.addEventListener('click',function(){
+            if(animating||idx!==nextCp) return;
+            nextCp++;
+            animateTo(cpLens[idx],function(){
+              // Mark checkpoint done (green ring + number)
+              var ring=cp.querySelector('.rm-cp-ring'), txt=cp.querySelector('.rm-cp-txt');
+              if(ring){ ring.setAttribute('stroke','#16a34a'); ring.setAttribute('fill','#f0fdf4'); }
+              if(txt)  txt.setAttribute('fill','#16a34a');
+              // Strikethrough label row
+              var lbl=document.getElementById('rmRdLbl'+idx);
+              if(lbl) lbl.classList.add('rm-road-lbl-done');
+              // After final checkpoint, fade car out and leave it hidden
+              if(idx===2){
+                setTimeout(function(){
+                  car.style.transition='opacity 0.5s ease';
+                  car.style.opacity='0';
+                },600);
+              }
+            });
+          });
+        })(i);
+      }
     }
   });
 
-  window.rmToggle = function(i){
-    const step = document.getElementById('rms'+i);
-    if(!step) return;
-    const icon = step.querySelector('.rm-icon');
-    const card = step.querySelector('.rm-card');
-    const done = window._rmDone || (window._rmDone = new Set());
-    const iconNames = ['ti-pencil','ti-message','ti-send','ti-link','ti-calendar'];
-    if(done.has(i)){
-      done.delete(i);
-      icon.innerHTML = `<i class="ti ${iconNames[i]||'ti-arrow-right'}" aria-hidden="true"></i>`;
-      icon.classList.remove('rm-done');
-      card.classList.remove('rm-card-done');
-    } else {
-      done.add(i);
-      icon.innerHTML = `<i class="ti ti-check" aria-hidden="true"></i>`;
-      icon.classList.add('rm-done');
-      card.classList.add('rm-card-done');
-    }
-    const total = parseInt(document.getElementById('rmSteps')?.dataset.total || 3);
-    const pct = Math.round((done.size / total) * 100);
-    const bar = document.getElementById('rmPbar');
-    if(bar) bar.style.width = pct + '%';
-  };
 
   // ---- lazy secondary fetches ----
   async function loadResources(category, boxId, role){
@@ -1083,6 +1229,131 @@
   });
 
   go(0);
+</script>
+
+<!-- ===== AI Coach character (click to open voice panel) ===== -->
+<img id=”hv-char” src=”assets/coach-character.png” alt=”Your AI Coach”>
+
+<div id=”hv”>
+  <div id=”hv-bubble” hidden>
+    <div class=”hv-head”>
+      <div><b>Your AI Coach</b><small id=”hv-sub”>knows your résumé · remembers you</small></div>
+      <button class=”hv-x” id=”hv-close” aria-label=”Close”>✕</button>
+    </div>
+    <canvas id=”hv-orb” width=”600” height=”200”></canvas>
+    <div class=”hv-state” id=”hv-state”>Tap “Talk”, then just speak</div>
+    <div id=”hv-transcript”></div>
+    <div class=”hv-controls”>
+      <button class=”hv-talk” id=”hv-talk”>🎙️ Talk</button>
+      <button class=”hv-stop” id=”hv-stop” disabled>■</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Floating Voice Coach — wrapped in an IIFE so its globals can't collide with the page. */
+(function(){
+  /* Use the same backend + user id as the rest of the app so the coach knows the résumé. */
+  const HV_API = sessionStorage.getItem('hired_api') || 'https://optimum-write-entertainment-agenda.trycloudflare.com';
+  function hvUserId(){ let id=sessionStorage.getItem('hired_uid'); if(!id){ id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)); sessionStorage.setItem('hired_uid',id);} return id; }
+
+  const AGENT_OUT = 24000, MIC_RATE = 16000;
+  const $ = (id) => document.getElementById(id);
+  const setState = (t) => $("hv-state").textContent = t;
+  function addTurn(role, text){ const t=$("hv-transcript"); const d=document.createElement("div");
+    d.className="hv-turn "+(role==="user"?"hv-user":"hv-asst"); d.textContent=text; t.appendChild(d); t.scrollTop=1e9; }
+
+  let ws, audioCtx, micStream, micNode, playHead=0, running=false, micAn, outAn, dispAmp=0, speaking=false;
+
+  /* click the character image to toggle the voice panel */
+  $("hv-char").onclick = () => { $("hv-bubble").hidden = !$("hv-bubble").hidden; };
+  $("hv-close").onclick = () => { stopAgent(); $("hv-bubble").hidden = true; };
+
+  /* ---------- orb visualizer ---------- */
+  const orb = $("hv-orb"), g2 = orb.getContext("2d");
+  function level(an){ if(!an) return 0; an.getByteFrequencyData(an._b); let s=0; for(const v of an._b) s+=v; return (s/an._b.length)/255; }
+  function fbin(an,f){ if(!an) return 0; return (an._b[Math.floor(f*an._b.length)]||0)/255; }
+  function drawOrb(){
+    requestAnimationFrame(drawOrb);
+    const W=orb.width,H=orb.height,cx=W/2,cy=H/2; g2.clearRect(0,0,W,H);
+    const mA=running?level(micAn):0, oA=running?level(outAn):0; speaking=oA>mA+0.01;
+    const t=performance.now()/1000;
+    const target=running?Math.max(mA,oA,0.02):0.05+0.03*Math.sin(t*1.6); dispAmp+=(target-dispAmp)*0.14;
+    const an=speaking?outAn:micAn, c=speaking?[245,181,74]:[91,140,255];
+    const baseR=Math.min(W,H)*0.18, amp=baseR*(0.5+dispAmp*2.2);
+    const halo=g2.createRadialGradient(cx,cy,baseR*0.4,cx,cy,baseR+amp*1.6);
+    halo.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},0.28)`); halo.addColorStop(1,"rgba(0,0,0,0)");
+    g2.fillStyle=halo; g2.fillRect(0,0,W,H);
+    const N=96; g2.beginPath();
+    for(let i=0;i<=N;i++){ const a=(i/N)*Math.PI*2, f=fbin(an,(i%N)/N);
+      const w=Math.sin(a*3+t*1.4)*0.05+Math.sin(a*6-t*1.05)*0.035;
+      const r=baseR+amp*(0.35+f*1.05)+baseR*w, x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      i===0?g2.moveTo(x,y):g2.lineTo(x,y); }
+    g2.closePath();
+    const fill=g2.createRadialGradient(cx,cy-amp*.2,baseR*0.25,cx,cy,baseR+amp);
+    fill.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},0.95)`); fill.addColorStop(0.6,`rgba(${c[0]},${c[1]},${c[2]},0.5)`); fill.addColorStop(1,`rgba(${c[0]},${c[1]},${c[2]},0.06)`);
+    g2.save(); g2.shadowColor=`rgb(${c[0]},${c[1]},${c[2]})`; g2.shadowBlur=45+dispAmp*90; g2.fillStyle=fill; g2.fill(); g2.restore();
+  }
+  drawOrb();
+
+  /* ---------- live agent ---------- */
+  $("hv-talk").onclick = startAgent;
+  $("hv-stop").onclick = stopAgent;
+
+  async function startAgent(){
+    $("hv-talk").disabled=true; setState("connecting…");
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume();   // unlock under the click
+    outAn = audioCtx.createAnalyser(); outAn.fftSize=256; outAn._b=new Uint8Array(outAn.frequencyBinCount); outAn.connect(audioCtx.destination);
+    let cfg;
+    try { cfg = await (await fetch(HV_API+"/voice-agent/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:hvUserId()})})).json(); }
+    catch(e){ setState("connection error"); $("hv-talk").disabled=false; return; }
+    if(!cfg.configured){ setState("voice not enabled on backend"); $("hv-talk").disabled=false; return; }
+    if(cfg.remembered_turns) $("hv-sub").textContent = `remembering ${cfg.remembered_turns} past turns`;
+    try { micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); }
+    catch(e){ setState("microphone blocked"); $("hv-talk").disabled=false; return; }
+
+    ws = new WebSocket(cfg.ws_url, ["bearer", cfg.token]); ws.binaryType="arraybuffer";
+    ws.onclose = () => { if(running) stopAgent(); };
+    ws.onmessage = (ev) => {
+      if(typeof ev.data==="string"){
+        let m; try{ m=JSON.parse(ev.data); }catch{ return; }
+        if(m.type==="Welcome"){
+          ws.send(JSON.stringify(cfg.settings)); startMic(); running=true; $("hv-stop").disabled=false; setState("listening — go ahead");
+          if(cfg.greeting) addTurn("assistant", cfg.greeting);
+          setInterval(()=>{ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:"KeepAlive"})); },5000);
+        } else if(m.type==="ConversationText"){
+          addTurn(m.role, m.content);
+          fetch(HV_API+"/voice-agent/memory",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:hvUserId(),role:m.role,content:m.content})}).catch(()=>{});
+        } else if(m.type==="UserStartedSpeaking"){ playHead=audioCtx.currentTime; setState("listening…"); }
+        else if(m.type==="AgentAudioDone"){ setState("your turn"); }
+      } else { playPCM(ev.data); }
+    };
+  }
+  function startMic(){
+    const src=audioCtx.createMediaStreamSource(micStream);
+    micAn=audioCtx.createAnalyser(); micAn.fftSize=256; micAn._b=new Uint8Array(micAn.frequencyBinCount); src.connect(micAn);
+    micNode=audioCtx.createScriptProcessor(4096,1,1); const ratio=audioCtx.sampleRate/MIC_RATE;
+    src.connect(micNode); micNode.connect(audioCtx.destination);
+    micNode.onaudioprocess=(e)=>{ if(!ws||ws.readyState!==1) return;
+      const inp=e.inputBuffer.getChannelData(0), n=Math.floor(inp.length/ratio), pcm=new Int16Array(n);
+      for(let i=0;i<n;i++){ const s=Math.max(-1,Math.min(1,inp[Math.floor(i*ratio)])); pcm[i]=s<0?s*0x8000:s*0x7fff; }
+      ws.send(pcm.buffer); };
+    playHead=audioCtx.currentTime;
+  }
+  function playPCM(buf){
+    if(!audioCtx) return; if(audioCtx.state==="suspended") audioCtx.resume();
+    const pcm=new Int16Array(buf), f=new Float32Array(pcm.length);
+    for(let i=0;i<pcm.length;i++) f[i]=pcm[i]/0x8000;
+    const ab=audioCtx.createBuffer(1,f.length,AGENT_OUT); ab.copyToChannel(f,0);
+    const node=audioCtx.createBufferSource(); node.buffer=ab; node.connect(outAn);
+    const now=audioCtx.currentTime; if(playHead<now) playHead=now; node.start(playHead); playHead+=ab.duration; setState("coach speaking…");
+  }
+  function stopAgent(){
+    running=false;
+    try{ ws&&ws.close(); }catch{} try{ micNode&&micNode.disconnect(); }catch{} try{ micStream&&micStream.getTracks().forEach(t=>t.stop()); }catch{}
+    $("hv-talk").disabled=false; $("hv-stop").disabled=true; setState("tap “Talk” to continue");
+  }
+})();
 </script>
 </body>
 </html>
