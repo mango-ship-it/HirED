@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 static/audio/*.mp3
+static/*.html   # local demo / reference pages — handy to open, not shipped
 .pytest_cache/
 *.egg-info/
 
